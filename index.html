@@ -700,7 +700,7 @@ function render(){
     ctx.scale(scale, scale);
     ctx.textAlign='center';
     ctx.shadowColor='rgba(255,165,0,0.6)';
-    ctx.shadowBlur=40*alpha;
+    ctx.shadowBlur=16*alpha;
     ctx.globalAlpha=alpha;
 
     // RESULT
@@ -740,3 +740,4 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html> 
+
