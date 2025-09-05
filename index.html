@@ -26,7 +26,10 @@ const ctx = cvs.getContext('2d');
 const rotateMsg = document.getElementById('rotateMsg');
 const startBtn = document.getElementById('startBtn');
 const bgm = document.getElementById('bgm');
-bgm.volume = 0.10;
+  // ★★ リザルト画面の曲名表示用の変数 ★★
+const SONG_TITLE = "ユメ語るよりユメ歌おう";
+
+bgm.volume = 0.08;
 
 // --- 譜面データを直接埋め込む ---
 const notesChart = [
@@ -699,12 +702,27 @@ function render(){
     ctx.shadowColor='rgba(255,165,0,0.6)';
     ctx.shadowBlur=40*alpha;
     ctx.globalAlpha=alpha;
+
+    // RESULT
     ctx.font=`bold ${Math.round(cvs.height*0.10)}px system-ui`;
     ctx.lineWidth=8; ctx.strokeStyle='#000'; ctx.strokeText('RESULT', 0, -90);
     ctx.fillStyle='#ffa500'; ctx.fillText('RESULT', 0, -90);
-    ctx.font=`bold ${Math.round(cvs.height*0.07)}px system-ui`;
-    ctx.lineWidth=10; ctx.strokeText(`SCORE: ${score}`, 0, 0);
+
+    // ★★ 曲名表示: SCOREと同じ大きさ、白文字黒縁取り ★★
+    const scoreFontSize = Math.round(cvs.height*0.07);
+    ctx.font = `bold ${scoreFontSize}px system-ui`;
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = "#000";
+    ctx.strokeText(SONG_TITLE, 0, -30); // RESULTとSCORE:の間、Y位置を調整
+    ctx.fillStyle = "#fff";
+    ctx.fillText(SONG_TITLE, 0, -30);
+
+    // SCORE
+    ctx.font=`bold ${scoreFontSize}px system-ui`;
+    ctx.lineWidth=10; ctx.strokeStyle='#000'; ctx.strokeText(`SCORE: ${score}`, 0, 0);
     ctx.fillStyle='#39ff14'; ctx.fillText(`SCORE: ${score}`, 0, 0);
+
+    // ステータス
     ctx.font=`bold ${Math.round(cvs.height*0.04)}px system-ui`;
     ctx.lineWidth=6; ctx.strokeStyle='#000';
     ctx.strokeText(`特技発動回数: ${skillActivationCount}`, 0, 48);
@@ -712,6 +730,7 @@ function render(){
     ctx.fillStyle='#e5faff';
     ctx.fillText(`特技発動回数: ${skillActivationCount}`, 0, 48);
     ctx.fillText(`SP使用回数: ${spUseCount}`, 0, 80);
+
     ctx.restore();
     return;
   }
@@ -721,6 +740,3 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html> 
-
-
-
