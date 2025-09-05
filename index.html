@@ -1,277 +1,674 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>YumeYume Rhythm Game</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>SPゲージ付きリズムゲーム（特技履歴＋SP抽選＋進捗バー改）</title>
 <style>
-  html, body {
-    margin: 0; padding: 0;
-    width: 100%; height: 100%;
-    background: #0f172a; overflow: hidden;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background:#0f172a; overflow:hidden;
+    display:flex; justify-content:center; align-items:center;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
   }
-  #gameCanvas {
-    display: block; margin: auto;
-    background: #1e293b; border: 2px solid #334155; border-radius: 10px;
-    touch-action: none;
+  #rotateMsg{
+    position:fixed; inset:0; z-index:10;
+    background:#000; color:#fff;
+    display:none; justify-content:center; align-items:center;
+    font-size:2rem;
   }
-  #startBtn {
-    position: absolute; top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    padding: 1em 2em; font-size: 1.4rem;
-    background: #3b82f6; color: #fff; border: none; border-radius: 10px;
-    cursor: pointer; z-index: 10;
+  canvas{
+    background:#1e293b; border:2px solid #334155; border-radius:10px;
+    touch-action:none;
   }
 </style>
 </head>
 <body>
-  <button id="startBtn">ゲームスタート</button>
-  <audio id="bgm" src="YumeYume.mp3" preload="auto"></audio>
-  <canvas id="gameCanvas" width="980" height="640"></canvas>
-
+<div id="rotateMsg">横画面にしてください</div>
+<canvas id="game"></canvas>
+<audio id="bgm" src="YumeYume.mp3" preload="auto" loop></audio>
 <script>
-'use strict';
+const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
+const rotateMsg=document.getElementById('rotateMsg');
 
-const cvs = document.getElementById('gameCanvas');
-const ctx = cvs.getContext('2d');
+// BGM音量調整
 const bgm = document.getElementById('bgm');
-const startBtn = document.getElementById('startBtn');
+let bgmStarted = false;
+bgm.volume = 0.25; // 25%
 
-let gameState = 'waiting';
-let frame = 0;
-let countdown = 3;
-let countdownTimer = 0;
+// ノーツタイミング自動生成
+const TOTAL_NOTES = 99;
+const SONG_LENGTH_SEC = 90;
+let noteTimings = [];
+let noteIndex = 0;
+function generateNoteTimings() {
+  noteTimings = [];
+  for (let i = 0; i < TOTAL_NOTES; i++) {
+    noteTimings.push(i * (SONG_LENGTH_SEC / TOTAL_NOTES));
+  }
+  noteIndex = 0;
+}
 
-const bpm = 159;
-const beatInterval = 60 / bpm;
-let nextBeatTime = 0;
+// ゲーム状態管理
+let R=30;
+let leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0};
+let spRadius=80;
 
-const TARGET_Y = 500;
-const LEFT_X = 330;
-const RIGHT_X = 650;
-const NOTE_R = 20;
-let notes = [];
+const SP_MAX=6000;
+let spValue=0, spFullNotified=false;
+let score=0, combo=0;
+
+let notes=[]; // {side:'left'|'right', t, duration, path}
+let frame=0, noteDuration=45;
+
+let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40;
+let spBoostTimer=0;
+let spCountdownTimer=0;
+let spCountdownValue=0;
+
+let popups=[];   // {text,x,y,timer,duration,type:'label'|'score'|'sp'|'flash'}
+let hitRings=[]; // {x,y,r,alpha}
+let lastInputWasTouch=false;
+
+let gameState = "countdown";
+let countdownValue = 3;
 let totalNotesSpawned = 0;
-const MAX_NOTES = 70;
-
-let score = 0;
-let combo = 0;
-
-const SP_MAX = 6000;
-let spValue = 0;
-let spUseCount = 0;
-
-let skillActivationCount = 0;
-let appealBoostNotes = 0;
+let clearStartFrame = null;
+let resultStartFrame = null;
 
 let skillHistory = [];
-let popups = [];
+let appealBoostNotes = 0;
+let skillActivationCount = 0;
+let spUseCount = 0;
+
 let progressDisplay = 0;
-let gameEnded = false;
 
-function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
-
-function spawnNote(){
-  const x = Math.random() < 0.5 ? LEFT_X : RIGHT_X;
-  const speed = (TARGET_Y + 60) / (60 * 1.2);
-  notes.push({ x, y: -60, speed });
-}
-
-function findBestNote(){
-  let best = null, bestDist = Infinity, bestIdx = -1;
-  for(let i=0;i<notes.length;i++){
-    const n = notes[i];
-    const d = Math.abs(n.y - TARGET_Y);
-    if(d < bestDist){ bestDist = d; best = n; bestIdx = i; }
+// リサイズ
+function resizeCanvas(){
+  const landscape = window.innerWidth >= window.innerHeight;
+  if(!landscape){
+    rotateMsg.style.display='flex';
+    cvs.style.display='none';
+    return;
   }
-  return {best, bestDist, bestIdx};
+  rotateMsg.style.display='none';
+  cvs.style.display='block';
+  cvs.width = window.innerWidth;
+  cvs.height= window.innerHeight;
+
+  const minDim=Math.min(cvs.width, cvs.height);
+  R = Math.max(18, Math.round(minDim*0.04));
+  const laneGap = R*4.5;
+  const targetY = Math.round(cvs.height*0.7);
+  leftTarget  ={x: Math.round(cvs.width/2 - laneGap), y: targetY, r: R};
+  rightTarget ={x: Math.round(cvs.width/2 + laneGap), y: targetY, r: R};
+  spRadius = Math.max(64, Math.round(minDim*0.12));
 }
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
-function addPopup(text, x, y, type='label'){
-  popups.push({text, x, y, life: 60, type});
+// ベジェ
+function cubicBezier(p0,p1,p2,p3,t){
+  const u=1-t;
+  return {x:u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,
+          y:u*u*u*p0.y+3*u*u*t*p1.y+3*u*t*t*p2.y+t*t*t*p3.y};
 }
-
-function pushHistory(text){
-  skillHistory.unshift({text, life: 180});
-  if(skillHistory.length > 5) skillHistory.pop();
+function makePath(side){
+  const target= side==='left'? leftTarget : rightTarget;
+  const startX = side==='left' ? (-R*2-10) : (cvs.width+R*2+10);
+  const start={x:startX, y: target.y - Math.max(180, R*6)};
+  const c1={x: side==='left' ? target.x - Math.max(200,R*6) : target.x + Math.max(200,R*6), y: target.y - Math.max(200,R*6)};
+  const c2={x: side==='left' ? target.x - Math.max(60,R*2)  : target.x + Math.max(60,R*2),  y: target.y - Math.max(40,R*1.3)};
+  const end={x: target.x, y: target.y};
+  return {p0:start,p1:c1,p2:c2,p3:end};
 }
+function spawnNote(side){ notes.push({side,t:0,duration:noteDuration,path:makePath(side)}); }
 
-function judgeAndScore(dist){
-  let label = 'MISS';
-  let base = 0;
+// ポップアップ・演出
+function addPopup(text,x,y,ms,type){
+  const d=Math.max(1,Math.round(ms/16.67));
+  popups.push({text,x,y,timer:d,duration:d,type});
+}
+function triggerSPVisual(){ spFlashTimer=10; spRingTimer=spRingSpeed; }
 
-  if(dist <= 6){ label = 'WONDERFUL'; base = 4000; }
-  else if(dist <= 10){ label = 'GREAT'; base = 3000; }
-  else if(dist <= 14){ label = 'NICE'; base = 2000; }
-  else if(dist <= 18){ label = 'BAD'; base = 1000; }
-
-  if(appealBoostNotes > 0){
-    base = Math.ceil(base * 1.12);
+// 判定
+function calcTapBase(){
+  let baseRaw=Math.floor(Math.random()*(4000-2500+1))+2500;
+  if(appealBoostNotes>0){
+    baseRaw = Math.ceil(baseRaw * 1.12);
     appealBoostNotes--;
   }
+  return baseRaw;
+}
+function calcTapScoreAndLabel(dist, baseRaw){
+  let label='WONDERFUL', mult=1.2;
+  if(dist<=6){label='WONDERFUL';mult=1.2;}
+  else if(dist<=10){label='GREAT';mult=1.1;}
+  else if(dist<=14){label='NICE';mult=1.0;}
+  else if(dist<=18){label='BAD';mult=0.9;}
+  else {return {points:0,label:'MISS',reset:true};}
 
-  if(label === 'MISS'){
-    combo = 0;
-    addPopup('MISS', cvs.width/2, TARGET_Y - 220, 'label');
-    return {hit:false, label, base};
+  let points=Math.floor(baseRaw*mult);
+  if(Math.random()<0.2){ points=Math.floor(points*1.5); label='CRITICAL'; }
+  if(spBoostTimer>0) points=Math.floor(points*1.1);
+  points=Math.min(5000, points);
+  const reset = (label==='NICE' || label==='BAD');
+  return {points,label,reset};
+}
+
+function awardHit(target, points, label, resetCombo, baseRaw){
+  score+=points;
+  if(resetCombo){
+    if(spValue<SP_MAX) spValue=Math.max(0, spValue-300);
+    combo=0;
+  }else combo++;
+  spValue=Math.min(SP_MAX, spValue+200);
+  hitRings.push({x:target.x,y:target.y,r:target.r,alpha:1});
+
+  const midX = (leftTarget.x + rightTarget.x) / 2;
+  const midY = (leftTarget.y + rightTarget.y) / 2 - R*2;
+  addPopup(label, midX, midY - 30, 500, 'label');
+  addPopup(String(points), midX, midY, 500, 'score');
+
+  if(Math.random() < 0.3){
+    skillActivationCount++;
+    const skillType = Math.floor(Math.random()*3);
+    if(skillType===0){
+      score += baseRaw;
+      skillHistory.unshift({text:`[ボルテージ獲得 ${baseRaw}]`, life:180});
+    }else if(skillType===1){
+      spValue = Math.min(SP_MAX, spValue+540);
+      skillHistory.unshift({text:`[SPゲージ獲得 9%]`, life:180});
+    }else{
+      appealBoostNotes = 5;
+      skillHistory.unshift({text:`[アピール増加 12%]`, life:180});
+    }
+    if(skillHistory.length>5) skillHistory.pop();
+  }
+}
+
+function applyMiss(label='MISS'){
+  if(spValue<SP_MAX) spValue=Math.max(0, spValue-300);
+  combo=0;
+  const midX = (leftTarget.x + rightTarget.x) / 2;
+  const midY = (leftTarget.y + rightTarget.y) / 2 - R*2;
+  addPopup(label, midX, midY - 30, 500, 'label');
+}
+
+// SP半円内判定
+function isInSPSemicircle(mx,my){
+  const cx=cvs.width/2, cy=cvs.height-10, r=spRadius;
+  const dx=mx-cx, dy=my-cy, dist=Math.hypot(dx,dy);
+  return (dist<=r) && (my<=cy);
+}
+
+// 全画面タップ判定
+function judgeNotesGlobal(){
+  let bestIdx=-1, bestDist=Infinity, bestTarget=null;
+  for(let i=0;i<notes.length;i++){
+    const n=notes[i];
+    const target=n.side==='left'?leftTarget:rightTarget;
+    const pos=cubicBezier(n.path.p0,n.path.p1,n.path.p2,n.path.p3, Math.min(1,n.t/n.duration));
+    const judgeDist=Math.hypot(pos.x-target.x, pos.y-target.y);
+    if(judgeDist<bestDist){
+      bestDist=judgeDist; bestIdx=i; bestTarget=target;
+    }
+  }
+  if(bestIdx>=0){
+    const baseRaw = calcTapBase();
+    const {points,label,reset}=calcTapScoreAndLabel(bestDist, baseRaw);
+    if(label!=='MISS'){
+      awardHit(bestTarget, points, label, reset, baseRaw);
+      notes.splice(bestIdx,1);
+      return true;
+    }else{
+      return false;
+    }
+  }
+  return false;
+}
+
+// SP発動
+function tryUseSP(mx,my){
+  if(spValue<SP_MAX) return false;
+  if(!isInSPSemicircle(mx,my)) return false;
+
+  spUseCount++;
+  score+=25000;
+  spValue=0;
+
+  spRingSpeed=10; spRingRange=80; triggerSPVisual();
+  spBoostTimer=240;
+  spCountdownTimer=240;
+  spCountdownValue=3;
+  addPopup('25000', cvs.width/2, cvs.height/2, 1000, 'sp');
+  addPopup('', 0, 0, 180, 'flash');
+
+  let successes=0;
+  for(let i=0;i<6;i++){
+    if(Math.random()<0.3){
+      successes++;
+      spValue = Math.min(SP_MAX, spValue + 600);
+      skillHistory.unshift({text:`[SPゲージ獲得]`, life:180});
+      if(skillHistory.length>5) skillHistory.pop();
+    }
   }
 
-  combo++;
-  score += base;
-  addPopup(label, cvs.width/2, TARGET_Y - 220, 'label');
-  addPopup('+' + base, cvs.width/2, TARGET_Y - 190, 'score');
-  return {hit:true, label, base};
+  return true;
 }
 
-function isInSPSemicircle(mx, my){
-  const cx = cvs.width/2, cy = cvs.height-30, r = 70;
-  const dx = mx - cx, dy = my - cy;
-  const d = Math.hypot(dx,dy);
-  return (d <= r) && (my <= cy);
+// BGM開始
+function tryStartBGM() {
+  if (!bgmStarted) {
+    bgm.currentTime = 0;
+    bgm.volume = 0.25;
+    bgm.play().catch(()=>{});
+    bgmStarted = true;
+  }
 }
 
-cvs.addEventListener('click', (e)=>{
-  if(gameState !== 'playing') return;
+// ゲーム開始・リスタート時
+function startGame() {
+  generateNoteTimings();
+  noteIndex = 0;
+  totalNotesSpawned = 0;
+  notes = [];
+  spValue=0; spFullNotified=false;
+  score=0; combo=0;
+  skillHistory = [];
+  appealBoostNotes = 0;
+  skillActivationCount = 0;
+  spUseCount = 0;
+  progressDisplay = 0;
+  spFlashTimer=0; spRingTimer=0; spRingSpeed=20; spRingRange=40;
+  spBoostTimer=0;
+  spCountdownTimer=0;
+  spCountdownValue=0;
+  popups=[]; hitRings=[];
+}
 
-  const rect = cvs.getBoundingClientRect();
-  const mx = (e.clientX - rect.left) * (cvs.width  / rect.width);
-  const my = (e.clientY - rect.top)  * (cvs.height / rect.height);
+// 入力
+function handlePointer(e){
+  tryStartBGM();
+  if(gameState==="countdown"){
+    // カウントダウン中に触れたら演出のみ
+    return;
+  }
+  if(gameState==="clear" || gameState==="result"){
+    // 結果画面でタッチ→リスタート
+    gameState = "countdown";
+    countdownValue = 3;
+    frame = 0;
+    startGame();
+    return;
+  }
+  if(gameState!=="playing") return;
 
-  if(spValue >= SP_MAX && isInSPSemicircle(mx, my)){
-    spUseCount++;
-    score += 25000;
-    spValue = 0;
-    for(let i=0;i<6;i++){
-      if(Math.random() < 0.3){
-        spValue = Math.min(SP_MAX, spValue + 600);
-        pushHistory('[SPゲージ獲得]');
-      }
-    }
+  const isTouch = e.type.startsWith('touch');
+  if(isTouch){ lastInputWasTouch=true; e.preventDefault(); }
+  if(!isTouch && lastInputWasTouch){
+    lastInputWasTouch=false;
     return;
   }
 
-  const {best, bestDist, bestIdx} = findBestNote();
-  if(!best){
-    combo = 0;
+  const rect=cvs.getBoundingClientRect();
+  const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+  const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+  const scaleX = cvs.width  / rect.width;
+  const scaleY = cvs.height / rect.height;
+  const mx=(clientX-rect.left)*scaleX;
+  const my=(clientY-rect.top )*scaleY;
+
+  if(isInSPSemicircle(mx,my)){
+    const used=tryUseSP(mx,my);
+    if(!used) applyMiss('MISS');
     return;
   }
 
-  const result = judgeAndScore(bestDist);
-  if(result.hit){
-    notes.splice(bestIdx, 1);
-    spValue = clamp(spValue + 300, 0, SP_MAX);
-    if(Math.random() < 0.1){
-      skillActivationCount++;
-      appealBoostNotes += 5;
-      pushHistory('[特技発動：アピール強化]');
-    }
-  }
-});
+  if(judgeNotesGlobal()) return;
+  applyMiss('MISS');
+}
+cvs.addEventListener('touchstart',handlePointer,{passive:false});
+cvs.addEventListener('click',handlePointer);
 
+// 更新
 function update(){
   frame++;
 
-  if(gameState === 'countdown'){
-    countdownTimer += 1/60;
-    if(countdownTimer >= 1){
-      countdown--;
-      countdownTimer = 0;
-      if(countdown <= 0){
-        gameState = 'playing';
-        bgm.play();
-        nextBeatTime = bgm.currentTime + beatInterval;
+  // 開幕カウントダウン
+  if(gameState==="countdown"){
+    if(frame % 60 === 0 && countdownValue>0){
+      countdownValue--;
+      if(countdownValue===0){
+        setTimeout(()=>{
+          gameState="playing";
+          frame = 0;
+          startGame();
+        },1000);
       }
     }
   }
 
-  if(gameState === 'playing'){
-    if(bgm.currentTime >= nextBeatTime && totalNotesSpawned < MAX_NOTES){
-      spawnNote();
+  // ノーツ自動生成
+  if (gameState === "playing" && bgmStarted) {
+    const bgmNowSec = bgm.currentTime;
+    while (noteIndex < noteTimings.length && bgmNowSec >= noteTimings[noteIndex]) {
+      spawnNote(Math.random() < 0.5 ? "left" : "right");
       totalNotesSpawned++;
-      nextBeatTime += beatInterval;
-    }
-
-    for(const n of notes){
-      n.y += n.speed;
-    }
-
-    notes = notes.filter(n => n.y < cvs.height + 60);
-
-    if(totalNotesSpawned >= MAX_NOTES && notes.length === 0){
-      gameState = 'result';
-      gameEnded = true;
+      noteIndex++;
     }
   }
 
-  for(const p of popups){
-    p.life--;
-  }
-  popups = popups.filter(p => p.life > 0);
+  // ノーツ進行
+  for(const n of notes) n.t++;
 
-  for(const h of skillHistory){
-    h.life--;
-  }
-  skillHistory = skillHistory.filter(h => h.life > 0);
-
-  draw();
-  requestAnimationFrame(update);
-}
-
-startBtn.addEventListener('click', ()=>{
-  if(gameState === 'waiting'){
-    gameState = 'countdown';
-    startBtn.style.display = 'none';
-    update();
-  }
-});
-
-function draw(){
-  ctx.clearRect(0, 0, cvs.width, cvs.height);
-
-  ctx.fillStyle = '#94a3b8';
-  ctx.beginPath();
-  ctx.arc(cvs.width/2, TARGET_Y, NOTE_R, 0, Math.PI*2);
-  ctx.fill();
-
+  // 期限超過→MISS
+  const keep=[];
   for(const n of notes){
-    ctx.fillStyle = '#f87171';
-    ctx.beginPath();
-    ctx.arc(n.x, n.y, NOTE_R, 0, Math.PI*2);
-    ctx.fill();
+    if(n.t<=n.duration+5) keep.push(n);
+    else applyMiss('MISS');
+  }
+  notes=keep;
+
+  // 全ノーツ終了→CLEAR→2秒後にRESULT
+  if(gameState==="playing" && totalNotesSpawned>=TOTAL_NOTES && notes.length===0){
+    gameState="clear";
+    clearStartFrame=frame;
+  }
+  if(gameState==="clear" && frame-clearStartFrame>120){
+    gameState="result";
+    resultStartFrame=frame;
   }
 
-  for(const p of popups){
-    ctx.font = 'bold 24px sans-serif';
-    ctx.fillStyle = p.type === 'label' ? '#facc15' : '#38bdf8';
-    ctx.fillText(p.text, p.x, p.y);
+  // SP演出・満タン通知
+  if(spValue>=SP_MAX){
+    if(!spFullNotified){ triggerSPVisual(); spFullNotified=true; }
+  }else spFullNotified=false;
+
+  // SPカウントダウン表示更新
+  if(spCountdownTimer>0){
+    spCountdownTimer--;
+    if(spCountdownTimer % 60 === 0){
+      spCountdownValue = Math.max(0, spCountdownValue-1);
+    }
   }
 
-  ctx.fillStyle = '#22c55e';
-  ctx.fillRect(20, cvs.height - 20, cvs.width - 40, 10);
-  const progress = clamp((totalNotesSpawned / MAX_NOTES), 0, 1);
-  ctx.fillStyle = '#4ade80';
-  ctx.fillRect(20, cvs.height - 20, (cvs.width - 40) * progress, 10);
+  // 進捗バー
+  const clearedNotes = totalNotesSpawned - notes.length;
+  const targetProgress = Math.min(1, clearedNotes / TOTAL_NOTES);
+  progressDisplay += (targetProgress - progressDisplay) * 0.2;
 
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 20px sans-serif';
-  ctx.fillText('Score: ' + score, 20, 30);
-  ctx.fillText('Combo: ' + combo, 20, 60);
-  ctx.fillText('SP: ' + spValue + '/' + SP_MAX, 20, 90);
+  // 特技履歴寿命
+  skillHistory.forEach(h=>h.life--);
+  skillHistory = skillHistory.filter(h=>h.life>0);
 
-  ctx.beginPath();
-  ctx.arc(cvs.width/2, cvs.height - 30, 70, 0, Math.PI, true);
-  ctx.strokeStyle = '#3b82f6';
-  ctx.lineWidth = 4;
-  ctx.stroke();
+  // 汎用演出寿命
+  if(spFlashTimer>0) spFlashTimer--;
+  if(spRingTimer>0)  spRingTimer--;
+  if(spBoostTimer>0) spBoostTimer--;
+  hitRings=hitRings.filter(r=>{r.r+=4; r.alpha-=0.06; return r.alpha>0;});
+  popups=popups.filter(p=>{p.timer--; return p.timer>0;});
 
-  let y = 120;
-  for(const h of skillHistory){
-    ctx.fillStyle = '#f472b6';
-    ctx.fillText(h.text, 20, y);
-    y += 30;
+  // BGM終了・フェードアウト
+  if(gameState==="result" && bgmStarted){
+    let fadeOut = setInterval(() => {
+      if (bgm.volume > 0.05) {
+        bgm.volume -= 0.05;
+      } else {
+        bgm.pause();
+        bgm.currentTime = 0;
+        bgmStarted = false;
+        clearInterval(fadeOut);
+        bgm.volume = 0.25;
+      }
+    }, 50);
   }
 }
+
+// ---描画関数は省略せずそのまま元コード---
+
+function strokeRainbowText(text,x,y,font){
+  ctx.textAlign='center'; ctx.font=font;
+  const g=ctx.createLinearGradient(x-100,y,x+100,y);
+  const hue=(frame*4)%360;
+  for(let i=0;i<=6;i++) g.addColorStop(i/6,`hsl(${(hue+i*60)%360},100%,50%)`);
+  ctx.lineWidth=4; ctx.strokeStyle=g; ctx.strokeText(text,x,y);
+  ctx.fillStyle='#fff'; ctx.fillText(text,x,y);
+}
+function strokeColoredText(text,x,y,font,color){
+  ctx.textAlign='center'; ctx.font=font;
+  ctx.lineWidth=4; ctx.strokeStyle=color; ctx.strokeText(text,x,y);
+  ctx.fillStyle='#fff'; ctx.fillText(text,x,y);
+}
+function strokeOrangeWhiteText(text,x,y,font){
+  ctx.textAlign='center'; ctx.font=font;
+  ctx.lineWidth=6; ctx.strokeStyle='#fff'; ctx.strokeText(text,x,y);
+  ctx.fillStyle='#ffa500'; ctx.fillText(text,x,y);
+}
+
+function drawProgressBar(){
+  const barMarginLeft = 20;
+  const barMarginRight = 200;
+  const barWidth = Math.max(140, cvs.width - barMarginLeft - barMarginRight);
+  const barHeight = 12;
+  const x = barMarginLeft;
+  const y = 10;
+
+  ctx.fillStyle = '#4b5563';
+  ctx.fillRect(x, y, barWidth, barHeight);
+
+  ctx.fillStyle = '#00e5ff';
+  ctx.fillRect(x, y, barWidth * progressDisplay, barHeight);
+
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, barWidth, barHeight);
+}
+
+function drawSkillHistory(){
+  const maxItems = 5;
+  const lineH = Math.max(22, Math.round(R*0.9));
+  const padding = 12;
+  const startY = cvs.height - 20 - (maxItems-1)*lineH;
+  const x = 20;
+
+  ctx.textAlign='left';
+  ctx.font=`bold ${lineH}px system-ui`;
+
+  const items = skillHistory.slice(0, maxItems);
+  for(let i=0;i<items.length;i++){
+    const h=items[i];
+    let alpha = 1;
+    if(h.life < 30) alpha = h.life/30;
+    ctx.globalAlpha = alpha;
+
+    const text = h.text;
+    const w = ctx.measureText(text).width;
+    ctx.fillStyle='rgba(0,0,0,0.35)';
+    ctx.fillRect(x-8, startY + i*lineH - (lineH- padding/2), w+16, lineH+padding/2);
+    ctx.fillStyle='#e5faff';
+    ctx.fillText(text, x, startY + i*lineH);
+
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawTargets(){
+  ctx.strokeStyle='#fff'; ctx.lineWidth=3;
+  for(const t of [leftTarget,rightTarget]){
+    ctx.beginPath(); ctx.arc(t.x,t.y,t.r,0,Math.PI*2); ctx.stroke();
+  }
+}
+function drawNotes(){
+  ctx.fillStyle='#3b82f6';
+  for(const n of notes){
+    const pos=cubicBezier(n.path.p0,n.path.p1,n.path.p2,n.path.p3, Math.min(1,n.t/n.duration));
+    ctx.beginPath(); ctx.arc(pos.x,pos.y,R,0,Math.PI*2); ctx.fill();
+  }
+}
+function drawHitRings(){
+  for(const ring of hitRings){
+    ctx.strokeStyle=`rgba(255,255,255,${ring.alpha})`;
+    ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(ring.x,ring.y,ring.r,0,Math.PI*2); ctx.stroke();
+  }
+}
+
+function drawSPGauge(){
+  const cx=cvs.width/2, cy=cvs.height-10, radius=spRadius;
+  const startAngle=Math.PI, endAngle=0;
+  ctx.strokeStyle='#fff'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.arc(cx,cy,radius,startAngle,endAngle,false); ctx.stroke();
+
+  const fillRatio=Math.min(1, spValue/SP_MAX);
+  const fillEnd=startAngle + Math.PI*fillRatio;
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,radius,startAngle,fillEnd,false); ctx.closePath(); ctx.fill();
+
+  const nx=cx+Math.cos(fillEnd)*(radius-10), ny=cy+Math.sin(fillEnd)*(radius-10);
+  ctx.strokeStyle='#fff'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(nx,ny); ctx.stroke();
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(cx,cy,Math.max(3, radius*0.06),0,Math.PI*2); ctx.fill();
+
+  if(spFlashTimer>0){
+    ctx.fillStyle=`rgba(255,255,255,${spFlashTimer/10})`;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,radius,startAngle,endAngle,false); ctx.closePath(); ctx.fill();
+  }
+  if(spRingTimer>0){
+    const rp=1 - spRingTimer/spRingSpeed;
+    const rr=radius + rp*spRingRange;
+    ctx.strokeStyle=`rgba(255,255,255,${1-rp})`;
+    ctx.lineWidth=6; ctx.beginPath(); ctx.arc(cx,cy,rr,startAngle,endAngle,false); ctx.stroke();
+  }
+}
+
+function drawPopups(){
+  for(const p of popups){
+    const a=p.timer/p.duration; ctx.globalAlpha=a;
+    if(p.type==='label'){
+      if(p.text==='CRITICAL'){
+        ctx.fillStyle='#FFD700'; ctx.font=`bold ${Math.max(22,Math.round(R*0.95))}px system-ui`; ctx.textAlign='center';
+        ctx.fillText('★', p.x-80, p.y);
+        ctx.fillText('★', p.x+80, p.y);
+        strokeRainbowText('CRITICAL', p.x, p.y, `bold ${Math.max(22,Math.round(R*0.95))}px system-ui`);
+      }else if(p.text==='WONDERFUL'){
+        strokeRainbowText('WONDERFUL', p.x, p.y, `bold ${Math.max(22,Math.round(R*0.95))}px system-ui`);
+      }else if(p.text==='GREAT'){
+        strokeColoredText('GREAT', p.x, p.y, `bold ${Math.max(22,Math.round(R*0.95))}px system-ui`, '#ff69b4');
+      }else if(p.text==='NICE'){
+        strokeColoredText('NICE', p.x, p.y, `bold ${Math.max(22,Math.round(R*0.95))}px system-ui`, '#ffd700');
+      }else if(p.text==='BAD' || p.text==='MISS'){
+        strokeColoredText(p.text, p.x, p.y, `bold ${Math.max(22,Math.round(R*0.95))}px system-ui`, '#9ca3af');
+      }
+    }else if(p.type==='score'){
+      strokeColoredText(p.text, p.x, p.y, `bold ${Math.max(18,Math.round(R*0.85))}px system-ui`, '#39ff14');
+    }else if(p.type==='sp'){
+      strokeOrangeWhiteText(p.text, p.x, p.y, `bold ${Math.max(30,Math.round(R*1.6))}px system-ui`);
+    }
+    ctx.globalAlpha=1;
+  }
+}
+
+function drawUI(){
+  if(gameState!=="playing") return;
+  const cx=cvs.width - Math.max(40, Math.round(R*1.8));
+  ctx.textAlign='center'; ctx.fillStyle='#fff';
+  ctx.font=`bold ${Math.max(28,Math.round(R*1.4))}px system-ui`; ctx.fillText(`${combo}`, cx, Math.max(30,Math.round(R*1.4)));
+  ctx.font=`bold ${Math.max(12,Math.round(R*0.7))}px system-ui`; ctx.fillText('COMBO', cx, Math.max(48,Math.round(R*2.1)));
+  ctx.textAlign='right'; ctx.font=`bold ${Math.max(16,Math.round(R*0.9))}px system-ui`;
+  ctx.fillText(`Score: ${score}`, cvs.width-12, cvs.height-16);
+}
+
+function drawOverlays(){
+  const f=popups.find(p=>p.type==='flash');
+  if(f){
+    ctx.fillStyle=`rgba(255,255,255,${f.timer/f.duration*0.6})`;
+    ctx.fillRect(0,0,cvs.width,cvs.height);
+  }
+}
+
+function drawSPCountdown(){
+  if(spCountdownTimer<=0) return;
+  if(spCountdownValue===0 && Math.floor(frame/8)%2===0) return;
+
+  const x=cvs.width/2, y=Math.round(cvs.height*0.25);
+  ctx.textAlign='center';
+  ctx.font=`bold ${Math.max(64,Math.round(R*3.2))}px system-ui`;
+  const g=ctx.createLinearGradient(x-100,y,x+100,y);
+  const hue=(frame*4)%360;
+  for(let i=0;i<=6;i++) g.addColorStop(i/6, `hsl(${(hue+i*60)%360},100%,50%)`);
+  ctx.lineWidth=8; ctx.strokeStyle=g; ctx.strokeText(spCountdownValue, x, y);
+  ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.fillText(spCountdownValue, x, y);
+}
+
+function render(){
+  ctx.clearRect(0,0,cvs.width,cvs.height);
+
+  drawTargets();
+  drawNotes();
+  drawHitRings();
+  drawSPGauge();
+  drawPopups();
+  drawUI();
+  drawOverlays();
+
+  drawProgressBar();
+  drawSkillHistory();
+
+  if(gameState==="countdown"){
+    const txt = countdownValue>0 ? countdownValue : 1;
+    ctx.textAlign='center';
+    ctx.font=`bold ${Math.round(cvs.height*0.3)}px system-ui`;
+    ctx.lineWidth=10; ctx.strokeStyle='#000'; ctx.strokeText(txt, cvs.width/2, cvs.height/2);
+    ctx.fillStyle='#fff'; ctx.fillText(txt, cvs.width/2, cvs.height/2);
+    return;
+  }
+
+  drawSPCountdown();
+
+  if(gameState==="clear"){
+    ctx.textAlign='center';
+    ctx.font=`bold ${Math.round(cvs.height*0.18)}px system-ui`;
+    ctx.lineWidth=10; ctx.strokeStyle='#fff'; ctx.strokeText('CLEAR', cvs.width/2, cvs.height/2);
+    ctx.fillStyle='#ffa500'; ctx.fillText('CLEAR', cvs.width/2, cvs.height/2);
+    return;
+  }
+
+  if(gameState==="result"){
+    const t = Math.min(1, (frame - (resultStartFrame||frame)) / 60);
+    const scale = 0.8 + 0.2*Math.sin(t*Math.PI/2);
+    const alpha = 0.5 + 0.5*t;
+    ctx.save();
+    ctx.translate(cvs.width/2, cvs.height/2);
+    ctx.scale(scale, scale);
+    ctx.textAlign='center';
+    ctx.shadowColor='rgba(255,165,0,0.6)';
+    ctx.shadowBlur=40*alpha;
+
+    ctx.globalAlpha=alpha;
+    ctx.font=`bold ${Math.round(cvs.height*0.12)}px system-ui`;
+    ctx.lineWidth=8; ctx.strokeStyle='#000'; ctx.strokeText('RESULT', 0, -120);
+    ctx.fillStyle='#ffa500'; ctx.fillText('RESULT', 0, -120);
+
+    ctx.font=`bold ${Math.round(cvs.height*0.12)}px system-ui`;
+    ctx.lineWidth=10; ctx.strokeStyle='#000'; ctx.strokeText(`SCORE: ${score}`, 0, 0);
+    ctx.fillStyle='#39ff14'; ctx.fillText(`SCORE: ${score}`, 0, 0);
+
+    ctx.font=`bold ${Math.round(cvs.height*0.06)}px system-ui`;
+    ctx.lineWidth=6; ctx.strokeStyle='#000';
+    ctx.strokeText(`特技発動回数: ${skillActivationCount}`, 0, 80);
+    ctx.strokeText(`SP使用回数: ${spUseCount}`, 0, 130);
+    ctx.fillStyle='#e5faff';
+    ctx.fillText(`特技発動回数: ${skillActivationCount}`, 0, 80);
+    ctx.fillText(`SP使用回数: ${spUseCount}`, 0, 130);
+
+    ctx.restore();
+    return;
+  }
+}
+
+function loop(){ update(); render(); requestAnimationFrame(loop); }
+(function start(){ loop(); })();
 </script>
 </body>
 </html>
