@@ -1,384 +1,277 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>YumeYume Rhythm Game</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <style>
-    html, body {
-      margin: 0; padding: 0;
-      width: 100%; height: 100%;
-      background: #0f172a;
-      overflow: hidden;
-      font-family: system-ui, sans-serif;
-    }
-    #gameCanvas {
-      display: block;
-      margin: auto;
-      background: #1e293b;
-      border: 2px solid #334155;
-      border-radius: 10px;
-      touch-action: none;
-    }
-    #startBtn {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      padding: 1em 2em;
-      font-size: 1.5rem;
-      background: #3b82f6;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      z-index: 10;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>YumeYume Rhythm Game</title>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    background: #0f172a; overflow: hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  #gameCanvas {
+    display: block; margin: auto;
+    background: #1e293b; border: 2px solid #334155; border-radius: 10px;
+    touch-action: none;
+  }
+  #startBtn {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 1em 2em; font-size: 1.4rem;
+    background: #3b82f6; color: #fff; border: none; border-radius: 10px;
+    cursor: pointer; z-index: 10;
+  }
+</style>
 </head>
 <body>
   <button id="startBtn">ゲームスタート</button>
   <audio id="bgm" src="YumeYume.mp3" preload="auto"></audio>
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <canvas id="gameCanvas" width="980" height="640"></canvas>
 
-  <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const startBtn = document.getElementById('startBtn');
-    const bgm = document.getElementById('bgm');
+<script>
+'use strict';
 
-    let gameState = 'waiting'; // waiting → countdown → playing
-    let countdown = 3;
-    let countdownTimer = 0;
-    const bpm = 159;
-    const beatInterval = 60 / bpm; // 秒 → 約0.377秒
-    let nextBeatTime = 0;
-    let notes = [];
-    let totalNotesSpawned = 0;
-    const MAX_NOTES = 70;
+const cvs = document.getElementById('gameCanvas');
+const ctx = cvs.getContext('2d');
+const bgm = document.getElementById('bgm');
+const startBtn = document.getElementById('startBtn');
 
-    function spawnNote(){
-      const x = Math.random() < 0.5 ? 200 : 600;
-      notes.push({ x, y: -50, speed: 4 });
-    }
+let gameState = 'waiting';
+let frame = 0;
+let countdown = 3;
+let countdownTimer = 0;
 
-    function update(){
-      if (gameState === 'countdown') {
-        countdownTimer++;
-        if (countdownTimer % 60 === 0) {
-          countdown--;
-          if (countdown === 0) {
-            gameState = 'playing';
-            bgm.currentTime = 0;
-            bgm.play();
-            nextBeatTime = 0;
-          }
-        }
-      }
+const bpm = 159;
+const beatInterval = 60 / bpm;
+let nextBeatTime = 0;
 
-      if (gameState === 'playing') {
-        const now = bgm.currentTime;
-        while (now >= nextBeatTime && totalNotesSpawned < MAX_NOTES) {
-          spawnNote();
-          totalNotesSpawned++;
-          nextBeatTime += beatInterval;
-        }
+const TARGET_Y = 500;
+const LEFT_X = 330;
+const RIGHT_X = 650;
+const NOTE_R = 20;
+let notes = [];
+let totalNotesSpawned = 0;
+const MAX_NOTES = 70;
 
-        notes.forEach(note => note.y += note.speed);
-        notes = notes.filter(note => note.y < canvas.height + 50);
-      }
-    }
+let score = 0;
+let combo = 0;
 
-    function render(){
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // ターゲットライン
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(180, 500, 440, 10);
-
-      // ノーツ
-      ctx.fillStyle = '#3b82f6';
-      notes.forEach(note => {
-        ctx.beginPath();
-        ctx.arc(note.x, note.y, 20, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      // カウントダウン
-      if (gameState === 'countdown') {
-        ctx.font = 'bold 120px system-ui';
-        ctx.textAlign = 'center';
-        ctx.lineWidth = 8;
-        ctx.strokeStyle = '#000';
-        ctx.strokeText(countdown, canvas.width / 2, canvas.height / 2);
-        ctx.fillStyle = '#fff';
-        ctx.fillText(countdown, canvas.width / 2, canvas.height / 2);
-      }
-    }
-
-    function loop(){
-      update();
-      render();
-      requestAnimationFrame(loop);
-    }
-
-    startBtn.onclick = () => {
-      startBtn.style.display = 'none';
-      gameState = 'countdown';
-      countdown = 3;
-      countdownTimer = 0;
-    };
-loop();
-    
-// --- SPゲージ・特技履歴・リザルト用変数 ---
-let spValue = 0;
 const SP_MAX = 6000;
+let spValue = 0;
 let spUseCount = 0;
+
 let skillActivationCount = 0;
-let skillHistory = []; // {text, life}
 let appealBoostNotes = 0;
+
+let skillHistory = [];
+let popups = [];
+let progressDisplay = 0;
 let gameEnded = false;
 
-// --- タップ判定（仮） ---
-canvas.addEventListener('click', () => {
-  if (gameState !== 'playing') return;
+function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
 
-  // 判定成功（仮）→ SPゲージ加算
-  spValue = Math.min(SP_MAX, spValue + 200);
+function spawnNote(){
+  const x = Math.random() < 0.5 ? LEFT_X : RIGHT_X;
+  const speed = (TARGET_Y + 60) / (60 * 1.2);
+  notes.push({ x, y: -60, speed });
+}
 
-  // 特技発動（30%）
-  if (Math.random() < 0.3) {
-    skillActivationCount++;
-    const type = Math.floor(Math.random() * 3);
-    if (type === 0) {
-      const bonus = 3000 + Math.floor(Math.random() * 2000);
-      score += bonus;
-      skillHistory.unshift({ text: `[ボルテージ獲得 ${bonus}]`, life: 180 });
-    } else if (type === 1) {
-      spValue = Math.min(SP_MAX, spValue + 540);
-      skillHistory.unshift({ text: `[SPゲージ獲得 9%]`, life: 180 });
-    } else {
-      appealBoostNotes = 5;
-      skillHistory.unshift({ text: `[アピール増加 12%]`, life: 180 });
-    }
-    if (skillHistory.length > 5) skillHistory.pop();
+function findBestNote(){
+  let best = null, bestDist = Infinity, bestIdx = -1;
+  for(let i=0;i<notes.length;i++){
+    const n = notes[i];
+    const d = Math.abs(n.y - TARGET_Y);
+    if(d < bestDist){ bestDist = d; best = n; bestIdx = i; }
+  }
+  return {best, bestDist, bestIdx};
+}
+
+function addPopup(text, x, y, type='label'){
+  popups.push({text, x, y, life: 60, type});
+}
+
+function pushHistory(text){
+  skillHistory.unshift({text, life: 180});
+  if(skillHistory.length > 5) skillHistory.pop();
+}
+
+function judgeAndScore(dist){
+  let label = 'MISS';
+  let base = 0;
+
+  if(dist <= 6){ label = 'WONDERFUL'; base = 4000; }
+  else if(dist <= 10){ label = 'GREAT'; base = 3000; }
+  else if(dist <= 14){ label = 'NICE'; base = 2000; }
+  else if(dist <= 18){ label = 'BAD'; base = 1000; }
+
+  if(appealBoostNotes > 0){
+    base = Math.ceil(base * 1.12);
+    appealBoostNotes--;
   }
 
-  // SP使用（満タン時）
-  if (spValue >= SP_MAX) {
+  if(label === 'MISS'){
+    combo = 0;
+    addPopup('MISS', cvs.width/2, TARGET_Y - 220, 'label');
+    return {hit:false, label, base};
+  }
+
+  combo++;
+  score += base;
+  addPopup(label, cvs.width/2, TARGET_Y - 220, 'label');
+  addPopup('+' + base, cvs.width/2, TARGET_Y - 190, 'score');
+  return {hit:true, label, base};
+}
+
+function isInSPSemicircle(mx, my){
+  const cx = cvs.width/2, cy = cvs.height-30, r = 70;
+  const dx = mx - cx, dy = my - cy;
+  const d = Math.hypot(dx,dy);
+  return (d <= r) && (my <= cy);
+}
+
+cvs.addEventListener('click', (e)=>{
+  if(gameState !== 'playing') return;
+
+  const rect = cvs.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (cvs.width  / rect.width);
+  const my = (e.clientY - rect.top)  * (cvs.height / rect.height);
+
+  if(spValue >= SP_MAX && isInSPSemicircle(mx, my)){
     spUseCount++;
     score += 25000;
     spValue = 0;
-    // 追加抽選（6回、30%でSP+600）
-    for (let i = 0; i < 6; i++) {
-      if (Math.random() < 0.3) {
+    for(let i=0;i<6;i++){
+      if(Math.random() < 0.3){
         spValue = Math.min(SP_MAX, spValue + 600);
-        skillHistory.unshift({ text: `[SPゲージ獲得]`, life: 180 });
-        if (skillHistory.length > 5) skillHistory.pop();
+        pushHistory('[SPゲージ獲得]');
+      }
+    }
+    return;
+  }
+
+  const {best, bestDist, bestIdx} = findBestNote();
+  if(!best){
+    combo = 0;
+    return;
+  }
+
+  const result = judgeAndScore(bestDist);
+  if(result.hit){
+    notes.splice(bestIdx, 1);
+    spValue = clamp(spValue + 300, 0, SP_MAX);
+    if(Math.random() < 0.1){
+      skillActivationCount++;
+      appealBoostNotes += 5;
+      pushHistory('[特技発動：アピール強化]');
+    }
+  }
+});
+
+function update(){
+  frame++;
+
+  if(gameState === 'countdown'){
+    countdownTimer += 1/60;
+    if(countdownTimer >= 1){
+      countdown--;
+      countdownTimer = 0;
+      if(countdown <= 0){
+        gameState = 'playing';
+        bgm.play();
+        nextBeatTime = bgm.currentTime + beatInterval;
       }
     }
   }
-});
 
-// --- 特技履歴描画 ---
-function drawSkillHistory() {
-  const maxItems = 5;
-  const lineH = 24;
-  const startY = canvas.height - 20 - (maxItems - 1) * lineH;
-  const x = 20;
-  ctx.font = 'bold 18px system-ui';
-  ctx.textAlign = 'left';
+  if(gameState === 'playing'){
+    if(bgm.currentTime >= nextBeatTime && totalNotesSpawned < MAX_NOTES){
+      spawnNote();
+      totalNotesSpawned++;
+      nextBeatTime += beatInterval;
+    }
 
-  for (let i = 0; i < skillHistory.length; i++) {
-    const h = skillHistory[i];
-    if (i >= maxItems) break;
-    const alpha = h.life < 30 ? h.life / 30 : 1;
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = '#e5faff';
-    ctx.fillText(h.text, x, startY + i * lineH);
-    ctx.globalAlpha = 1;
+    for(const n of notes){
+      n.y += n.speed;
+    }
+
+    notes = notes.filter(n => n.y < cvs.height + 60);
+
+    if(totalNotesSpawned >= MAX_NOTES && notes.length === 0){
+      gameState = 'result';
+      gameEnded = true;
+    }
+  }
+
+  for(const p of popups){
+    p.life--;
+  }
+  popups = popups.filter(p => p.life > 0);
+
+  for(const h of skillHistory){
     h.life--;
   }
   skillHistory = skillHistory.filter(h => h.life > 0);
+
+  draw();
+  requestAnimationFrame(update);
 }
 
-// --- リザルト画面描画 ---
-function drawResult() {
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.font = 'bold 48px system-ui';
-  ctx.fillStyle = '#ffa500';
-  ctx.fillText('RESULT', canvas.width / 2, 150);
-  ctx.fillStyle = '#39ff14';
-  ctx.fillText(`SCORE: ${score}`, canvas.width / 2, 230);
-  ctx.fillStyle = '#e5faff';
-  ctx.font = 'bold 24px system-ui';
-  ctx.fillText(`特技発動回数: ${skillActivationCount}`, canvas.width / 2, 280);
-  ctx.fillText(`SP使用回数: ${spUseCount}`, canvas.width / 2, 320);
-  ctx.restore();
-}
-
-// --- update/render に追加 ---
-function update() {
-  // 既存の update 処理...
-
-  if (gameState === 'playing' && totalNotesSpawned >= MAX_NOTES && notes.length === 0 && !gameEnded) {
-    gameEnded = true;
-    setTimeout(() => {
-      gameState = 'result';
-    }, 2000);
+startBtn.addEventListener('click', ()=>{
+  if(gameState === 'waiting'){
+    gameState = 'countdown';
+    startBtn.style.display = 'none';
+    update();
   }
-}
-
-function render() {
-  // 既存の render 処理...
-
-  drawSkillHistory();
-
-  if (gameState === 'result') {
-    drawResult();
-  }
-}
-
-let combo = 0;
-let popups = []; // {text, x, y, life, type}
-
-function addPopup(text, x, y, type = 'label') {
-  popups.push({ text, x, y, life: 60, type });
-}
-
-function drawPopups() {
-  popups.forEach(p => {
-    const alpha = p.life < 20 ? p.life / 20 : 1;
-    ctx.globalAlpha = alpha;
-    ctx.font = p.type === 'score' ? 'bold 20px system-ui' : 'bold 28px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = p.type === 'score' ? '#39ff14' : '#fff';
-    ctx.fillText(p.text, p.x, p.y);
-    ctx.globalAlpha = 1;
-    p.life--;
-  });
-  popups = popups.filter(p => p.life > 0);
-}
-
-function judgeNote(note) {
-  const dist = Math.abs(note.y - 500);
-  let label = 'MISS';
-  let baseScore = 0;
-
-  if (dist <= 6) {
-    label = 'WONDERFUL'; baseScore = 4000;
-  } else if (dist <= 10) {
-    label = 'GREAT'; baseScore = 3000;
-  } else if (dist <= 14) {
-    label = 'NICE'; baseScore = 2000;
-  } else if (dist <= 18) {
-    label = 'BAD'; baseScore = 1000;
-  }
-
-  if (label !== 'MISS') {
-    combo++;
-    score += baseScore;
-    addPopup(label, canvas.width / 2, 200, 'label');
-    addPopup(`+${baseScore}`, canvas.width / 2, 230, 'score');
-    return true;
-  } else {
-    combo = 0;
-    return false;
-  }
-}
-
-canvas.addEventListener('click', () => {
-  if (gameState !== 'playing') return;
-
-  const hit = notes.find(n => Math.abs(n.y - 500) < 20);
-  if (hit) {
-    const success = judgeNote(hit);
-    if (success) {
-      notes = notes.filter(n => n !== hit);
-      spValue = Math.min(SP_MAX, spValue + 200);
-    }
-  } else {
-    combo = 0;
-    spValue = Math.max(0, spValue - 300);
-    addPopup('MISS', canvas.width / 2, 200, 'label');
-  }
-
-  // 特技発動・SP使用（第2部のコードと統合）
-  // ...
 });
 
-function drawCombo() {
-  if (combo > 0) {
-    ctx.font = 'bold 32px system-ui';
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#fff';
-    ctx.fillText(`${combo} COMBO`, canvas.width - 20, 50);
-  }
-}
+function draw(){
+  ctx.clearRect(0, 0, cvs.width, cvs.height);
 
-function drawSPGauge() {
-  const x = canvas.width / 2;
-  const y = canvas.height - 30;
-  const r = 60;
-  const ratio = spValue / SP_MAX;
-
+  ctx.fillStyle = '#94a3b8';
   ctx.beginPath();
-  ctx.arc(x, y, r, Math.PI, Math.PI + Math.PI * ratio, false);
-  ctx.lineTo(x, y);
-  ctx.closePath();
-  ctx.fillStyle = '#00e5ff';
+  ctx.arc(cvs.width/2, TARGET_Y, NOTE_R, 0, Math.PI*2);
   ctx.fill();
 
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 3;
+  for(const n of notes){
+    ctx.fillStyle = '#f87171';
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, NOTE_R, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  for(const p of popups){
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillStyle = p.type === 'label' ? '#facc15' : '#38bdf8';
+    ctx.fillText(p.text, p.x, p.y);
+  }
+
+  ctx.fillStyle = '#22c55e';
+  ctx.fillRect(20, cvs.height - 20, cvs.width - 40, 10);
+  const progress = clamp((totalNotesSpawned / MAX_NOTES), 0, 1);
+  ctx.fillStyle = '#4ade80';
+  ctx.fillRect(20, cvs.height - 20, (cvs.width - 40) * progress, 10);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 20px sans-serif';
+  ctx.fillText('Score: ' + score, 20, 30);
+  ctx.fillText('Combo: ' + combo, 20, 60);
+  ctx.fillText('SP: ' + spValue + '/' + SP_MAX, 20, 90);
+
   ctx.beginPath();
-  ctx.arc(x, y, r, Math.PI, 0, false);
+  ctx.arc(cvs.width/2, cvs.height - 30, 70, 0, Math.PI, true);
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 4;
   ctx.stroke();
 
-  if (spValue >= SP_MAX) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.arc(x, y, r + 10 * Math.sin(frame / 10), Math.PI, 0, false);
-    ctx.stroke();
+  let y = 120;
+  for(const h of skillHistory){
+    ctx.fillStyle = '#f472b6';
+    ctx.fillText(h.text, 20, y);
+    y += 30;
   }
 }
-
-function render() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // ターゲットライン
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(180, 500, 440, 10);
-
-  // ノーツ
-  ctx.fillStyle = '#3b82f6';
-  notes.forEach(note => {
-    ctx.beginPath();
-    ctx.arc(note.x, note.y, 20, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  drawCombo();
-  drawSPGauge();
-  drawPopups();
-  drawSkillHistory();
-
-  if (gameState === 'result') {
-    drawResult();
-  }
-
-  if (gameState === 'countdown') {
-    ctx.font = 'bold 120px system-ui';
-    ctx.textAlign = 'center';
-    ctx.lineWidth = 8;
-    ctx.strokeStyle = '#000';
-    ctx.strokeText(countdown, canvas.width / 2, canvas.height / 2);
-    ctx.fillStyle = '#fff';
-    ctx.fillText(countdown, canvas.width / 2, canvas.height / 2);
-  }
-}
-  </script>
+</script>
 </body>
 </html>
-
