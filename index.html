@@ -127,7 +127,8 @@
       countdown = 3;
       countdownTimer = 0;
     };
-
+loop();
+    
 // --- SPゲージ・特技履歴・リザルト用変数 ---
 let spValue = 0;
 const SP_MAX = 6000;
@@ -377,8 +378,7 @@ function render() {
     ctx.fillText(countdown, canvas.width / 2, canvas.height / 2);
   }
 }
-
-loop();
   </script>
 </body>
 </html>
+
