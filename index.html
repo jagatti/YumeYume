@@ -26,8 +26,6 @@ const ctx = cvs.getContext('2d');
 const rotateMsg = document.getElementById('rotateMsg');
 const startBtn = document.getElementById('startBtn');
 const bgm = document.getElementById('bgm');
-  // ★★ リザルト画面の曲名表示用の変数 ★★
-const SONG_TITLE = "ユメ語るよりユメ歌おう";
 
 bgm.volume = 0.08;
 
@@ -268,6 +266,13 @@ let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=
 let popups=[], hitRings=[], lastInputWasTouch=false;
 let gameState = "init", countdownValue = 3, totalNotesSpawned = 0, clearStartFrame = null, resultStartFrame = null;
 let skillHistory = [], appealBoostNotes = 0, skillActivationCount = 0, spUseCount = 0, progressDisplay = 0;
+let judgeCount = {
+  WONDERFUL: 0,
+  GREAT: 0,
+  NICE: 0,
+  BAD: 0,
+  MISS: 0
+};
 
 // --- レイアウト・ターゲット位置 ---
 function resizeCanvas(){
@@ -295,7 +300,6 @@ function resizeCanvas(){
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-// --- ゲームロジック等は前回のまま（省略可能） ---
 function cubicBezier(p0,p1,p2,p3,t){const u=1-t;return {x:u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,y:u*u*u*p0.y+3*u*u*t*p1.y+3*u*t*t*p2.y+t*t*t*p3.y};}
 function makePath(side){const target= side==='left'? leftTarget : rightTarget;const startX = side==='left' ? (-R*2-10) : (cvs.width+R*2+10);const start={x:startX, y: target.y - Math.max(180, R*6)};const c1={x: side==='left' ? target.x - Math.max(200,R*6) : target.x + Math.max(200,R*6), y: target.y - Math.max(200,R*6)};const c2={x: side==='left' ? target.x - Math.max(60,R*2)  : target.x + Math.max(60,R*2),  y: target.y - Math.max(40,R*1.3)};const end={x: target.x, y: target.y};return {p0:start,p1:c1,p2:c2,p3:end};}
 function spawnNote(side){ notes.push({side,t:0,duration:noteDuration,path:makePath(side)}); }
@@ -326,6 +330,7 @@ function awardHit(target, points, label, resetCombo, baseRaw){
   const midY = (leftTarget.y + rightTarget.y) / 2 - R*2;
   addPopup(label, midX, midY - 30, 500, 'label');
   addPopup(String(points), midX, midY, 500, 'score');
+  if(judgeCount[label] !== undefined) judgeCount[label]++;
   if(Math.random() < 0.3){
     skillActivationCount++;
     const skillType = Math.floor(Math.random()*3);
@@ -348,6 +353,7 @@ function applyMiss(label='MISS'){
   const midX = (leftTarget.x + rightTarget.x) / 2;
   const midY = (leftTarget.y + rightTarget.y) / 2 - R*2;
   addPopup(label, midX, midY - 30, 500, 'label');
+  if(judgeCount[label] !== undefined) judgeCount[label]++;
 }
 function isInSPSemicircle(mx,my){
   const cx=cvs.width/2, cy=cvs.height-10, r=spRadius;
@@ -374,7 +380,6 @@ function judgeNotesGlobal(){
   }
   return false;
 }
-// --- SP使用時の25000の表示時間を1.5秒に修正 ---
 function tryUseSP(mx,my){
   if(spValue<SP_MAX) return false;
   if(!isInSPSemicircle(mx,my)) return false;
@@ -385,7 +390,7 @@ function tryUseSP(mx,my){
   spBoostTimer=240;
   spCountdownTimer=240;
   spCountdownValue=3;
-  addPopup('25000', cvs.width/2, cvs.height/2, 1500, 'sp'); // ← 1.5秒に延長
+  addPopup('25000', cvs.width/2, cvs.height/2, 1500, 'sp'); // 1.5秒
   addPopup('', 0, 0, 180, 'flash');
   for(let i=0;i<6;i++){
     if(Math.random()<0.3){
@@ -438,6 +443,8 @@ startBtn.onclick = function() {
     popups=[]; hitRings=[];
     frame = 0;
     countdownValue = 3;
+    // 判定回数リセット
+    judgeCount = {WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
     gameState = "countdown";
     resizeCanvas();
     startBtn.style.display = "none";
@@ -497,7 +504,7 @@ function update(){
   popups=popups.filter(p=>{p.timer--; return p.timer>0;});
 }
 
-// --- 以降は描画処理など（前回のまま）---
+// --- 以降は描画処理など ---
 function strokeRainbowText(text,x,y,font){
   ctx.textAlign='center'; ctx.font=font;
   const g=ctx.createLinearGradient(x-100,y,x+100,y);
@@ -601,9 +608,7 @@ function drawSPGauge(){
 function drawPopups(){
   for(const p of popups){
     const a=p.timer/p.duration; ctx.globalAlpha=a;
-    // 判定ラベル
     if(p.type==='label'){
-      // ★中央判定テキストを大きく
       let fontSize = Math.max(32, Math.round(R*1.2), Math.round(cvs.height*0.055));
       if(p.text==='CRITICAL'){
         ctx.fillStyle='#FFD700'; ctx.font=`bold ${fontSize}px system-ui`; ctx.textAlign='center';
@@ -619,16 +624,10 @@ function drawPopups(){
       }else if(p.text==='BAD' || p.text==='MISS'){
         strokeColoredText(p.text, p.x, p.y, `bold ${fontSize}px system-ui`, '#9ca3af');
       }
-    }
-    // スコア数字
-    else if(p.type==='score'){
-      // ★中央スコアを大きく
+    }else if(p.type==='score'){
       let fontSize = Math.max(28, Math.round(R*1.0), Math.round(cvs.height*0.045));
       strokeColoredText(p.text, p.x, p.y, `bold ${fontSize}px system-ui`, '#39ff14');
-    }
-    // SP使用時の25000
-    else if(p.type==='sp'){
-      // ★特大で表示
+    }else if(p.type==='sp'){
       let fontSize = Math.max(54, Math.round(R*2.1), Math.round(cvs.height*0.11));
       strokeOrangeWhiteText(p.text, p.x, p.y, `bold ${fontSize}px system-ui`);
     }
@@ -663,6 +662,42 @@ function drawSPCountdown(){
   ctx.lineWidth=8; ctx.strokeStyle=g; ctx.strokeText(spCountdownValue, x, y);
   ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.fillText(spCountdownValue, x, y);
 }
+
+// ★ 判定回数リザルト左下表示
+function drawJudgeCountsResult() {
+  const baseX = 30;
+  const baseY = cvs.height - 28;
+  const lineH = Math.max(14, Math.round(cvs.height * 0.03));
+  const labels = ["WONDERFUL", "GREAT", "NICE", "BAD", "MISS"];
+  ctx.save();
+  ctx.textBaseline = 'top';
+  ctx.font = `bold ${lineH}px system-ui`;
+  // 幅確保
+  let maxLabelWidth = 0, maxCountWidth = 0;
+  for(const l of labels) {
+    const w1 = ctx.measureText(l).width;
+    const w2 = ctx.measureText(judgeCount[l].toString()).width;
+    if(w1>maxLabelWidth) maxLabelWidth = w1;
+    if(w2>maxCountWidth) maxCountWidth = w2;
+  }
+  const gap = 16;
+  for(let i=0;i<labels.length;i++){
+    const l = labels[i];
+    const y = baseY - lineH * (labels.length - i);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = "#fff";
+    ctx.globalAlpha = 0.82;
+    ctx.fillText(l, baseX, y);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = "#ffd700";
+    ctx.globalAlpha = 0.94;
+    ctx.fillText(judgeCount[l], baseX + maxLabelWidth + gap + maxCountWidth, y);
+  }
+  ctx.globalAlpha = 1.0;
+  ctx.restore();
+}
+
 function render(){
   ctx.clearRect(0,0,cvs.width,cvs.height);
   drawTargets();
@@ -699,30 +734,29 @@ function render(){
     ctx.translate(cvs.width/2, cvs.height/2);
     ctx.scale(scale, scale);
     ctx.textAlign='center';
+    // オレンジもやもや小さめ
     ctx.shadowColor='rgba(255,165,0,0.6)';
     ctx.shadowBlur=16*alpha;
     ctx.globalAlpha=alpha;
 
-    // RESULT
     ctx.font=`bold ${Math.round(cvs.height*0.10)}px system-ui`;
     ctx.lineWidth=8; ctx.strokeStyle='#000'; ctx.strokeText('RESULT', 0, -90);
     ctx.fillStyle='#ffa500'; ctx.fillText('RESULT', 0, -90);
 
-    // ★★ 曲名表示: SCOREと同じ大きさ、白文字黒縁取り ★★
+    // 曲名
     const scoreFontSize = Math.round(cvs.height*0.07);
     ctx.font = `bold ${scoreFontSize}px system-ui`;
     ctx.lineWidth = 8;
     ctx.strokeStyle = "#000";
-    ctx.strokeText(SONG_TITLE, 0, -30); // RESULTとSCORE:の間、Y位置を調整
+    ctx.strokeText("ユメ語るよりユメ歌おう", 0, -30);
     ctx.fillStyle = "#fff";
-    ctx.fillText(SONG_TITLE, 0, -30);
+    ctx.fillText("ユメ語るよりユメ歌おう", 0, -30);
 
     // SCORE
     ctx.font=`bold ${scoreFontSize}px system-ui`;
     ctx.lineWidth=10; ctx.strokeStyle='#000'; ctx.strokeText(`SCORE: ${score}`, 0, 0);
     ctx.fillStyle='#39ff14'; ctx.fillText(`SCORE: ${score}`, 0, 0);
 
-    // ステータス
     ctx.font=`bold ${Math.round(cvs.height*0.04)}px system-ui`;
     ctx.lineWidth=6; ctx.strokeStyle='#000';
     ctx.strokeText(`特技発動回数: ${skillActivationCount}`, 0, 48);
@@ -732,6 +766,8 @@ function render(){
     ctx.fillText(`SP使用回数: ${spUseCount}`, 0, 80);
 
     ctx.restore();
+    // 判定回数
+    drawJudgeCountsResult();
     return;
   }
 }
@@ -740,6 +776,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html> 
+
 
 
 
