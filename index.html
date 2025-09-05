@@ -29,7 +29,7 @@ bgm.volume = 0.10;
 let notesChart = [];
 let chartIndex = 0;
 
-fetch('notesChart.json')
+fetch('notesChart_Version4.json')
   .then(res => res.json())
   .then(json => {
     notesChart = json;
@@ -514,3 +514,4 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
