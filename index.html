@@ -17,39 +17,76 @@
     display:none; justify-content:center; align-items:center;
     font-size:2rem;
   }
+  #startBtn {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%,-50%);
+    font-size: 2.2rem;
+    padding: 0.8em 2.2em;
+    background: #39ff14;
+    color: #0f172a;
+    border: none;
+    border-radius: 1em;
+    box-shadow: 0 6px 32px #39ff1440;
+    cursor: pointer;
+    z-index: 100;
+    transition: background 0.2s;
+  }
+  #startBtn:hover { background: #27ac0e; color: #fff; }
   canvas{
     background:#1e293b; border:2px solid #334155; border-radius:10px;
     touch-action:none;
+    display: block;
   }
 </style>
 </head>
 <body>
 <div id="rotateMsg">横画面にしてください</div>
 <canvas id="game"></canvas>
+<button id="startBtn">ゲームスタート</button>
 <audio id="bgm" src="YumeYume.mp3" preload="auto" loop></audio>
 <script>
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const rotateMsg=document.getElementById('rotateMsg');
-
-// BGM音量調整
+const startBtn = document.getElementById('startBtn');
 const bgm = document.getElementById('bgm');
-let bgmStarted = false;
-bgm.volume = 0.25; // 25%
+bgm.volume = 0.10; // 10%
 
-// ノーツタイミング自動生成
-const TOTAL_NOTES = 99;
+// --- ゲーム定数 ---
+const TOTAL_NOTES = 198;
 const SONG_LENGTH_SEC = 90;
+const BPM = 159;
+
+// サビの時間範囲（秒）: 39秒～63秒
+const SABI_START = 39;
+const SABI_END = 63;
+const SABI_RATIO = 2.0; // サビは等間隔の2倍の密度
+
+// --- ノーツ生成 ---
 let noteTimings = [];
 let noteIndex = 0;
 function generateNoteTimings() {
+  // サビ範囲外: baseWeight=1, サビ範囲: baseWeight=SABI_RATIO
+  let totalWeight = 0;
+  for (let t = 0; t < SONG_LENGTH_SEC * 100; t++) {
+    const sec = t/100;
+    totalWeight += (sec >= SABI_START && sec < SABI_END) ? SABI_RATIO : 1;
+  }
   noteTimings = [];
+  let accWeight = 0, targetIdx = 0;
   for (let i = 0; i < TOTAL_NOTES; i++) {
-    noteTimings.push(i * (SONG_LENGTH_SEC / TOTAL_NOTES));
+    const targetWeight = i * totalWeight / TOTAL_NOTES;
+    while (accWeight < targetWeight && targetIdx < SONG_LENGTH_SEC * 100) {
+      const sec = targetIdx/100;
+      accWeight += (sec >= SABI_START && sec < SABI_END) ? SABI_RATIO : 1;
+      targetIdx++;
+    }
+    noteTimings.push(targetIdx / 100);
   }
   noteIndex = 0;
 }
 
-// ゲーム状態管理
+// --- ゲーム状態 ---
 let R=30;
 let leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0};
 let spRadius=80;
@@ -66,11 +103,11 @@ let spBoostTimer=0;
 let spCountdownTimer=0;
 let spCountdownValue=0;
 
-let popups=[];   // {text,x,y,timer,duration,type:'label'|'score'|'sp'|'flash'}
-let hitRings=[]; // {x,y,r,alpha}
+let popups=[];
+let hitRings=[];
 let lastInputWasTouch=false;
 
-let gameState = "countdown";
+let gameState = "init"; // init→countdown→playing→clear→result
 let countdownValue = 3;
 let totalNotesSpawned = 0;
 let clearStartFrame = null;
@@ -83,16 +120,19 @@ let spUseCount = 0;
 
 let progressDisplay = 0;
 
-// リサイズ
+// --- レイアウト ---
 function resizeCanvas(){
   const landscape = window.innerWidth >= window.innerHeight;
   if(!landscape){
     rotateMsg.style.display='flex';
     cvs.style.display='none';
+    startBtn.style.display='none';
     return;
   }
   rotateMsg.style.display='none';
   cvs.style.display='block';
+  if(gameState==="init") startBtn.style.display='block';
+  else startBtn.style.display='none';
   cvs.width = window.innerWidth;
   cvs.height= window.innerHeight;
 
@@ -107,7 +147,7 @@ function resizeCanvas(){
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-// ベジェ
+// --- ベジェ ---
 function cubicBezier(p0,p1,p2,p3,t){
   const u=1-t;
   return {x:u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,
@@ -124,14 +164,14 @@ function makePath(side){
 }
 function spawnNote(side){ notes.push({side,t:0,duration:noteDuration,path:makePath(side)}); }
 
-// ポップアップ・演出
+// --- ポップアップ ---
 function addPopup(text,x,y,ms,type){
   const d=Math.max(1,Math.round(ms/16.67));
   popups.push({text,x,y,timer:d,duration:d,type});
 }
 function triggerSPVisual(){ spFlashTimer=10; spRingTimer=spRingSpeed; }
 
-// 判定
+// --- 判定 ---
 function calcTapBase(){
   let baseRaw=Math.floor(Math.random()*(4000-2500+1))+2500;
   if(appealBoostNotes>0){
@@ -244,64 +284,18 @@ function tryUseSP(mx,my){
   addPopup('25000', cvs.width/2, cvs.height/2, 1000, 'sp');
   addPopup('', 0, 0, 180, 'flash');
 
-  let successes=0;
   for(let i=0;i<6;i++){
     if(Math.random()<0.3){
-      successes++;
       spValue = Math.min(SP_MAX, spValue + 600);
       skillHistory.unshift({text:`[SPゲージ獲得]`, life:180});
       if(skillHistory.length>5) skillHistory.pop();
     }
   }
-
   return true;
 }
 
-// BGM開始
-function tryStartBGM() {
-  if (!bgmStarted) {
-    bgm.currentTime = 0;
-    bgm.volume = 0.25;
-    bgm.play().catch(()=>{});
-    bgmStarted = true;
-  }
-}
-
-// ゲーム開始・リスタート時
-function startGame() {
-  generateNoteTimings();
-  noteIndex = 0;
-  totalNotesSpawned = 0;
-  notes = [];
-  spValue=0; spFullNotified=false;
-  score=0; combo=0;
-  skillHistory = [];
-  appealBoostNotes = 0;
-  skillActivationCount = 0;
-  spUseCount = 0;
-  progressDisplay = 0;
-  spFlashTimer=0; spRingTimer=0; spRingSpeed=20; spRingRange=40;
-  spBoostTimer=0;
-  spCountdownTimer=0;
-  spCountdownValue=0;
-  popups=[]; hitRings=[];
-}
-
-// 入力
+// --- 入力 ---
 function handlePointer(e){
-  tryStartBGM();
-  if(gameState==="countdown"){
-    // カウントダウン中に触れたら演出のみ
-    return;
-  }
-  if(gameState==="clear" || gameState==="result"){
-    // 結果画面でタッチ→リスタート
-    gameState = "countdown";
-    countdownValue = 3;
-    frame = 0;
-    startGame();
-    return;
-  }
   if(gameState!=="playing") return;
 
   const isTouch = e.type.startsWith('touch');
@@ -324,14 +318,40 @@ function handlePointer(e){
     if(!used) applyMiss('MISS');
     return;
   }
-
   if(judgeNotesGlobal()) return;
   applyMiss('MISS');
 }
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
 cvs.addEventListener('click',handlePointer);
 
-// 更新
+// --- 開始ボタン ---
+startBtn.onclick = function() {
+  if(gameState === "init"){
+    // ゲーム初期化
+    generateNoteTimings();
+    noteIndex = 0;
+    totalNotesSpawned = 0;
+    notes = [];
+    spValue=0; spFullNotified=false;
+    score=0; combo=0;
+    skillHistory = [];
+    appealBoostNotes = 0;
+    skillActivationCount = 0;
+    spUseCount = 0;
+    progressDisplay = 0;
+    spFlashTimer=0; spRingTimer=0; spRingSpeed=20; spRingRange=40;
+    spBoostTimer=0;
+    spCountdownTimer=0;
+    spCountdownValue=0;
+    popups=[]; hitRings=[];
+    frame = 0;
+    countdownValue = 3;
+    gameState = "countdown";
+    resizeCanvas();
+  }
+};
+
+// --- 更新 ---
 function update(){
   frame++;
 
@@ -343,14 +363,18 @@ function update(){
         setTimeout(()=>{
           gameState="playing";
           frame = 0;
-          startGame();
+          // BGM開始
+          bgm.currentTime = 0;
+          bgm.volume = 0.10;
+          bgm.play().catch(()=>{});
         },1000);
       }
     }
+    return;
   }
 
   // ノーツ自動生成
-  if (gameState === "playing" && bgmStarted) {
+  if (gameState === "playing" && !bgm.paused) {
     const bgmNowSec = bgm.currentTime;
     while (noteIndex < noteTimings.length && bgmNowSec >= noteTimings[noteIndex]) {
       spawnNote(Math.random() < 0.5 ? "left" : "right");
@@ -374,6 +398,17 @@ function update(){
   if(gameState==="playing" && totalNotesSpawned>=TOTAL_NOTES && notes.length===0){
     gameState="clear";
     clearStartFrame=frame;
+    // BGM停止・フェードアウト
+    let fadeOut = setInterval(() => {
+      if (bgm.volume > 0.02) {
+        bgm.volume -= 0.02;
+      } else {
+        bgm.pause();
+        bgm.currentTime = 0;
+        clearInterval(fadeOut);
+        bgm.volume = 0.10;
+      }
+    }, 50);
   }
   if(gameState==="clear" && frame-clearStartFrame>120){
     gameState="result";
@@ -408,25 +443,9 @@ function update(){
   if(spBoostTimer>0) spBoostTimer--;
   hitRings=hitRings.filter(r=>{r.r+=4; r.alpha-=0.06; return r.alpha>0;});
   popups=popups.filter(p=>{p.timer--; return p.timer>0;});
-
-  // BGM終了・フェードアウト
-  if(gameState==="result" && bgmStarted){
-    let fadeOut = setInterval(() => {
-      if (bgm.volume > 0.05) {
-        bgm.volume -= 0.05;
-      } else {
-        bgm.pause();
-        bgm.currentTime = 0;
-        bgmStarted = false;
-        clearInterval(fadeOut);
-        bgm.volume = 0.25;
-      }
-    }, 50);
-  }
 }
 
-// ---描画関数は省略せずそのまま元コード---
-
+// --- 描画 ---
 function strokeRainbowText(text,x,y,font){
   ctx.textAlign='center'; ctx.font=font;
   const g=ctx.createLinearGradient(x-100,y,x+100,y);
@@ -465,12 +484,14 @@ function drawProgressBar(){
   ctx.strokeRect(x, y, barWidth, barHeight);
 }
 
+// 左下に小さめで特技履歴
 function drawSkillHistory(){
   const maxItems = 5;
-  const lineH = Math.max(22, Math.round(R*0.9));
-  const padding = 12;
-  const startY = cvs.height - 20 - (maxItems-1)*lineH;
-  const x = 20;
+  const lineH = Math.max(16, Math.round(R*0.6));
+  const padding = 6;
+  // 左下から上に向かって
+  const x = 22;
+  const startY = cvs.height - 22 - (maxItems-1)*lineH;
 
   ctx.textAlign='left';
   ctx.font=`bold ${lineH}px system-ui`;
@@ -484,8 +505,8 @@ function drawSkillHistory(){
 
     const text = h.text;
     const w = ctx.measureText(text).width;
-    ctx.fillStyle='rgba(0,0,0,0.35)';
-    ctx.fillRect(x-8, startY + i*lineH - (lineH- padding/2), w+16, lineH+padding/2);
+    ctx.fillStyle='rgba(0,0,0,0.4)';
+    ctx.fillRect(x-2, startY + i*lineH - (lineH-padding/2), w+16, lineH+padding/2);
     ctx.fillStyle='#e5faff';
     ctx.fillText(text, x, startY + i*lineH);
 
@@ -547,23 +568,23 @@ function drawPopups(){
     const a=p.timer/p.duration; ctx.globalAlpha=a;
     if(p.type==='label'){
       if(p.text==='CRITICAL'){
-        ctx.fillStyle='#FFD700'; ctx.font=`bold ${Math.max(22,Math.round(R*0.95))}px system-ui`; ctx.textAlign='center';
-        ctx.fillText('★', p.x-80, p.y);
-        ctx.fillText('★', p.x+80, p.y);
-        strokeRainbowText('CRITICAL', p.x, p.y, `bold ${Math.max(22,Math.round(R*0.95))}px system-ui`);
+        ctx.fillStyle='#FFD700'; ctx.font=`bold ${Math.max(18,Math.round(R*0.7))}px system-ui`; ctx.textAlign='center';
+        ctx.fillText('★', p.x-60, p.y);
+        ctx.fillText('★', p.x+60, p.y);
+        strokeRainbowText('CRITICAL', p.x, p.y, `bold ${Math.max(18,Math.round(R*0.7))}px system-ui`);
       }else if(p.text==='WONDERFUL'){
-        strokeRainbowText('WONDERFUL', p.x, p.y, `bold ${Math.max(22,Math.round(R*0.95))}px system-ui`);
+        strokeRainbowText('WONDERFUL', p.x, p.y, `bold ${Math.max(18,Math.round(R*0.7))}px system-ui`);
       }else if(p.text==='GREAT'){
-        strokeColoredText('GREAT', p.x, p.y, `bold ${Math.max(22,Math.round(R*0.95))}px system-ui`, '#ff69b4');
+        strokeColoredText('GREAT', p.x, p.y, `bold ${Math.max(18,Math.round(R*0.7))}px system-ui`, '#ff69b4');
       }else if(p.text==='NICE'){
-        strokeColoredText('NICE', p.x, p.y, `bold ${Math.max(22,Math.round(R*0.95))}px system-ui`, '#ffd700');
+        strokeColoredText('NICE', p.x, p.y, `bold ${Math.max(18,Math.round(R*0.7))}px system-ui`, '#ffd700');
       }else if(p.text==='BAD' || p.text==='MISS'){
-        strokeColoredText(p.text, p.x, p.y, `bold ${Math.max(22,Math.round(R*0.95))}px system-ui`, '#9ca3af');
+        strokeColoredText(p.text, p.x, p.y, `bold ${Math.max(18,Math.round(R*0.7))}px system-ui`, '#9ca3af');
       }
     }else if(p.type==='score'){
-      strokeColoredText(p.text, p.x, p.y, `bold ${Math.max(18,Math.round(R*0.85))}px system-ui`, '#39ff14');
+      strokeColoredText(p.text, p.x, p.y, `bold ${Math.max(14,Math.round(R*0.5))}px system-ui`, '#39ff14');
     }else if(p.type==='sp'){
-      strokeOrangeWhiteText(p.text, p.x, p.y, `bold ${Math.max(30,Math.round(R*1.6))}px system-ui`);
+      strokeOrangeWhiteText(p.text, p.x, p.y, `bold ${Math.max(22,Math.round(R*1.1))}px system-ui`);
     }
     ctx.globalAlpha=1;
   }
@@ -573,9 +594,9 @@ function drawUI(){
   if(gameState!=="playing") return;
   const cx=cvs.width - Math.max(40, Math.round(R*1.8));
   ctx.textAlign='center'; ctx.fillStyle='#fff';
-  ctx.font=`bold ${Math.max(28,Math.round(R*1.4))}px system-ui`; ctx.fillText(`${combo}`, cx, Math.max(30,Math.round(R*1.4)));
-  ctx.font=`bold ${Math.max(12,Math.round(R*0.7))}px system-ui`; ctx.fillText('COMBO', cx, Math.max(48,Math.round(R*2.1)));
-  ctx.textAlign='right'; ctx.font=`bold ${Math.max(16,Math.round(R*0.9))}px system-ui`;
+  ctx.font=`bold ${Math.max(20,Math.round(R*1.0))}px system-ui`; ctx.fillText(`${combo}`, cx, Math.max(24,Math.round(R*1.0)));
+  ctx.font=`bold ${Math.max(10,Math.round(R*0.5))}px system-ui`; ctx.fillText('COMBO', cx, Math.max(40,Math.round(R*1.6)));
+  ctx.textAlign='right'; ctx.font=`bold ${Math.max(14,Math.round(R*0.7))}px system-ui`;
   ctx.fillText(`Score: ${score}`, cvs.width-12, cvs.height-16);
 }
 
@@ -593,8 +614,8 @@ function drawSPCountdown(){
 
   const x=cvs.width/2, y=Math.round(cvs.height*0.25);
   ctx.textAlign='center';
-  ctx.font=`bold ${Math.max(64,Math.round(R*3.2))}px system-ui`;
-  const g=ctx.createLinearGradient(x-100,y,x+100,y);
+  ctx.font=`bold ${Math.max(48,Math.round(R*2.0))}px system-ui`;
+  const g=ctx.createLinearGradient(x-80,y,x+80,y);
   const hue=(frame*4)%360;
   for(let i=0;i<=6;i++) g.addColorStop(i/6, `hsl(${(hue+i*60)%360},100%,50%)`);
   ctx.lineWidth=8; ctx.strokeStyle=g; ctx.strokeText(spCountdownValue, x, y);
@@ -615,25 +636,26 @@ function render(){
   drawProgressBar();
   drawSkillHistory();
 
+  if(gameState==="init"){
+    // ボタン表示中
+    return;
+  }
   if(gameState==="countdown"){
     const txt = countdownValue>0 ? countdownValue : 1;
     ctx.textAlign='center';
-    ctx.font=`bold ${Math.round(cvs.height*0.3)}px system-ui`;
+    ctx.font=`bold ${Math.round(cvs.height*0.22)}px system-ui`;
     ctx.lineWidth=10; ctx.strokeStyle='#000'; ctx.strokeText(txt, cvs.width/2, cvs.height/2);
     ctx.fillStyle='#fff'; ctx.fillText(txt, cvs.width/2, cvs.height/2);
     return;
   }
-
   drawSPCountdown();
-
   if(gameState==="clear"){
     ctx.textAlign='center';
-    ctx.font=`bold ${Math.round(cvs.height*0.18)}px system-ui`;
+    ctx.font=`bold ${Math.round(cvs.height*0.14)}px system-ui`;
     ctx.lineWidth=10; ctx.strokeStyle='#fff'; ctx.strokeText('CLEAR', cvs.width/2, cvs.height/2);
     ctx.fillStyle='#ffa500'; ctx.fillText('CLEAR', cvs.width/2, cvs.height/2);
     return;
   }
-
   if(gameState==="result"){
     const t = Math.min(1, (frame - (resultStartFrame||frame)) / 60);
     const scale = 0.8 + 0.2*Math.sin(t*Math.PI/2);
@@ -646,21 +668,21 @@ function render(){
     ctx.shadowBlur=40*alpha;
 
     ctx.globalAlpha=alpha;
-    ctx.font=`bold ${Math.round(cvs.height*0.12)}px system-ui`;
-    ctx.lineWidth=8; ctx.strokeStyle='#000'; ctx.strokeText('RESULT', 0, -120);
-    ctx.fillStyle='#ffa500'; ctx.fillText('RESULT', 0, -120);
+    ctx.font=`bold ${Math.round(cvs.height*0.10)}px system-ui`;
+    ctx.lineWidth=8; ctx.strokeStyle='#000'; ctx.strokeText('RESULT', 0, -90);
+    ctx.fillStyle='#ffa500'; ctx.fillText('RESULT', 0, -90);
 
-    ctx.font=`bold ${Math.round(cvs.height*0.12)}px system-ui`;
-    ctx.lineWidth=10; ctx.strokeStyle='#000'; ctx.strokeText(`SCORE: ${score}`, 0, 0);
+    ctx.font=`bold ${Math.round(cvs.height*0.07)}px system-ui`;
+    ctx.lineWidth=10; ctx.strokeText(`SCORE: ${score}`, 0, 0);
     ctx.fillStyle='#39ff14'; ctx.fillText(`SCORE: ${score}`, 0, 0);
 
-    ctx.font=`bold ${Math.round(cvs.height*0.06)}px system-ui`;
+    ctx.font=`bold ${Math.round(cvs.height*0.04)}px system-ui`;
     ctx.lineWidth=6; ctx.strokeStyle='#000';
-    ctx.strokeText(`特技発動回数: ${skillActivationCount}`, 0, 80);
-    ctx.strokeText(`SP使用回数: ${spUseCount}`, 0, 130);
+    ctx.strokeText(`特技発動回数: ${skillActivationCount}`, 0, 48);
+    ctx.strokeText(`SP使用回数: ${spUseCount}`, 0, 80);
     ctx.fillStyle='#e5faff';
-    ctx.fillText(`特技発動回数: ${skillActivationCount}`, 0, 80);
-    ctx.fillText(`SP使用回数: ${spUseCount}`, 0, 130);
+    ctx.fillText(`特技発動回数: ${skillActivationCount}`, 0, 48);
+    ctx.fillText(`SP使用回数: ${spUseCount}`, 0, 80);
 
     ctx.restore();
     return;
