@@ -9,24 +9,7 @@
   #rotateMsg{position:fixed;inset:0;z-index:10;background:#000;color:#fff;display:none;justify-content:center;align-items:center;font-size:2rem;}
   #startBtn{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:2.2rem;padding:0.8em 2.2em;background:#39ff14;color:#0f172a;border:none;border-radius:1em;box-shadow:0 6px 32px #39ff1440;cursor:pointer;z-index:100;}
   #startBtn:hover{background:#27ac0e;color:#fff;}
-  #retryBtn{
-    position:absolute;
-    right:5vw;
-    top:4vw;
-    min-width:64px;
-    font-size:1.1rem;
-    padding:0.4em 1.1em;
-    background:#ffa500;
-    color:#fff;
-    border:none;
-    border-radius:0.7em;
-    box-shadow:0 2px 10px #ffa50040;
-    cursor:pointer;
-    z-index:101;
-    display:none;
-    opacity:0.94;
-    transition:background 0.2s;
-  }
+  #retryBtn{position:absolute;right:5vw;top:4vw;min-width:64px;font-size:1.1rem;padding:0.4em 1.1em;background:#ffa500;color:#fff;border:none;border-radius:0.7em;box-shadow:0 2px 10px #ffa50040;cursor:pointer;z-index:101;display:none;opacity:0.94;transition:background 0.2s;}
   #retryBtn:hover{ background:#ff8000; }
   canvas{background:#1e293b;border:2px solid #334155;border-radius:10px;touch-action:none;display:block;}
 </style>
@@ -294,7 +277,10 @@ let judgeCount = {
   BAD: 0,
   MISS: 0
 };
-
+  
+// --- SPスコアバフ用 ---
+let spScoreBuffNotes = 0; // 残りバフノーツ数
+  
 // --- コンボボーナス倍率計算 ---
 function getComboBonus(combo) {
   if (combo >= 71) return 1.04;
@@ -362,12 +348,20 @@ function calcTapScoreAndLabel(dist, baseRaw){
   return {points,label,reset};
 }
 
-// --- スコア加算処理（コンボボーナスも反映） ---
+// --- スコア加算処理（コンボボーナスも反映, SPバフ適用） ---
 function awardHit(target, points, label, resetCombo, baseRaw){
-
   // コンボボーナスを乗せる
-  const comboBonus = getComboBonus(combo+1); // 先に+1してから乗せる（今回のタップも含む）
-  const pointsWithCombo = Math.floor(points * comboBonus);
+  const comboBonus = getComboBonus(combo+1);
+  let pointsWithCombo = Math.floor(points * comboBonus);
+
+  // ★SP発動バフが有効ならスコア1.1倍
+  if (spScoreBuffNotes > 0) {
+    pointsWithCombo = Math.floor(pointsWithCombo * 1.1);
+    spScoreBuffNotes--;
+  }
+  // 上限適用
+  if(pointsWithCombo > 50000) pointsWithCombo = 50000;
+
   score += pointsWithCombo;
   if(resetCombo){if(spValue<SP_MAX) spValue=Math.max(0, spValue-300);combo=0;}
   else combo++;
@@ -394,6 +388,7 @@ function awardHit(target, points, label, resetCombo, baseRaw){
     if(skillHistory.length>5) skillHistory.pop();
   }
 }
+  
 function applyMiss(label='MISS'){
   if(spValue<SP_MAX) spValue=Math.max(0, spValue-300);
   combo=0;
@@ -429,10 +424,11 @@ function judgeNotesGlobal(){
 }
 
 // --- SPゲージ使用時のスコア計算 ---
+// 50%で15ノーツのスコア1.1倍バフを付与
 function tryUseSP(mx,my){
   if(spValue<SP_MAX) return false;
   if(!isInSPSemicircle(mx,my)) return false;
-  
+
   spUseCount++;
   // SP基本スコア・倍率
   let spBase = 180000;
@@ -454,7 +450,7 @@ function tryUseSP(mx,my){
   spBoostTimer = 240;
   spCountdownTimer = 240;
   spCountdownValue = 3;
-  addPopup(String(spScore), cvs.width/2, cvs.height/2, 1800, 'sp'); // 1.8秒
+  addPopup(String(spScore), cvs.width/2, cvs.height/2, 1800, 'sp');
   addPopup('', 0, 0, 180, 'flash');
   for(let i=0;i<6;i++){
     if(Math.random()<0.5){
@@ -463,8 +459,15 @@ function tryUseSP(mx,my){
       if(skillHistory.length>5) skillHistory.pop();
     }
   }
+  // ★ここで50%で15ノーツバフ効果
+  if(Math.random() < 0.5){
+    spScoreBuffNotes = 15;
+    skillHistory.unshift({text: "[アピール増加 10%]", life:180});
+    if(skillHistory.length>5) skillHistory.pop();
+  }
   return true;
 }
+  
 function handlePointer(e){
   if(gameState!=="playing") return;
   const isTouch = e.type.startsWith('touch');
@@ -849,6 +852,3 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
-
-
-
