@@ -778,7 +778,7 @@ function render(){
     ctx.textAlign='center';
     // オレンジもやもや小さめ
     ctx.shadowColor='rgba(255,165,0,0.6)';
-    ctx.shadowBlur=14*alpha;
+    ctx.shadowBlur=12*alpha;
     ctx.globalAlpha=alpha;
 
     ctx.font=`bold ${Math.round(cvs.height*0.10)}px system-ui`;
@@ -818,6 +818,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html> 
+
 
 
 
