@@ -27,7 +27,7 @@ const rotateMsg = document.getElementById('rotateMsg');
 const startBtn = document.getElementById('startBtn');
 const bgm = document.getElementById('bgm');
 
-bgm.volume = 0.01;
+bgm.volume = 0.005;
 
 // --- 譜面データを直接埋め込む ---
 const notesChart = [
@@ -347,7 +347,6 @@ function awardHit(target, points, label, resetCombo, baseRaw){
   // コンボボーナスを乗せる
   const comboBonus = getComboBonus(combo+1); // 先に+1してから乗せる（今回のタップも含む）
   const pointsWithCombo = Math.floor(points * comboBonus);
-  pointsWithCombo=Math.min(50000, pointsWithCombo);
   score += pointsWithCombo;
   if(resetCombo){if(spValue<SP_MAX) spValue=Math.max(0, spValue-300);combo=0;}
   else combo++;
@@ -820,6 +819,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html> 
+
 
 
 
