@@ -776,10 +776,11 @@ function render(){
     ctx.translate(cvs.width/2, cvs.height/2);
     ctx.scale(scale, scale);
     ctx.textAlign='center';
+    
     // オレンジもやもや小さめ
-    ctx.shadowColor='rgba(255,165,0,0.6)';
-    ctx.shadowBlur=12*alpha;
-    ctx.globalAlpha=alpha;
+    //ctx.shadowColor='rgba(255,165,0,0.6)';
+    //ctx.shadowBlur=12*alpha;
+    //ctx.globalAlpha=alpha;
 
     ctx.font=`bold ${Math.round(cvs.height*0.10)}px system-ui`;
     ctx.lineWidth=8; ctx.strokeStyle='#000'; ctx.strokeText('RESULT', 0, -90);
@@ -818,6 +819,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html> 
+
 
 
 
