@@ -267,6 +267,7 @@ let popups=[], hitRings=[], lastInputWasTouch=false;
 let gameState = "init", countdownValue = 3, totalNotesSpawned = 0, clearStartFrame = null, resultStartFrame = null;
 let skillHistory = [], appealBoostNotes = 0, skillActivationCount = 0, spUseCount = 0, progressDisplay = 0;
 let judgeCount = {
+  CRITICAL: 0,
   WONDERFUL: 0,
   GREAT: 0,
   NICE: 0,
@@ -709,7 +710,7 @@ function drawJudgeCountsResult() {
   const baseX = 30;
   const baseY = cvs.height - 28;
   const lineH = Math.max(14, Math.round(cvs.height * 0.03));
-  const labels = ["WONDERFUL", "GREAT", "NICE", "BAD", "MISS"];
+  const labels = ["CRITICAL", "WONDERFUL", "GREAT", "NICE", "BAD", "MISS"];
   ctx.save();
   ctx.textBaseline = 'top';
   ctx.font = `bold ${lineH}px system-ui`;
@@ -817,5 +818,6 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html> 
+
 
 
