@@ -1,0 +1,13 @@
+#bgVideo {
+  position: fixed;
+  left: 0; top: 0;
+  width: 100vw; height: 100vh;
+  object-fit: cover;
+  z-index: 0;
+  filter: brightness(0.3);
+  pointer-events: none;
+}
+canvas, #startBtn, #rotateMsg {
+  position: relative;
+  z-index: 1;
+}
