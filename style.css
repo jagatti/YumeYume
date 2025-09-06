@@ -1,14 +1,9 @@
-#bgVideo {
+.bg {
   position: fixed;
   left: 0; top: 0;
   width: 100vw; height: 100vh;
-  object-fit: cover;
-  z-index: 0;
+  background: url('bg.jpg') center/cover no-repeat;
   filter: brightness(0.3);
-  pointer-events: none; /* ← 必ず入れる（これで動画はマウス操作を通す） */
-}
-#startBtn {
-  position: absolute;
-  z-index: 2; /* 2以上で動画の上に */
-  /* ...他のスタイル */
+  z-index: 0;
+  pointer-events: none;
 }
