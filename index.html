@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>自作譜面リズムゲーム</title>
+<title>自作リズムゲーム</title>
 <style>
   html,body{margin:0;padding:0;width:100%;height:100%;background:#0f172a;overflow:hidden;display:flex;justify-content:center;align-items:center;font-family:system-ui;}
   #rotateMsg{position:fixed;inset:0;z-index:10;background:#000;color:#fff;display:none;justify-content:center;align-items:center;font-size:2rem;}
@@ -27,7 +27,7 @@ const rotateMsg = document.getElementById('rotateMsg');
 const startBtn = document.getElementById('startBtn');
 const bgm = document.getElementById('bgm');
 
-bgm.volume = 0.05;
+bgm.volume = 0.03;
 
 // --- 譜面データを直接埋め込む ---
 const notesChart = [
@@ -334,7 +334,7 @@ function calcTapScoreAndLabel(dist, baseRaw){
   else if(dist<=18){label='BAD';mult=0.9;}
   else {return {points:0,label:'MISS',reset:true};}
   let points=Math.floor(baseRaw*mult);
-  if(Math.random()<0.2){ points=Math.floor(points*1.5); label='CRITICAL'; }
+  if(Math.random()<0.3){ points=Math.floor(points*1.5); label='CRITICAL'; }
   if(spBoostTimer>0) points=Math.floor(points*1.1);
   points=Math.min(50000, points);
   const reset = (label==='NICE' || label==='BAD');
@@ -431,10 +431,10 @@ function tryUseSP(mx,my){
   spBoostTimer = 240;
   spCountdownTimer = 240;
   spCountdownValue = 3;
-  addPopup(String(spScore), cvs.width/2, cvs.height/2, 1500, 'sp'); // 1.5秒
+  addPopup(String(spScore), cvs.width/2, cvs.height/2, 1800, 'sp'); // 1.8秒
   addPopup('', 0, 0, 180, 'flash');
   for(let i=0;i<6;i++){
-    if(Math.random()<0.3){
+    if(Math.random()<0.5){
       spValue = Math.min(SP_MAX, spValue + 600);
       skillHistory.unshift({text:`[SPゲージ獲得]`, life:180});
       if(skillHistory.length>5) skillHistory.pop();
@@ -817,4 +817,5 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html> 
+
 
