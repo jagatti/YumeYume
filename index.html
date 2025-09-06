@@ -19,7 +19,7 @@
 <audio id="bgm" src="YumeYume5.mp3" preload="auto" loop></audio>
 <script>
 // --- SEプール方式ここから ---
-const SP_SE_VOLUME = 0.5;  // ★SP音の音量(0.0～1.0)
+const SP_SE_VOLUME = 1.0;  // ★SP音の音量(0.0～1.0)
 
 const spSEPool  = Array.from({length:4}, ()=>{
   const se = new Audio('sp.mp3');
@@ -840,6 +840,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html> 
+
 
 
 
