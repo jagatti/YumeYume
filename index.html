@@ -18,25 +18,6 @@
 <button id="startBtn">S.T.A.R.T!!</button>
 <audio id="bgm" src="YumeYume5.mp3" preload="auto" loop></audio>
 <script>
-// --- SEプール方式ここから ---
-const SP_SE_VOLUME = 1.0;  // ★SP音の音量(0.0～1.0)
-
-const spSEPool  = Array.from({length:4}, ()=>{
-  const se = new Audio('sp.mp3');
-  se.volume = SP_SE_VOLUME;
-  return se;
-});
-let spSEIndex = 0;
-
-function playSPSE() {
-  const se = spSEPool[spSEIndex];
-  try {
-    se.currentTime = 0;
-    se.play();
-  } catch(e) {}
-  spSEIndex = (spSEIndex + 1) % spSEPool.length;
-}
-// --- SEプール方式ここまで ---
 
 // ------------------------------------
 // 必ずcvs/ctxなどの変数定義を最初に！
@@ -431,7 +412,7 @@ function judgeNotesGlobal(){
 function tryUseSP(mx,my){
   if(spValue<SP_MAX) return false;
   if(!isInSPSemicircle(mx,my)) return false;
-  playSPSE(); // ←ここでSP発動SE再生
+  
   spUseCount++;
   // SP基本スコア・倍率
   let spBase = 180000;
@@ -797,11 +778,6 @@ function render(){
     ctx.translate(cvs.width/2, cvs.height/2);
     ctx.scale(scale, scale);
     ctx.textAlign='center';
-    
-    // オレンジもやもや小さめ
-    //ctx.shadowColor='rgba(255,165,0,0.6)';
-    //ctx.shadowBlur=12*alpha;
-    //ctx.globalAlpha=alpha;
 
     ctx.font=`bold ${Math.round(cvs.height*0.10)}px system-ui`;
     ctx.lineWidth=8; ctx.strokeStyle='#000'; ctx.strokeText('RESULT', 0, -90);
@@ -840,17 +816,6 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html> 
-
-
-
-
-
-
-
-
-
-
-
 
 
 
