@@ -486,7 +486,7 @@ startBtn.onclick = function() {
     frame = 0;
     countdownValue = 3;
     // 判定回数リセット
-    judgeCount = {WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
+    judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
     gameState = "countdown";
     resizeCanvas();
     startBtn.style.display = "none";
@@ -651,7 +651,7 @@ function drawPopups(){
   for(const p of popups){
     const a=p.timer/p.duration; ctx.globalAlpha=a;
     if(p.type==='label'){
-      let fontSize = Math.max(32, Math.round(R*1.2), Math.round(cvs.height*0.055));
+      let fontSize = Math.max(28, Math.round(R*1.2), Math.round(cvs.height*0.055));
       if(p.text==='CRITICAL'){
         ctx.fillStyle='#FFD700'; ctx.font=`bold ${fontSize}px system-ui`; ctx.textAlign='center';
         ctx.fillText('★', p.x-fontSize*2, p.y);
@@ -667,7 +667,7 @@ function drawPopups(){
         strokeColoredText(p.text, p.x, p.y, `bold ${fontSize}px system-ui`, '#9ca3af');
       }
     }else if(p.type==='score'){
-      let fontSize = Math.max(28, Math.round(R*1.0), Math.round(cvs.height*0.045));
+      let fontSize = Math.max(26, Math.round(R*1.0), Math.round(cvs.height*0.045));
       strokeColoredText(p.text, p.x, p.y, `bold ${fontSize}px system-ui`, '#39ff14');
     }else if(p.type==='sp'){
       let fontSize = Math.max(54, Math.round(R*2.1), Math.round(cvs.height*0.11));
@@ -682,7 +682,7 @@ function drawUI(){
   ctx.textAlign='center'; ctx.fillStyle='#fff';
   ctx.font=`bold ${Math.max(20,Math.round(R*1.0))}px system-ui`; ctx.fillText(`${combo}`, cx, Math.max(24,Math.round(R*1.0)));
   ctx.font=`bold ${Math.max(10,Math.round(R*0.5))}px system-ui`; ctx.fillText('COMBO', cx, Math.max(40,Math.round(R*1.6)));
-  ctx.textAlign='right'; ctx.font=`bold ${Math.max(14,Math.round(R*0.7))}px system-ui`;
+  ctx.textAlign='right'; ctx.font=`bold ${Math.max(16,Math.round(R*0.7))}px system-ui`;
   ctx.fillText(`Score: ${score}`, cvs.width-12, cvs.height-16);
 }
 function drawOverlays(){
@@ -778,7 +778,7 @@ function render(){
     ctx.textAlign='center';
     // オレンジもやもや小さめ
     ctx.shadowColor='rgba(255,165,0,0.6)';
-    ctx.shadowBlur=16*alpha;
+    ctx.shadowBlur=14*alpha;
     ctx.globalAlpha=alpha;
 
     ctx.font=`bold ${Math.round(cvs.height*0.10)}px system-ui`;
@@ -818,6 +818,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html> 
+
 
 
 
