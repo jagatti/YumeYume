@@ -16,7 +16,7 @@
 <div id="rotateMsg">横画面にしてください</div>
 <canvas id="game"></canvas>
 <button id="startBtn">S.T.A.R.T!!</button>
-<audio id="bgm" src="YumeYume.mp3" preload="auto" loop></audio>
+<audio id="bgm" src="YumeYume2.mp3" preload="auto" loop></audio>
 <script>
 // ------------------------------------
 // 必ずcvs/ctxなどの変数定義を最初に！
@@ -274,6 +274,31 @@ let judgeCount = {
   MISS: 0
 };
 
+// --- ゲーム進行・内部変数 ---
+let chartIndex = 0;
+let R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
+let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=55;
+let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=0, spCountdownTimer=0, spCountdownValue=0;
+let popups=[], hitRings=[], lastInputWasTouch=false;
+let gameState = "init", countdownValue = 3, totalNotesSpawned = 0, clearStartFrame = null, resultStartFrame = null;
+let skillHistory = [], appealBoostNotes = 0, skillActivationCount = 0, spUseCount = 0, progressDisplay = 0;
+let judgeCount = {
+  WONDERFUL: 0,
+  GREAT: 0,
+  NICE: 0,
+  BAD: 0,
+  MISS: 0
+};
+
+// --- コンボボーナス倍率計算 ---
+function getComboBonus(combo) {
+  if (combo >= 71) return 1.04;
+  if (combo >= 51) return 1.03;
+  if (combo >= 31) return 1.02;
+  if (combo >= 11) return 1.01;
+  return 1.0;
+}
+
 // --- レイアウト・ターゲット位置 ---
 function resizeCanvas(){
   const landscape = window.innerWidth >= window.innerHeight;
@@ -305,7 +330,18 @@ function makePath(side){const target= side==='left'? leftTarget : rightTarget;co
 function spawnNote(side){ notes.push({side,t:0,duration:noteDuration,path:makePath(side)}); }
 function addPopup(text,x,y,ms,type){const d=Math.max(1,Math.round(ms/16.67));popups.push({text,x,y,timer:d,duration:d,type});}
 function triggerSPVisual(){ spFlashTimer=10; spRingTimer=spRingSpeed; }
-function calcTapBase(){let baseRaw=Math.floor(Math.random()*(4000-2500+1))+2500;if(appealBoostNotes>0){baseRaw = Math.ceil(baseRaw * 1.12);appealBoostNotes--;}return baseRaw;}
+
+// --- 基本スコアの計算を一律30000・上限50000に ---
+function calcTapBase(){
+  let baseRaw = 30000; // 1タップごとに一律
+  if (appealBoostNotes > 0) {
+    baseRaw = Math.ceil(baseRaw * 1.12);
+    appealBoostNotes--;
+  }
+  return Math.min(50000, baseRaw);
+}
+
+// --- 判定ごとのスコア補正 ---
 function calcTapScoreAndLabel(dist, baseRaw){
   let label='WONDERFUL', mult=1.2;
   if(dist<=6){label='WONDERFUL';mult=1.2;}
@@ -316,12 +352,18 @@ function calcTapScoreAndLabel(dist, baseRaw){
   let points=Math.floor(baseRaw*mult);
   if(Math.random()<0.2){ points=Math.floor(points*1.5); label='CRITICAL'; }
   if(spBoostTimer>0) points=Math.floor(points*1.1);
-  points=Math.min(5000, points);
+  points=Math.min(50000, points);
   const reset = (label==='NICE' || label==='BAD');
   return {points,label,reset};
 }
+
+// --- スコア加算処理（コンボボーナスも反映） ---
 function awardHit(target, points, label, resetCombo, baseRaw){
-  score+=points;
+  // コンボボーナスを乗せる
+  const comboBonus = getComboBonus(combo+1); // 先に+1してから乗せる（今回のタップも含む）
+  const pointsWithCombo = Math.floor(points * comboBonus);
+
+  score += pointsWithCombo;
   if(resetCombo){if(spValue<SP_MAX) spValue=Math.max(0, spValue-300);combo=0;}
   else combo++;
   spValue=Math.min(SP_MAX, spValue+200);
@@ -329,7 +371,7 @@ function awardHit(target, points, label, resetCombo, baseRaw){
   const midX = (leftTarget.x + rightTarget.x) / 2;
   const midY = (leftTarget.y + rightTarget.y) / 2 - R*2;
   addPopup(label, midX, midY - 30, 500, 'label');
-  addPopup(String(points), midX, midY, 500, 'score');
+  addPopup(String(pointsWithCombo), midX, midY, 500, 'score');
   if(judgeCount[label] !== undefined) judgeCount[label]++;
   if(Math.random() < 0.3){
     skillActivationCount++;
@@ -380,17 +422,33 @@ function judgeNotesGlobal(){
   }
   return false;
 }
+
+// --- SPゲージ使用時のスコア計算 ---
 function tryUseSP(mx,my){
   if(spValue<SP_MAX) return false;
   if(!isInSPSemicircle(mx,my)) return false;
   spUseCount++;
-  score+=25000;
-  spValue=0;
-  spRingSpeed=10; spRingRange=80; triggerSPVisual();
-  spBoostTimer=240;
-  spCountdownTimer=240;
-  spCountdownValue=3;
-  addPopup('25000', cvs.width/2, cvs.height/2, 1500, 'sp'); // 1.5秒
+  // SP基本スコア・倍率
+  let spBase = 180000;
+  if (appealBoostNotes > 0) {
+    spBase = Math.ceil(spBase * 1.12);
+    appealBoostNotes--;
+  }
+  // 上限
+  spBase = Math.min(250000, spBase);
+  // コンボボーナス
+  const comboBonus = getComboBonus(combo);
+  // その他バフ
+  let spScore = spBase;
+  if(spBoostTimer>0) spScore = Math.floor(spScore * 1.1);
+  spScore = Math.floor(spScore * comboBonus);
+  score += spScore;
+  spValue = 0;
+  spRingSpeed = 10; spRingRange = 80; triggerSPVisual();
+  spBoostTimer = 240;
+  spCountdownTimer = 240;
+  spCountdownValue = 3;
+  addPopup(String(spScore), cvs.width/2, cvs.height/2, 1500, 'sp'); // 1.5秒
   addPopup('', 0, 0, 180, 'flash');
   for(let i=0;i<6;i++){
     if(Math.random()<0.3){
@@ -776,3 +834,4 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html> 
+
