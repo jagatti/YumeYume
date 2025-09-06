@@ -17,6 +17,9 @@
 <canvas id="game"></canvas>
 <button id="startBtn">S.T.A.R.T!!</button>
 <audio id="bgm" src="YumeYume5.mp3" preload="auto" loop></audio>
+  <!-- 効果音ファイルを追加 -->
+<audio id="seTap" src="tap.mp3" preload="auto"></audio>
+<audio id="seSP" src="sp.mp3" preload="auto"></audio>
 <script>
 // ------------------------------------
 // 必ずcvs/ctxなどの変数定義を最初に！
@@ -26,8 +29,12 @@ const ctx = cvs.getContext('2d');
 const rotateMsg = document.getElementById('rotateMsg');
 const startBtn = document.getElementById('startBtn');
 const bgm = document.getElementById('bgm');
+const seTap = document.getElementById('seTap');
+const seSP  = document.getElementById('seSP');
 
-bgm.volume = 0.005;
+seTap.volume = 0.02;
+seSP.volume = 0.02;  
+bgm.volume = 0.01;
 
 // --- 譜面データを直接埋め込む ---
 const notesChart = [
@@ -344,6 +351,11 @@ function calcTapScoreAndLabel(dist, baseRaw){
 
 // --- スコア加算処理（コンボボーナスも反映） ---
 function awardHit(target, points, label, resetCombo, baseRaw){
+  // --- 効果音再生 ---
+  if(seTap) {
+    seTap.currentTime = 0;
+    seTap.play();
+  }
   // コンボボーナスを乗せる
   const comboBonus = getComboBonus(combo+1); // 先に+1してから乗せる（今回のタップも含む）
   const pointsWithCombo = Math.floor(points * comboBonus);
@@ -411,6 +423,11 @@ function judgeNotesGlobal(){
 function tryUseSP(mx,my){
   if(spValue<SP_MAX) return false;
   if(!isInSPSemicircle(mx,my)) return false;
+  // --- 効果音再生 ---
+  if(seSP) {
+    seSP.currentTime = 0;
+    seSP.play();
+  }
   spUseCount++;
   // SP基本スコア・倍率
   let spBase = 180000;
@@ -819,6 +836,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html> 
+
 
 
 
