@@ -5,9 +5,10 @@
   object-fit: cover;
   z-index: 0;
   filter: brightness(0.3);
-  pointer-events: none;
+  pointer-events: none; /* ← 必ず入れる（これで動画はマウス操作を通す） */
 }
-canvas, #startBtn, #rotateMsg {
-  position: relative;
-  z-index: 1;
+#startBtn {
+  position: absolute;
+  z-index: 2; /* 2以上で動画の上に */
+  /* ...他のスタイル */
 }
