@@ -879,6 +879,7 @@ retryBtn.onclick = ()=>{
   resizeCanvas();
   try{ bgm.pause(); }catch(e){}
   bgm.currentTime = 0;
+  permanentScoreBuff = 0;
   acList.forEach(ac=>{
     ac.state = "waiting";
     ac.progress = 0;
@@ -1239,5 +1240,6 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
