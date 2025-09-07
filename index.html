@@ -850,7 +850,7 @@ function update(){
         },1000);
       }
     }
-　　　if(acFailFlashTimer > 0) acFailFlashTimer--;
+    if(acFailFlashTimer > 0) acFailFlashTimer--;
     return;
   }
   if (gameState === "playing" && !bgm.paused) {
@@ -865,33 +865,32 @@ function update(){
   for(const n of notes) n.t++;
   const keep=[];for(const n of notes){if(n.t<=n.duration+5) keep.push(n);else applyMiss('MISS');}notes=keep;
   if(gameState==="playing" && chartIndex>=notesChart.length && notes.length===0){
-  if(waitingClearFrame === null){
-    waitingClearFrame = frame; // ノーツなくなった時刻を記録
+    if(waitingClearFrame === null){
+      waitingClearFrame = frame; // ノーツなくなった時刻を記録
+    }
+    // 2秒(=120フレーム)経ったらclearに遷移
+    if(frame - waitingClearFrame >= 120){
+      gameState="clear";
+      clearStartFrame=frame;
+      waitingClearFrame = null;
+      let fadeOut = setInterval(() => {
+        if (bgm.volume > 0.02) { bgm.volume -= 0.02; }
+        else { bgm.pause(); bgm.currentTime = 0; clearInterval(fadeOut); bgm.volume = 0.10; }
+      }, 50);
+    }
+  } else {
+    waitingClearFrame = null; // ノーツが残っている/途中ならリセット
   }
-  // 2秒(=120フレーム)経ったらclearに遷移
-  if(frame - waitingClearFrame >= 120){
-    gameState="clear";
-    clearStartFrame=frame;
-    waitingClearFrame = null;
-    let fadeOut = setInterval(() => {
-      if (bgm.volume > 0.02) { bgm.volume -= 0.02; }
-      else { bgm.pause(); bgm.currentTime = 0; clearInterval(fadeOut); bgm.volume = 0.10; }
-    }, 50);
-  }
-} else {
-  waitingClearFrame = null; // ノーツが残っている/途中ならリセット
-}
   if(gameState==="clear" && frame-clearStartFrame>120){
     gameState="result";
     resultStartFrame=frame;
     // スコア更新時
     if(score > bestScore) {
-     bestScore = score;
-     localStorage.setItem('bestScore', bestScore);
+      bestScore = score;
+      localStorage.setItem('bestScore', bestScore);
     }
-}
-
   }
+
   if(spValue>=SP_MAX){ if(!spFullNotified){ triggerSPVisual(); spFullNotified=true; } }
   else spFullNotified=false;
   if(spCountdownTimer>0){ spCountdownTimer--; if(spCountdownTimer % 60 === 0){ spCountdownValue = Math.max(0, spCountdownValue-1); } }
@@ -1214,6 +1213,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
