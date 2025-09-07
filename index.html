@@ -56,13 +56,13 @@ const acList = [
     startTime: 69.22,
     endTime: 72.61,
     type: "score",
-    target: 550000,
+    target: 530000,
     rewardScore: 1000000,
     rewardSP: 3600,
     state: "waiting",
     progress: 0,
     cleared: false,
-    desc: "スコアを55万獲得する",
+    desc: "スコアを53万獲得する",
     tapScore: 0,
     spScore: 0
   }
@@ -474,7 +474,6 @@ function updateACOnSPUse(nowTime, spScore) {
         }
       }
     }
-    // AC失敗チェックはACOnTap側でOK
   });
 }
   
@@ -833,61 +832,6 @@ function drawProgressBarAC(){
     }
   }
 }
-
- startBtn.onclick = function() {
-  if(gameState === "init"){
-    chartIndex = 0;
-    totalNotesSpawned = 0;
-    notes = [];
-    spValue=0; spFullNotified=false;
-    score=0; combo=0;
-    skillHistory = [];
-    appealBoostNotes = 0;
-    skillActivationCount = 0;
-    spUseCount = 0;
-    progressDisplay = 0;
-    spFlashTimer=0; spRingTimer=0; spRingSpeed=20; spRingRange=40;
-    spBoostTimer=0;
-    spCountdownTimer=0;
-    spCountdownValue=0;
-    spScoreBuffNotes = 0;
-    popups=[]; hitRings=[];
-    frame = 0;
-    countdownValue = 3;
-    judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
-    noteCounter = 0;
-    totalSPUsed = 0;
-    // AC状態リセット
-    acList.forEach(ac=>{
-      ac.state = "waiting";
-      ac.progress = 0;
-      ac.cleared = false;
-      ac.tapScore = 0;
-      ac.spScore = 0;
-    });
-    gameState = "countdown";
-    resizeCanvas();
-    startBtn.style.display = "none";
-    retryBtn.style.display = "none";
-  }
-};
-
-retryBtn.onclick = ()=>{
-  gameState = "init";
-  startBtn.style.display = "block";
-  retryBtn.style.display = "none";
-  resizeCanvas();
-  try{ bgm.pause(); }catch(e){}
-  bgm.currentTime = 0;
-  permanentScoreBuff = 0;
-  acList.forEach(ac=>{
-    ac.state = "waiting";
-    ac.progress = 0;
-    ac.cleared = false;
-    ac.tapScore = 0;
-    ac.spScore = 0;
-  });
-};
   
 function update(){
   frame++;
@@ -1240,6 +1184,4 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
-
-
 
