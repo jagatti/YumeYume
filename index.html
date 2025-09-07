@@ -22,10 +22,9 @@
 <audio id="bgm" src="YumeYume5.mp3" preload="auto" loop></audio>
 <script>
 
-// --- AC（アピールチャンス）設定 ---
+// --- AC（アピールチャンス）設定（timeベース完全版） ---
 const acList = [
- {
-    // AC1:  {"time": 12.99, "side": "right"},～{"time": 24.31, "side": "right"}
+  {
     startTime: 12.99,
     endTime: 24.31,
     type: "score",
@@ -38,7 +37,6 @@ const acList = [
     desc: "スコアを100万獲得する"
   },
   {
-    // AC2: {"time": 39.78, "side": "left"},～{"time": 59.22, "side": "left"}
     startTime: 39.78,
     endTime: 59.22,
     type: "sp",
@@ -52,9 +50,7 @@ const acList = [
   }
 ];
   
-// ------------------------------------
-// 必ずcvs/ctxなどの変数定義を最初に！
-// ------------------------------------
+// --- 必ずcvs/ctxなどの変数定義を最初に！ ---
 const cvs = document.getElementById('game');
 const ctx = cvs.getContext('2d');
 const rotateMsg = document.getElementById('rotateMsg');
@@ -62,6 +58,7 @@ const startBtn = document.getElementById('startBtn');
 const retryBtn = document.getElementById('retryBtn');
 const bgm = document.getElementById('bgm');
 bgm.volume = 0.01;
+
 
 // --- 譜面データを直接埋め込む ---
 const notesChart = [
@@ -293,7 +290,7 @@ const notesChart = [
 ];
   
  // --- ゲーム進行・内部変数 ---
-let chartIndex = 0;
+llet chartIndex = 0;
 let R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
 let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=55;
 let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=0, spCountdownTimer=0, spCountdownValue=0;
@@ -308,31 +305,9 @@ let judgeCount = {
   BAD: 0,
   MISS: 0
 };
-  
-// --- SPスコアバフ用 ---
-let spScoreBuffNotes = 0; // 残りバフノーツ数
-
-  // --- AC進行管理用 ---
-let noteCounter = 0; // 1始まりで叩いたノーツ番号
+let spScoreBuffNotes = 0;
+let noteCounter = 0;
 let totalSPUsed = 0;
- // --- AC: 時刻ベースで現在のACを返す ---
-function getActiveACByTime(nowTime) {
-  return acList.find(ac =>
-    (ac.state === "active" || (ac.state === "cleared" && nowTime >= ac.startTime && nowTime <= ac.endTime))
-    && nowTime >= ac.startTime && nowTime <= ac.endTime
-  );
-}
-function getACatTime(time) {
-  return acList.find(ac => time >= ac.startTime && time <= ac.endTime);
-}
-function isACActiveByTime(nowTime) {
-  return !!getActiveACByTime(nowTime);
-}
-function isACClearedNowByTime(nowTime) {
-  return !!acList.find(ac =>
-    ac.state === "cleared" && nowTime >= ac.startTime && nowTime <= ac.endTime
-  );
-}
   
 // --- コンボボーナス倍率計算 ---
 function getComboBonus(combo) {
@@ -341,6 +316,25 @@ function getComboBonus(combo) {
   if (combo >= 31) return 1.02;
   if (combo >= 11) return 1.01;
   return 1.0;
+}
+
+// --- AC（アピールチャンス）関連 ---
+function getACatTime(time) {
+  return acList.find(ac => time >= ac.startTime && time <= ac.endTime);
+}
+function getActiveACByTime(nowTime) {
+  return acList.find(ac =>
+    (ac.state === "active" || (ac.state === "cleared" && nowTime >= ac.startTime && nowTime <= ac.endTime))
+    && nowTime >= ac.startTime && nowTime <= ac.endTime
+  );
+}
+function isACActiveByTime(nowTime) {
+  return !!getActiveACByTime(nowTime);
+}
+function isACClearedNowByTime(nowTime) {
+  return !!acList.find(ac =>
+    ac.state === "cleared" && nowTime >= ac.startTime && nowTime <= ac.endTime
+  );
 }
   
 // --- レイアウト・ターゲット位置 ---
@@ -383,9 +377,8 @@ function updateACOnTap(pointsWithCombo, nowTime) {
   noteCounter++;
   acList.forEach(ac => {
     if (Math.abs(nowTime - ac.startTime) < 0.5 && ac.state === "waiting") ac.state = "active";
-    if (ac.state === "active") {
+    if (ac.state === "active" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
       if (ac.type === "score") ac.progress += pointsWithCombo;
-      // クリア判定
       if (!ac.cleared && ac.progress >= ac.target) {
         ac.cleared = true;
         ac.state = "cleared";
@@ -395,7 +388,6 @@ function updateACOnTap(pointsWithCombo, nowTime) {
         if(skillHistory.length>5) skillHistory.pop();
       }
     }
-    // AC区間終了したらstateをendedに
     if (nowTime > ac.endTime && (ac.state === "active" || ac.state === "cleared")) {
       ac.state = "ended";
     }
@@ -447,16 +439,13 @@ function calcTapScoreAndLabel(dist, baseRaw){
 // --- スコア加算処理（コンボボーナスも反映, SPバフ, ACバフ） ---
 function awardHit(target, points, label, resetCombo, baseRaw){
   let nowTime = bgm.currentTime || 0;
-  // ACスコアバフ
   let acBuff = 1.0;
   if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) acBuff = 1.1;
-  // SPバフ
   let spBuff = 1.0;
   if (spScoreBuffNotes > 0) {
     spBuff = 1.1;
     spScoreBuffNotes--;
   }
-  // コンボボーナス
   const comboBonus = getComboBonus(combo+1);
   let pointsWithCombo = Math.floor(points * comboBonus * acBuff * spBuff);
   if(pointsWithCombo > 50000) pointsWithCombo = 50000;
@@ -486,7 +475,7 @@ function awardHit(target, points, label, resetCombo, baseRaw){
     }
     if(skillHistory.length>5) skillHistory.pop();
   }
-  updateACOnTap(pointsWithCombo);
+  updateACOnTap(pointsWithCombo, nowTime);
 }
   
 function applyMiss(label='MISS'){
@@ -537,9 +526,7 @@ function tryUseSP(mx,my){
   spBase = Math.min(250000, spBase);
   const comboBonus = getComboBonus(combo);
   let spScore = spBase;
-  // ACバフ
   if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) spScore = Math.floor(spScore * 1.1);
-  // SPバフ
   if(spBoostTimer>0) spScore = Math.floor(spScore * 1.1);
   spScore = Math.floor(spScore * comboBonus);
   score += spScore;
@@ -557,7 +544,6 @@ function tryUseSP(mx,my){
       if(skillHistory.length>5) skillHistory.pop();
     }
   }
-  // 50%で15ノーツバフ
   if(Math.random() < 0.5){
     spScoreBuffNotes = 15;
     skillHistory.unshift({text: "[アピール増加 10%]", life:180});
@@ -635,7 +621,8 @@ retryBtn.onclick = ()=>{
   try{ bgm.pause(); }catch(e){}
   bgm.currentTime = 0;
 };
-// --- ノーツ描画 ---
+  
+// --- ノーツ描画（time基準のAC色分け/START/FINISH） ---
 function drawNotes(){
   for(let i=0;i<notes.length;i++){
     const n = notes[i];
@@ -645,13 +632,12 @@ function drawNotes(){
     const noteTime = noteInfo.time;
     const ac = getACatTime(noteTime);
     let noteColor = "#3b82f6";
-    // AC区間中クリア済みだけ黄色
     if (ac && ac.state === "cleared") noteColor = "#FFD700";
     const pos=cubicBezier(n.path.p0,n.path.p1,n.path.p2,n.path.p3, Math.min(1,n.t/n.duration));
     ctx.fillStyle=noteColor;
     ctx.beginPath(); ctx.arc(pos.x,pos.y,R,0,Math.PI*2); ctx.fill();
 
-    // AC区間開始ノーツ
+    // AC START/FINISH
     if(ac && Math.abs(noteTime - ac.startTime) < 0.01){
       ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
       ctx.textAlign = "center";
@@ -661,7 +647,6 @@ function drawNotes(){
       ctx.fillStyle = "#ff69b4";
       ctx.fillText("START", pos.x, pos.y+R+13);
     }
-    // AC区間終了ノーツ
     if(ac && Math.abs(noteTime - ac.endTime) < 0.01){
       ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
       ctx.textAlign = "center";
@@ -676,16 +661,14 @@ function drawNotes(){
 
 // --- AC通知パネル（中央進捗バー下、小さめに） ---
 function drawACMissionNotice(){
-  // 表示対象AC（activeまたはcleared）の今の時間に該当するもの
   let nowTime = bgm.currentTime || 0;
   const ac = acList.find(ac => (ac.state === "active" || ac.state === "cleared") && nowTime >= ac.startTime && nowTime <= ac.endTime);
   if(!ac) return;
-  // 進捗バー下中央寄せ
   const barMarginLeft = 20;
   const barMarginRight = 200;
   const barWidth = Math.max(140, cvs.width - barMarginLeft - barMarginRight);
   const centerX = barMarginLeft + barWidth/2;
-  const y = 28+12+10; // 進捗バー下10px
+  const y = 28+12+10;
   const w = Math.min(360, Math.max(180, Math.round(cvs.width * 0.47)));
   const h = Math.max(28, Math.round(cvs.height*0.034));
   const x = centerX - w/2;
@@ -693,7 +676,6 @@ function drawACMissionNotice(){
   ctx.textAlign = "center";
   ctx.font = `bold ${Math.round(h*0.68)}px system-ui`;
   ctx.lineWidth = 3;
-  // クリアで黄色枠/未クリアはピンク
   ctx.strokeStyle = ac.cleared ? "#FFD700" : "#ff69b4";
   ctx.fillStyle = ac.cleared ? "#FFD700" : "#ff69b4";
   ctx.globalAlpha = 0.82;
@@ -710,7 +692,7 @@ function drawACMissionNotice(){
   ctx.restore();
 }
 
-// --- 進捗バー ピンクAC区間 ---
+// --- 進捗バー ピンクAC区間（time基準） ---
 function drawProgressBarAC(){
   const barMarginLeft = 20;
   const barMarginRight = 200;
@@ -718,10 +700,10 @@ function drawProgressBarAC(){
   const barHeight = 12;
   const x = barMarginLeft;
   const y = 10;
-  // ピンクAC区間
+  const lastTime = notesChart[notesChart.length-1].time;
   for(const ac of acList){
-    const startRatio = ac.startTime/notesChart[notesChart.length-1].time;
-    const endRatio = ac.endTime/notesChart[notesChart.length-1].time;
+    const startRatio = ac.startTime/lastTime;
+    const endRatio = ac.endTime/lastTime;
     ctx.fillStyle = "#ff69b4";
     ctx.globalAlpha = 0.35;
     ctx.fillRect(x + barWidth*startRatio, y, barWidth*(endRatio-startRatio), barHeight);
@@ -1055,5 +1037,3 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
-
-
