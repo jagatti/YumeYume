@@ -1176,9 +1176,9 @@ function render(){
     ctx.font = `bold ${scoreFontSize}px system-ui`;
     ctx.lineWidth = 8;
     ctx.strokeStyle = "#000";
-    ctx.strokeText("ユメ語るよりユメ歌おう", 0, -30);
+    ctx.strokeText("ユメ語るよりユメ歌おう", 0, -36);
     ctx.fillStyle = "#fff";
-    ctx.fillText("ユメ語るよりユメ歌おう", 0, -30);
+    ctx.fillText("ユメ語るよりユメ歌おう", 0, -36);
 
     // SCORE
     ctx.font=`bold ${scoreFontSize}px system-ui`;
@@ -1194,10 +1194,10 @@ function render(){
 
     ctx.font=`bold ${Math.round(cvs.height*0.04)}px system-ui`;
     ctx.lineWidth=6; ctx.strokeStyle='#000';
-    ctx.strokeText(`特技発動回数: ${skillActivationCount}`, 0, 48);
+    ctx.strokeText(`特技発動回数: ${skillActivationCount}`, 0, 60);
     ctx.strokeText(`SP使用回数: ${spUseCount}`, 0, 80);
     ctx.fillStyle='#e5faff';
-    ctx.fillText(`特技発動回数: ${skillActivationCount}`, 0, 48);
+    ctx.fillText(`特技発動回数: ${skillActivationCount}`, 0, 60);
     ctx.fillText(`SP使用回数: ${spUseCount}`, 0, 80);
 
     ctx.restore();
@@ -1213,6 +1213,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
