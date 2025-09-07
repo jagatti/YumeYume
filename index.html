@@ -328,6 +328,7 @@ let noteCounter = 0;
 let totalSPUsed = 0;
 let permanentScoreBuff = 0;
 let acFailFlashTimer = 0;
+let waitingClearFrame = null; 
   
 // --- コンボボーナス倍率計算 ---
 function getComboBonus(combo) {
@@ -917,13 +918,22 @@ function update(){
   for(const n of notes) n.t++;
   const keep=[];for(const n of notes){if(n.t<=n.duration+5) keep.push(n);else applyMiss('MISS');}notes=keep;
   if(gameState==="playing" && chartIndex>=notesChart.length && notes.length===0){
+  if(waitingClearFrame === null){
+    waitingClearFrame = frame; // ノーツなくなった時刻を記録
+  }
+  // 2秒(=120フレーム)経ったらclearに遷移
+  if(frame - waitingClearFrame >= 120){
     gameState="clear";
     clearStartFrame=frame;
+    waitingClearFrame = null;
     let fadeOut = setInterval(() => {
       if (bgm.volume > 0.02) { bgm.volume -= 0.02; }
       else { bgm.pause(); bgm.currentTime = 0; clearInterval(fadeOut); bgm.volume = 0.10; }
     }, 50);
   }
+} else {
+  waitingClearFrame = null; // ノーツが残っている/途中ならリセット
+}
   if(gameState==="clear" && frame-clearStartFrame>120){
     gameState="result";
     resultStartFrame=frame;
@@ -1229,4 +1239,5 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
