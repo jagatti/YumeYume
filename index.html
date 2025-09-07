@@ -767,7 +767,43 @@ function drawACMissionNotice(){
   ctx.restore();
 }
 
-  
+// --- 進捗バー ピンクAC区間（time基準・修正版） ---
+function drawProgressBarAC(){
+  const barMarginLeft = 20;
+  const barMarginRight = 200;
+  const barWidth = Math.max(140, cvs.width - barMarginLeft - barMarginRight);
+  const barHeight = 12;
+  const x = barMarginLeft;
+  const y = 10;
+  const lastTime = notesChart[notesChart.length-1].time;
+  // ACピンク区間（下地）
+  for(const ac of acList){
+    const startRatio = ac.startTime/lastTime;
+    const endRatio = ac.endTime/lastTime;
+    ctx.fillStyle = "#ff69b4";
+    ctx.globalAlpha = 0.35;
+    ctx.fillRect(x + barWidth*startRatio, y, barWidth*(endRatio-startRatio), barHeight);
+    ctx.globalAlpha = 1;
+    // 進捗（クリア時黄色、未クリア白）を上に細く重ねて表示
+    if(ac.state === "active" || ac.state === "cleared"){
+      let nowTime = bgm.currentTime || 0;
+      if(nowTime >= ac.startTime && nowTime <= ac.endTime && ac.target > 0){
+        let progressRatio = ac.type === "score"
+          ? Math.min(1, (ac.progress || 0) / ac.target)
+          : Math.min(1, (ac.progress || 0) / ac.target);
+        ctx.fillStyle = ac.cleared ? "#FFD700" : "#fff";
+        ctx.globalAlpha = 0.90;
+        ctx.fillRect(
+          x + barWidth*startRatio,
+          y-5,
+          barWidth*(endRatio-startRatio)*progressRatio,
+          5
+        );
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+}
 
  startBtn.onclick = function() {
   if(gameState === "init"){
@@ -1149,6 +1185,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
