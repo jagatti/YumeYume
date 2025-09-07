@@ -663,14 +663,18 @@ function drawNotes(){
     if(!noteInfo) continue;
     const noteTime = noteInfo.time;
 
-    // クリア済みAC区間にいるノーツなら黄色、それ以外は青
+    // ★「このノーツのtimeが、state: 'cleared' のAC区間内か？」で色判定
     let noteColor = "#3b82f6";
-    const clearedAC = acList.find(ac => ac.state === "cleared" && noteTime >= ac.startTime && noteTime <= ac.endTime);
-    if (clearedAC) noteColor = "#FFD700";
+    for (const ac of acList) {
+      if (ac.state === "cleared" && noteTime >= ac.startTime && noteTime <= ac.endTime) {
+        noteColor = "#FFD700";
+        break;
+      }
+    }
 
-    const pos=cubicBezier(n.path.p0,n.path.p1,n.path.p2,n.path.p3, Math.min(1,n.t/n.duration));
-    ctx.fillStyle=noteColor;
-    ctx.beginPath(); ctx.arc(pos.x,pos.y,R,0,Math.PI*2); ctx.fill();
+    const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
+    ctx.fillStyle = noteColor;
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, R, 0, Math.PI*2); ctx.fill();
 
     // AC区間開始ノーツ
     const ac = getACatTime(noteTime);
@@ -1075,6 +1079,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
