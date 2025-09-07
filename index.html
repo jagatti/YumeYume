@@ -1101,18 +1101,6 @@ function drawACFailFlash(){
     ctx.restore();
   }
 }
-
-  function drawACFailFlash(){
-  if(acFailFlashTimer > 0){
-    const alpha = Math.min(0.38, acFailFlashTimer/18*0.38);
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = "#ff0033";
-    ctx.fillRect(0,0,cvs.width,cvs.height);
-    ctx.globalAlpha = 1;
-    ctx.restore();
-  }
-}
   
 // ★ 判定回数リザルト左下表示
 function drawJudgeCountsResult() {
@@ -1162,7 +1150,8 @@ function render(){
   drawProgressBar();
   drawSkillHistory();
   drawACMissionNotice();
-  drawACFailFlash();
+  //ここに入れてた
+  
   if(gameState==="init"){ return; }
   if(gameState==="countdown"){
     const txt = countdownValue>0 ? countdownValue : 1;
@@ -1170,6 +1159,10 @@ function render(){
     ctx.font=`bold ${Math.round(cvs.height*0.22)}px system-ui`;
     ctx.lineWidth=10; ctx.strokeStyle='#000'; ctx.strokeText(txt, cvs.width/2, cvs.height/2);
     ctx.fillStyle='#fff'; ctx.fillText(txt, cvs.width/2, cvs.height/2);
+    
+    //ここであってるか？
+    drawACFailFlash();
+    
     return;
   }
   drawSPCountdown();
@@ -1229,6 +1222,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
