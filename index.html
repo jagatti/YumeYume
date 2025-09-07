@@ -21,7 +21,7 @@
 <button id="retryBtn">リトライ</button>
 <audio id="bgm" src="YumeYume5.mp3" preload="auto" loop></audio>
 <script>
-
+  
 // --- AC（アピールチャンス）設定（timeベース完全版） ---
 const acList = [
   {
@@ -34,7 +34,9 @@ const acList = [
     state: "waiting",
     progress: 0,
     cleared: false,
-    desc: "スコアを100万獲得する"
+    desc: "スコアを100万獲得する",
+    tapScore: 0,
+    spScore: 0
   },
   {
     startTime: 39.78,
@@ -46,7 +48,9 @@ const acList = [
     state: "waiting",
     progress: 0,
     cleared: false,
-    desc: "SPを3回発動する"
+    desc: "SPを3回発動する",
+    tapScore: 0,
+    spScore: 0
   }
 ];
   
@@ -289,7 +293,7 @@ const notesChart = [
   {"time": 86.39, "side": "left"}
 ];
   
- // --- ゲーム進行・内部変数 ---
+// --- ゲーム進行・内部変数 ---
 let chartIndex = 0;
 let R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
 let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=55;
@@ -308,7 +312,7 @@ let judgeCount = {
 let spScoreBuffNotes = 0;
 let noteCounter = 0;
 let totalSPUsed = 0;
-  
+
 // --- コンボボーナス倍率計算 ---
 function getComboBonus(combo) {
   if (combo >= 71) return 1.04;
@@ -323,6 +327,7 @@ function getComboBonus(combo) {
   ac.tapScore = 0; // タップで得たスコア
   ac.spScore = 0;  // SP発動で得たスコア
 });
+  
 // --- AC取得関数 ---
 function getACatTime(time) {
   return acList.find(ac => time >= ac.startTime && time <= ac.endTime);
@@ -370,7 +375,7 @@ function resizeCanvas(){
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
-  
+
 function cubicBezier(p0,p1,p2,p3,t){const u=1-t;return {x:u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,y:u*u*u*p0.y+3*u*u*t*p1.y+3*u*t*t*p2.y+t*t*t*p3.y};}
 function makePath(side){const target= side==='left'? leftTarget : rightTarget;const startX = side==='left' ? (-R*2-10) : (cvs.width+R*2+10);const start={x:startX, y: target.y - Math.max(180, R*6)};const c1={x: side==='left' ? target.x - Math.max(200,R*6) : target.x + Math.max(200,R*6), y: target.y - Math.max(200,R*6)};const c2={x: side==='left' ? target.x - Math.max(60,R*2)  : target.x + Math.max(60,R*2),  y: target.y - Math.max(40,R*1.3)};const end={x: target.x, y: target.y};return {p0:start,p1:c1,p2:c2,p3:end};}
 function spawnNote(side){ notes.push({side,t:0,duration:noteDuration,path:makePath(side)}); }
@@ -384,7 +389,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
     if (Math.abs(nowTime - ac.startTime) < 0.5 && ac.state === "waiting") ac.state = "active";
     if (ac.state === "active" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
       if (ac.type === "score") {
-        ac.tapScore += pointsWithCombo; // タップで得たスコアも保存
+        ac.tapScore += pointsWithCombo;
         ac.progress = ac.tapScore + ac.spScore;
       }
       if (!ac.cleared && ac.progress >= ac.target) {
@@ -458,7 +463,7 @@ function calcTapScoreAndLabel(dist, baseRaw){
   return {points,label,reset};
 }
 
-// --- スコア加算処理（コンボボーナスも反映, SPバフ, ACバフ） ---
+// --- スコア加算処理 ---
 function awardHit(target, points, label, resetCombo, baseRaw){
   let nowTime = bgm.currentTime || 0;
   let acBuff = 1.0;
@@ -534,7 +539,7 @@ function judgeNotesGlobal(){
   return false;
 }
 
-// --- SPゲージ使用時のスコア計算 ---
+// --- SPゲージ使用時のスコア計算（上限250000制限を正しく適用） ---
 function tryUseSP(mx,my){
   if(spValue<SP_MAX) return false;
   if(!isInSPSemicircle(mx,my)) return false;
@@ -545,12 +550,13 @@ function tryUseSP(mx,my){
     spBase = Math.ceil(spBase * 1.12);
     appealBoostNotes--;
   }
-  spBase = Math.min(250000, spBase);
+  // バフ込み計算後も必ず上限を適用
   const comboBonus = getComboBonus(combo);
   let spScore = spBase;
   if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) spScore = Math.floor(spScore * 1.1);
   if(spBoostTimer>0) spScore = Math.floor(spScore * 1.1);
   spScore = Math.floor(spScore * comboBonus);
+  if (spScore > 250000) spScore = 250000; // ← ここで上限
   score += spScore;
   spValue = 0;
   spRingSpeed = 10; spRingRange = 80; triggerSPVisual();
@@ -654,19 +660,19 @@ retryBtn.onclick = ()=>{
   });
 };
   
-// --- ノーツ描画（time基準のAC色分け/START/FINISH） ---
+// --- ノーツ描画（ACクリア時は黄色化/進捗ピンクバー修正済み） ---
 function drawNotes(){
   for(let i=0;i<notes.length;i++){
     const n = notes[i];
-    const globalIdx = chartIndex - notes.length + i; // ノーツ譜面index
+    const globalIdx = chartIndex - notes.length + i;
     const noteInfo = notesChart[globalIdx];
     if(!noteInfo) continue;
     const noteTime = noteInfo.time;
 
-    // ★「このノーツのtimeが、state: 'cleared' のAC区間内か？」で色判定
+    // クリア済みAC区間にいるノーツは黄色
     let noteColor = "#3b82f6";
-    for (const ac of acList) {
-      if (ac.state === "cleared" && noteTime >= ac.startTime && noteTime <= ac.endTime) {
+    for(const ac of acList){
+      if(ac.state === "cleared" && noteTime >= ac.startTime && noteTime <= ac.endTime){
         noteColor = "#FFD700";
         break;
       }
@@ -700,7 +706,7 @@ function drawNotes(){
   }
 }
 
-// --- AC通知パネル（横長&中央より上/進捗バーより下） ---
+// --- AC通知パネル ---
 function drawACMissionNotice(){
   let nowTime = bgm.currentTime || 0;
   const ac = acList.find(ac => (ac.state === "active" || ac.state === "cleared") && nowTime >= ac.startTime && nowTime <= ac.endTime);
@@ -709,10 +715,9 @@ function drawACMissionNotice(){
   const barMarginLeft = 20;
   const barMarginRight = 200;
   const barWidth = Math.max(140, cvs.width - barMarginLeft - barMarginRight);
-  const w = Math.max(cvs.width * 0.6, 400); // 横長, 最低440px
+  const w = Math.max(cvs.width * 0.6, 400);
   const h = Math.max(30, Math.round(cvs.height*0.035));
   const x = (cvs.width-w)/2;
-  // 進捗バーの下+24px、画面中央より上側
   const y = Math.max( barWidth*0.02+50, cvs.height*0.12 );
   ctx.save();
   ctx.textAlign = "center";
@@ -734,7 +739,7 @@ function drawACMissionNotice(){
   ctx.restore();
 }
 
-// --- 進捗バー ピンクAC区間（time基準） ---
+// --- 進捗バー ピンクAC区間（time基準・修正版） ---
 function drawProgressBarAC(){
   const barMarginLeft = 20;
   const barMarginRight = 200;
@@ -743,6 +748,7 @@ function drawProgressBarAC(){
   const x = barMarginLeft;
   const y = 10;
   const lastTime = notesChart[notesChart.length-1].time;
+  // ACピンク区間（下地）
   for(const ac of acList){
     const startRatio = ac.startTime/lastTime;
     const endRatio = ac.endTime/lastTime;
@@ -750,8 +756,80 @@ function drawProgressBarAC(){
     ctx.globalAlpha = 0.35;
     ctx.fillRect(x + barWidth*startRatio, y, barWidth*(endRatio-startRatio), barHeight);
     ctx.globalAlpha = 1;
+    // 進捗（クリア時黄色、未クリア白）を上に細く重ねて表示
+    if(ac.state === "active" || ac.state === "cleared"){
+      let nowTime = bgm.currentTime || 0;
+      if(nowTime >= ac.startTime && nowTime <= ac.endTime && ac.target > 0){
+        let progressRatio = ac.type === "score"
+          ? Math.min(1, (ac.progress || 0) / ac.target)
+          : Math.min(1, (ac.progress || 0) / ac.target);
+        ctx.fillStyle = ac.cleared ? "#FFD700" : "#fff";
+        ctx.globalAlpha = 0.90;
+        ctx.fillRect(
+          x + barWidth*startRatio,
+          y-5,
+          barWidth*(endRatio-startRatio)*progressRatio,
+          5
+        );
+        ctx.globalAlpha = 1;
+      }
+    }
   }
 }
+
+ startBtn.onclick = function() {
+  if(gameState === "init"){
+    chartIndex = 0;
+    totalNotesSpawned = 0;
+    notes = [];
+    spValue=0; spFullNotified=false;
+    score=0; combo=0;
+    skillHistory = [];
+    appealBoostNotes = 0;
+    skillActivationCount = 0;
+    spUseCount = 0;
+    progressDisplay = 0;
+    spFlashTimer=0; spRingTimer=0; spRingSpeed=20; spRingRange=40;
+    spBoostTimer=0;
+    spCountdownTimer=0;
+    spCountdownValue=0;
+    spScoreBuffNotes = 0;
+    popups=[]; hitRings=[];
+    frame = 0;
+    countdownValue = 3;
+    judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
+    noteCounter = 0;
+    totalSPUsed = 0;
+    // AC状態リセット
+    acList.forEach(ac=>{
+      ac.state = "waiting";
+      ac.progress = 0;
+      ac.cleared = false;
+      ac.tapScore = 0;
+      ac.spScore = 0;
+    });
+    gameState = "countdown";
+    resizeCanvas();
+    startBtn.style.display = "none";
+    retryBtn.style.display = "none";
+  }
+};
+
+retryBtn.onclick = ()=>{
+  gameState = "init";
+  startBtn.style.display = "block";
+  retryBtn.style.display = "none";
+  resizeCanvas();
+  try{ bgm.pause(); }catch(e){}
+  bgm.currentTime = 0;
+  acList.forEach(ac=>{
+    ac.state = "waiting";
+    ac.progress = 0;
+    ac.cleared = false;
+    ac.tapScore = 0;
+    ac.spScore = 0;
+  });
+};
   
 function update(){
   frame++;
@@ -1079,11 +1157,4 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
 
