@@ -312,7 +312,8 @@ let judgeCount = {
 let spScoreBuffNotes = 0;
 let noteCounter = 0;
 let totalSPUsed = 0;
-
+let permanentScoreBuff = 0;
+  
 // --- コンボボーナス倍率計算 ---
 function getComboBonus(combo) {
   if (combo >= 71) return 1.04;
@@ -386,12 +387,21 @@ function triggerSPVisual(){ spFlashTimer=10; spRingTimer=spRingSpeed; }
 function updateACOnTap(pointsWithCombo, nowTime) {
   noteCounter++;
   acList.forEach(ac => {
-    if (Math.abs(nowTime - ac.startTime) < 0.5 && ac.state === "waiting") ac.state = "active";
+    // --- AC開始時バフ抽選 ---
+    if (Math.abs(nowTime - ac.startTime) < 0.5 && ac.state === "waiting") {
+      ac.state = "active";
+      if(Math.random() < 0.3){
+        permanentScoreBuff++;
+        skillHistory.unshift({text:"[アピール増加永続 5%]", life:180});
+        if(skillHistory.length>5) skillHistory.pop();
+      }
+    }
     if (ac.state === "active" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
       if (ac.type === "score") {
         ac.tapScore += pointsWithCombo;
         ac.progress = ac.tapScore + ac.spScore;
       }
+      // --- AC成功時バフ抽選 ---
       if (!ac.cleared && ac.progress >= ac.target) {
         ac.cleared = true;
         ac.state = "cleared";
@@ -399,6 +409,11 @@ function updateACOnTap(pointsWithCombo, nowTime) {
         spValue = Math.min(SP_MAX, spValue + ac.rewardSP);
         skillHistory.unshift({text: `ACクリア報酬 ${ac.rewardScore}`, life:180});
         if(skillHistory.length>5) skillHistory.pop();
+        if(Math.random() < 0.3){
+          permanentScoreBuff++;
+          skillHistory.unshift({text:"[アピール増加永続 5%]", life:180});
+          if(skillHistory.length>5) skillHistory.pop();
+        }
       }
     }
     if (nowTime > ac.endTime && (ac.state === "active" || ac.state === "cleared")) {
@@ -406,6 +421,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
     }
   });
 }
+  
 function updateACOnSPUse(nowTime, spScore) {
   totalSPUsed++;
   acList.forEach(ac => {
@@ -473,8 +489,10 @@ function awardHit(target, points, label, resetCombo, baseRaw){
     spBuff = 1.1;
     spScoreBuffNotes--;
   }
+  // --- 永続バフ適用 ---
+  let permanentBuff = 1 + permanentScoreBuff * 0.05;
   const comboBonus = getComboBonus(combo+1);
-  let pointsWithCombo = Math.floor(points * comboBonus * acBuff * spBuff);
+  let pointsWithCombo = Math.floor(points * comboBonus * acBuff * spBuff * permanentBuff);
   if(pointsWithCombo > 50000) pointsWithCombo = 50000;
 
   score += pointsWithCombo;
@@ -550,13 +568,13 @@ function tryUseSP(mx,my){
     spBase = Math.ceil(spBase * 1.12);
     appealBoostNotes--;
   }
-  // バフ込み計算後も必ず上限を適用
+  let permanentBuff = 1 + permanentScoreBuff * 0.05;
   const comboBonus = getComboBonus(combo);
   let spScore = spBase;
   if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) spScore = Math.floor(spScore * 1.1);
   if(spBoostTimer>0) spScore = Math.floor(spScore * 1.1);
-  spScore = Math.floor(spScore * comboBonus);
-  if (spScore > 250000) spScore = 250000; // ← ここで上限
+  spScore = Math.floor(spScore * comboBonus * permanentBuff);
+  if (spScore > 250000) spScore = 250000;
   score += spScore;
   spValue = 0;
   spRingSpeed = 10; spRingRange = 80; triggerSPVisual();
@@ -627,6 +645,15 @@ startBtn.onclick = function() {
     judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
     noteCounter = 0;
     totalSPUsed = 0;
+
+    // --- ★ 永続バフ初期化&50%で発動処理 ---
+    permanentScoreBuff = 0;
+    if(Math.random() < 0.5){
+      permanentScoreBuff++;
+      skillHistory.unshift({text:"[アピール増加永続 5%]", life:180});
+      if(skillHistory.length>5) skillHistory.pop();
+    }
+
     // AC状態リセット
     acList.forEach(ac=>{
       ac.state = "waiting";
@@ -650,7 +677,7 @@ retryBtn.onclick = ()=>{
   resizeCanvas();
   try{ bgm.pause(); }catch(e){}
   bgm.currentTime = 0;
-  // ★ACの状態リセット
+  permanentScoreBuff = 0;
   acList.forEach(ac=>{
     ac.state = "waiting";
     ac.progress = 0;
@@ -1158,5 +1185,6 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
