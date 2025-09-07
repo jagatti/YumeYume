@@ -327,6 +327,7 @@ let spScoreBuffNotes = 0;
 let noteCounter = 0;
 let totalSPUsed = 0;
 let permanentScoreBuff = 0;
+let acFailFlashTimer = 0;
   
 // --- コンボボーナス倍率計算 ---
 function getComboBonus(combo) {
@@ -410,7 +411,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
         if(skillHistory.length>5) skillHistory.pop();
       }
     }
-    if (ac.state === "active" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
+    　if (ac.state === "active" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
       if (ac.type === "score") {
         ac.tapScore += pointsWithCombo;
         ac.progress = ac.tapScore + ac.spScore;
@@ -431,8 +432,11 @@ function updateACOnTap(pointsWithCombo, nowTime) {
       }
     }
     if (nowTime > ac.endTime && (ac.state === "active" || ac.state === "cleared")) {
-      ac.state = "ended";
-    }
+  　if (!ac.cleared && ac.state === "active") {
+    acFailFlashTimer = 18;
+  　　}
+  　　ac.state = "ended";
+　　}
   });
 }
   
@@ -888,6 +892,7 @@ function update(){
         },1000);
       }
     }
+　　　if(acFailFlashTimer > 0) acFailFlashTimer--;
     return;
   }
   if (gameState === "playing" && !bgm.paused) {
@@ -1085,6 +1090,18 @@ function drawSPCountdown(){
   ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.fillText(spCountdownValue, x, y);
 }
 
+function drawACFailFlash(){
+  if(acFailFlashTimer > 0){
+    const alpha = Math.min(0.38, acFailFlashTimer/18*0.38);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "#ff0033";
+    ctx.fillRect(0,0,cvs.width,cvs.height);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+}
+  
 // ★ 判定回数リザルト左下表示
 function drawJudgeCountsResult() {
   const baseX = 30;
@@ -1133,6 +1150,7 @@ function render(){
   drawProgressBar();
   drawSkillHistory();
   drawACMissionNotice();
+  drawACFailFlash();
   if(gameState==="init"){ return; }
   if(gameState==="countdown"){
     const txt = countdownValue>0 ? countdownValue : 1;
@@ -1199,6 +1217,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
