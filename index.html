@@ -317,8 +317,13 @@ function getComboBonus(combo) {
   if (combo >= 11) return 1.01;
   return 1.0;
 }
-
-// --- AC（アピールチャンス）関連 ---
+  
+// --- AC（アピールチャンス）関連（進捗保存のため追加） ---
+  acList.forEach(ac => {
+  ac.tapScore = 0; // タップで得たスコア
+  ac.spScore = 0;  // SP発動で得たスコア
+});
+// --- AC取得関数 ---
 function getACatTime(time) {
   return acList.find(ac => time >= ac.startTime && time <= ac.endTime);
 }
@@ -378,7 +383,10 @@ function updateACOnTap(pointsWithCombo, nowTime) {
   acList.forEach(ac => {
     if (Math.abs(nowTime - ac.startTime) < 0.5 && ac.state === "waiting") ac.state = "active";
     if (ac.state === "active" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
-      if (ac.type === "score") ac.progress += pointsWithCombo;
+      if (ac.type === "score") {
+        ac.tapScore += pointsWithCombo; // タップで得たスコアも保存
+        ac.progress = ac.tapScore + ac.spScore;
+      }
       if (!ac.cleared && ac.progress >= ac.target) {
         ac.cleared = true;
         ac.state = "cleared";
@@ -393,18 +401,32 @@ function updateACOnTap(pointsWithCombo, nowTime) {
     }
   });
 }
-function updateACOnSPUse(nowTime) {
+function updateACOnSPUse(nowTime, spScore) {
   totalSPUsed++;
   acList.forEach(ac => {
-    if (ac.state === "active" && ac.type === "sp" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
-      ac.progress += 1;
-      if (!ac.cleared && ac.progress >= ac.target) {
-        ac.cleared = true;
-        ac.state = "cleared";
-        score += ac.rewardScore;
-        spValue = Math.min(SP_MAX, spValue + ac.rewardSP);
-        skillHistory.unshift({text: `ACクリア報酬 ${ac.rewardScore}`, life:180});
-        if(skillHistory.length>5) skillHistory.pop();
+    if (ac.state === "active" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
+      if (ac.type === "sp") {
+        ac.progress += 1;
+        if (!ac.cleared && ac.progress >= ac.target) {
+          ac.cleared = true;
+          ac.state = "cleared";
+          score += ac.rewardScore;
+          spValue = Math.min(SP_MAX, spValue + ac.rewardSP);
+          skillHistory.unshift({text: `ACクリア報酬 ${ac.rewardScore}`, life:180});
+          if(skillHistory.length>5) skillHistory.pop();
+        }
+      }
+      if (ac.type === "score") {
+        ac.spScore += spScore;
+        ac.progress = ac.tapScore + ac.spScore;
+        if (!ac.cleared && ac.progress >= ac.target) {
+          ac.cleared = true;
+          ac.state = "cleared";
+          score += ac.rewardScore;
+          spValue = Math.min(SP_MAX, spValue + ac.rewardSP);
+          skillHistory.unshift({text: `ACクリア報酬 ${ac.rewardScore}`, life:180});
+          if(skillHistory.length>5) skillHistory.pop();
+        }
       }
     }
   });
@@ -549,7 +571,7 @@ function tryUseSP(mx,my){
     skillHistory.unshift({text: "[アピール増加 10%]", life:180});
     if(skillHistory.length>5) skillHistory.pop();
   }
-  updateACOnSPUse(nowTime);
+  updateACOnSPUse(nowTime, spScore);
   return true;
 }
   
@@ -626,7 +648,7 @@ retryBtn.onclick = ()=>{
 function drawNotes(){
   for(let i=0;i<notes.length;i++){
     const n = notes[i];
-    const globalIdx = chartIndex - notes.length + i; // notesChart上のノーツindex
+    const globalIdx = chartIndex - notes.length + i;
     const noteInfo = notesChart[globalIdx];
     if(!noteInfo) continue;
     const noteTime = noteInfo.time;
@@ -659,28 +681,29 @@ function drawNotes(){
   }
 }
 
-// --- AC通知パネル（中央進捗バー下、小さめに） ---
+// --- AC通知パネル（横長&中央より上/進捗バーより下） ---
 function drawACMissionNotice(){
   let nowTime = bgm.currentTime || 0;
   const ac = acList.find(ac => (ac.state === "active" || ac.state === "cleared") && nowTime >= ac.startTime && nowTime <= ac.endTime);
   if(!ac) return;
+  // 横幅を広く&進捗バーより下で中央より上位置
   const barMarginLeft = 20;
   const barMarginRight = 200;
   const barWidth = Math.max(140, cvs.width - barMarginLeft - barMarginRight);
-  const centerX = barMarginLeft + barWidth/2;
-  const y = 28+12+10;
-  const w = Math.min(360, Math.max(180, Math.round(cvs.width * 0.47)));
-  const h = Math.max(28, Math.round(cvs.height*0.034));
-  const x = centerX - w/2;
+  const w = Math.max(cvs.width * 0.7, 440); // 横長, 最低440px
+  const h = Math.max(38, Math.round(cvs.height*0.045));
+  const x = (cvs.width-w)/2;
+  // 進捗バーの下+24px、画面中央より上側
+  const y = Math.max( barWidth*0.02+50, cvs.height*0.12 );
   ctx.save();
   ctx.textAlign = "center";
-  ctx.font = `bold ${Math.round(h*0.68)}px system-ui`;
+  ctx.font = `bold ${Math.round(h*0.7)}px system-ui`;
   ctx.lineWidth = 3;
   ctx.strokeStyle = ac.cleared ? "#FFD700" : "#ff69b4";
   ctx.fillStyle = ac.cleared ? "#FFD700" : "#ff69b4";
   ctx.globalAlpha = 0.82;
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 9);
+  ctx.roundRect(x, y, w, h, 13);
   ctx.fill();
   ctx.globalAlpha = 1;
   ctx.stroke();
@@ -1037,4 +1060,5 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
