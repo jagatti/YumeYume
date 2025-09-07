@@ -626,6 +626,8 @@ startBtn.onclick = function() {
       ac.state = "waiting";
       ac.progress = 0;
       ac.cleared = false;
+      ac.tapScore = 0;
+      ac.spScore = 0;
     });
     gameState = "countdown";
     resizeCanvas();
@@ -656,18 +658,22 @@ retryBtn.onclick = ()=>{
 function drawNotes(){
   for(let i=0;i<notes.length;i++){
     const n = notes[i];
-    const globalIdx = chartIndex - notes.length + i;
+    const globalIdx = chartIndex - notes.length + i; // ノーツ譜面index
     const noteInfo = notesChart[globalIdx];
     if(!noteInfo) continue;
     const noteTime = noteInfo.time;
-    const ac = getACatTime(noteTime);
+
+    // クリア済みAC区間にいるノーツなら黄色、それ以外は青
     let noteColor = "#3b82f6";
-    if (ac && ac.state === "cleared") noteColor = "#FFD700";
+    const clearedAC = acList.find(ac => ac.state === "cleared" && noteTime >= ac.startTime && noteTime <= ac.endTime);
+    if (clearedAC) noteColor = "#FFD700";
+
     const pos=cubicBezier(n.path.p0,n.path.p1,n.path.p2,n.path.p3, Math.min(1,n.t/n.duration));
     ctx.fillStyle=noteColor;
     ctx.beginPath(); ctx.arc(pos.x,pos.y,R,0,Math.PI*2); ctx.fill();
 
-    // AC START/FINISH
+    // AC区間開始ノーツ
+    const ac = getACatTime(noteTime);
     if(ac && Math.abs(noteTime - ac.startTime) < 0.01){
       ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
       ctx.textAlign = "center";
@@ -677,6 +683,7 @@ function drawNotes(){
       ctx.fillStyle = "#ff69b4";
       ctx.fillText("START", pos.x, pos.y+R+13);
     }
+    // AC区間終了ノーツ
     if(ac && Math.abs(noteTime - ac.endTime) < 0.01){
       ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
       ctx.textAlign = "center";
@@ -1068,6 +1075,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
