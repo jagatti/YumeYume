@@ -24,9 +24,10 @@
 
 // --- AC（アピールチャンス）設定 ---
 const acList = [
-  {
-    startNote: 29,
-    endNote: 60,
+ {
+    // AC1:  {"time": 12.99, "side": "right"},～{"time": 24.31, "side": "right"}
+    startTime: 12.99,
+    endTime: 24.31,
     type: "score",
     target: 1000000,
     rewardScore: 500000,
@@ -37,8 +38,9 @@ const acList = [
     desc: "スコアを100万獲得する"
   },
   {
-    startNote: 97,
-    endNote: 153,
+    // AC2: {"time": 39.78, "side": "left"},～{"time": 59.22, "side": "left"}
+    startTime: 39.78,
+    endTime: 59.22,
     type: "sp",
     target: 3,
     rewardScore: 500000,
@@ -313,6 +315,24 @@ let spScoreBuffNotes = 0; // 残りバフノーツ数
   // --- AC進行管理用 ---
 let noteCounter = 0; // 1始まりで叩いたノーツ番号
 let totalSPUsed = 0;
+ // --- AC: 時刻ベースで現在のACを返す ---
+function getActiveACByTime(nowTime) {
+  return acList.find(ac =>
+    (ac.state === "active" || (ac.state === "cleared" && nowTime >= ac.startTime && nowTime <= ac.endTime))
+    && nowTime >= ac.startTime && nowTime <= ac.endTime
+  );
+}
+function getACatTime(time) {
+  return acList.find(ac => time >= ac.startTime && time <= ac.endTime);
+}
+function isACActiveByTime(nowTime) {
+  return !!getActiveACByTime(nowTime);
+}
+function isACClearedNowByTime(nowTime) {
+  return !!acList.find(ac =>
+    ac.state === "cleared" && nowTime >= ac.startTime && nowTime <= ac.endTime
+  );
+}
   
 // --- コンボボーナス倍率計算 ---
 function getComboBonus(combo) {
@@ -321,25 +341,6 @@ function getComboBonus(combo) {
   if (combo >= 31) return 1.02;
   if (combo >= 11) return 1.01;
   return 1.0;
-}
-
-function getActiveAC() {
-  return acList.find(ac =>
-    ac.state === "active" ||
-    (ac.state === "cleared" && noteCounter >= ac.startNote && noteCounter <= ac.endNote)
-  );
-}
-function getACatNote(n){
-  return acList.find(ac => n >= ac.startNote && n <= ac.endNote);
-}
-function isACActive() {
-  return !!acList.find(ac => ac.state === "active");
-}
-function isACClearedNow() {
-  // AC区間中でクリア済（ACノーツを黄色化）
-  return !!acList.find(ac =>
-    ac.state === "cleared" && noteCounter >= ac.startNote && noteCounter <= ac.endNote
-  );
 }
   
 // --- レイアウト・ターゲット位置 ---
@@ -377,11 +378,11 @@ function spawnNote(side){ notes.push({side,t:0,duration:noteDuration,path:makePa
 function addPopup(text,x,y,ms,type){const d=Math.max(1,Math.round(ms/16.67));popups.push({text,x,y,timer:d,duration:d,type});}
 function triggerSPVisual(){ spFlashTimer=10; spRingTimer=spRingSpeed; }
 
-  // --- AC進行チェック ---
-function updateACOnTap(pointsWithCombo) {
+// --- AC進行チェック（nowTimeで判定） ---
+function updateACOnTap(pointsWithCombo, nowTime) {
   noteCounter++;
   acList.forEach(ac => {
-    if (noteCounter === ac.startNote) ac.state = "active";
+    if (Math.abs(nowTime - ac.startTime) < 0.5 && ac.state === "waiting") ac.state = "active";
     if (ac.state === "active") {
       if (ac.type === "score") ac.progress += pointsWithCombo;
       // クリア判定
@@ -395,15 +396,15 @@ function updateACOnTap(pointsWithCombo) {
       }
     }
     // AC区間終了したらstateをendedに
-    if (noteCounter > ac.endNote && (ac.state === "active" || ac.state === "cleared")) {
+    if (nowTime > ac.endTime && (ac.state === "active" || ac.state === "cleared")) {
       ac.state = "ended";
     }
   });
 }
-function updateACOnSPUse() {
+function updateACOnSPUse(nowTime) {
   totalSPUsed++;
   acList.forEach(ac => {
-    if (ac.state === "active" && ac.type === "sp") {
+    if (ac.state === "active" && ac.type === "sp" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
       ac.progress += 1;
       if (!ac.cleared && ac.progress >= ac.target) {
         ac.cleared = true;
@@ -445,9 +446,10 @@ function calcTapScoreAndLabel(dist, baseRaw){
 
 // --- スコア加算処理（コンボボーナスも反映, SPバフ, ACバフ） ---
 function awardHit(target, points, label, resetCombo, baseRaw){
+  let nowTime = bgm.currentTime || 0;
   // ACスコアバフ
   let acBuff = 1.0;
-  if (isACActive() || isACClearedNow()) acBuff = 1.1;
+  if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) acBuff = 1.1;
   // SPバフ
   let spBuff = 1.0;
   if (spScoreBuffNotes > 0) {
@@ -525,6 +527,7 @@ function judgeNotesGlobal(){
 function tryUseSP(mx,my){
   if(spValue<SP_MAX) return false;
   if(!isInSPSemicircle(mx,my)) return false;
+  let nowTime = bgm.currentTime || 0;
   spUseCount++;
   let spBase = 180000;
   if (appealBoostNotes > 0) {
@@ -535,7 +538,7 @@ function tryUseSP(mx,my){
   const comboBonus = getComboBonus(combo);
   let spScore = spBase;
   // ACバフ
-  if (isACActive() || isACClearedNow()) spScore = Math.floor(spScore * 1.1);
+  if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) spScore = Math.floor(spScore * 1.1);
   // SPバフ
   if(spBoostTimer>0) spScore = Math.floor(spScore * 1.1);
   spScore = Math.floor(spScore * comboBonus);
@@ -560,7 +563,7 @@ function tryUseSP(mx,my){
     skillHistory.unshift({text: "[アピール増加 10%]", life:180});
     if(skillHistory.length>5) skillHistory.pop();
   }
-  updateACOnSPUse();
+  updateACOnSPUse(nowTime);
   return true;
 }
   
@@ -636,59 +639,66 @@ retryBtn.onclick = ()=>{
 function drawNotes(){
   for(let i=0;i<notes.length;i++){
     const n = notes[i];
-    const globalNoteNum = noteCounter + i + 1;
-    const ac = getACatNote(globalNoteNum);
+    const globalIdx = chartIndex - notes.length + i; // notesChart上のノーツindex
+    const noteInfo = notesChart[globalIdx];
+    if(!noteInfo) continue;
+    const noteTime = noteInfo.time;
+    const ac = getACatTime(noteTime);
     let noteColor = "#3b82f6";
-    // AC区間中クリア済みだけ黄色、それ以外は青（仕様通り）
+    // AC区間中クリア済みだけ黄色
     if (ac && ac.state === "cleared") noteColor = "#FFD700";
     const pos=cubicBezier(n.path.p0,n.path.p1,n.path.p2,n.path.p3, Math.min(1,n.t/n.duration));
     ctx.fillStyle=noteColor;
     ctx.beginPath(); ctx.arc(pos.x,pos.y,R,0,Math.PI*2); ctx.fill();
 
     // AC区間開始ノーツ
-    if(ac && globalNoteNum === ac.startNote){
-      ctx.font = `bold ${Math.round(R*0.9)}px system-ui`;
-      ctx.textAlign = "center";
-      ctx.lineWidth = 5;
-      ctx.strokeStyle = "#fff";
-      ctx.strokeText("START", pos.x, pos.y+R+16);
-      ctx.fillStyle = "#ff69b4";
-      ctx.fillText("START", pos.x, pos.y+R+16);
-    }
-    // AC区間終了ノーツ
-    if(ac && globalNoteNum === ac.endNote){
-      ctx.font = `bold ${Math.round(R*0.9)}px system-ui`;
+    if(ac && Math.abs(noteTime - ac.startTime) < 0.01){
+      ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
       ctx.textAlign = "center";
       ctx.lineWidth = 4;
+      ctx.strokeStyle = "#fff";
+      ctx.strokeText("START", pos.x, pos.y+R+13);
+      ctx.fillStyle = "#ff69b4";
+      ctx.fillText("START", pos.x, pos.y+R+13);
+    }
+    // AC区間終了ノーツ
+    if(ac && Math.abs(noteTime - ac.endTime) < 0.01){
+      ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
+      ctx.textAlign = "center";
+      ctx.lineWidth = 3;
       ctx.strokeStyle = "#ff69b4";
-      ctx.strokeText("FINISH", pos.x, pos.y+R+16);
+      ctx.strokeText("FINISH", pos.x, pos.y+R+13);
       ctx.fillStyle = "#fff";
-      ctx.fillText("FINISH", pos.x, pos.y+R+16);
+      ctx.fillText("FINISH", pos.x, pos.y+R+13);
     }
   }
 }
 
-// --- AC通知パネル ---
+// --- AC通知パネル（中央進捗バー下、小さめに） ---
 function drawACMissionNotice(){
-  const ac = acList.find(ac => (ac.state === "active" || ac.state === "cleared") && noteCounter >= ac.startNote && noteCounter <= ac.endNote);
+  // 表示対象AC（activeまたはcleared）の今の時間に該当するもの
+  let nowTime = bgm.currentTime || 0;
+  const ac = acList.find(ac => (ac.state === "active" || ac.state === "cleared") && nowTime >= ac.startTime && nowTime <= ac.endTime);
   if(!ac) return;
+  // 進捗バー下中央寄せ
   const barMarginLeft = 20;
   const barMarginRight = 200;
   const barWidth = Math.max(140, cvs.width - barMarginLeft - barMarginRight);
-  const x = barMarginLeft;
-  const y = 32;
-  const w = barWidth;
-  const h = Math.max(36, Math.round(cvs.height*0.045));
+  const centerX = barMarginLeft + barWidth/2;
+  const y = 28+12+10; // 進捗バー下10px
+  const w = Math.min(360, Math.max(180, Math.round(cvs.width * 0.47)));
+  const h = Math.max(28, Math.round(cvs.height*0.034));
+  const x = centerX - w/2;
   ctx.save();
   ctx.textAlign = "center";
   ctx.font = `bold ${Math.round(h*0.68)}px system-ui`;
-  ctx.lineWidth = 5;
+  ctx.lineWidth = 3;
   // クリアで黄色枠/未クリアはピンク
   ctx.strokeStyle = ac.cleared ? "#FFD700" : "#ff69b4";
   ctx.fillStyle = ac.cleared ? "#FFD700" : "#ff69b4";
-  ctx.globalAlpha = 0.72;
+  ctx.globalAlpha = 0.82;
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 11);
+  ctx.roundRect(x, y, w, h, 9);
   ctx.fill();
   ctx.globalAlpha = 1;
   ctx.stroke();
@@ -710,8 +720,8 @@ function drawProgressBarAC(){
   const y = 10;
   // ピンクAC区間
   for(const ac of acList){
-    const startRatio = (ac.startNote-1)/notesChart.length;
-    const endRatio = (ac.endNote)/notesChart.length;
+    const startRatio = ac.startTime/notesChart[notesChart.length-1].time;
+    const endRatio = ac.endTime/notesChart[notesChart.length-1].time;
     ctx.fillStyle = "#ff69b4";
     ctx.globalAlpha = 0.35;
     ctx.fillRect(x + barWidth*startRatio, y, barWidth*(endRatio-startRatio), barHeight);
@@ -1045,4 +1055,5 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
