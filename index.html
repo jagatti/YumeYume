@@ -1101,6 +1101,18 @@ function drawACFailFlash(){
     ctx.restore();
   }
 }
+
+  function drawACFailFlash(){
+  if(acFailFlashTimer > 0){
+    const alpha = Math.min(0.38, acFailFlashTimer/18*0.38);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "#ff0033";
+    ctx.fillRect(0,0,cvs.width,cvs.height);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+}
   
 // ★ 判定回数リザルト左下表示
 function drawJudgeCountsResult() {
@@ -1217,6 +1229,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
