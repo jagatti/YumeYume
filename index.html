@@ -691,13 +691,13 @@ function drawACMissionNotice(){
   const barMarginRight = 200;
   const barWidth = Math.max(140, cvs.width - barMarginLeft - barMarginRight);
   const w = Math.max(cvs.width * 0.7, 440); // 横長, 最低440px
-  const h = Math.max(38, Math.round(cvs.height*0.045));
+  const h = Math.max(30, Math.round(cvs.height*0.035));
   const x = (cvs.width-w)/2;
   // 進捗バーの下+24px、画面中央より上側
   const y = Math.max( barWidth*0.02+50, cvs.height*0.12 );
   ctx.save();
   ctx.textAlign = "center";
-  ctx.font = `bold ${Math.round(h*0.5)}px system-ui`;
+  ctx.font = `bold ${Math.round(h*0.4)}px system-ui`;
   ctx.lineWidth = 3;
   ctx.strokeStyle = ac.cleared ? "#FFD700" : "#ff69b4";
   ctx.fillStyle = ac.cleared ? "#FFD700" : "#ff69b4";
@@ -1060,6 +1060,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
