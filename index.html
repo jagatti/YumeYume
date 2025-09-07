@@ -890,8 +890,7 @@ function update(){
      localStorage.setItem('bestScore', bestScore);
     }
 }
-// ページ読み込み時
-let bestScore = Number(localStorage.getItem('bestScore')) || 0;
+
   }
   if(spValue>=SP_MAX){ if(!spFullNotified){ triggerSPVisual(); spFullNotified=true; } }
   else spFullNotified=false;
@@ -1215,6 +1214,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
