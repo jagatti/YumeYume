@@ -698,7 +698,7 @@ function drawACMissionNotice(){
   const barMarginLeft = 20;
   const barMarginRight = 200;
   const barWidth = Math.max(140, cvs.width - barMarginLeft - barMarginRight);
-  const w = Math.max(cvs.width * 0.7, 440); // 横長, 最低440px
+  const w = Math.max(cvs.width * 0.6, 400); // 横長, 最低440px
   const h = Math.max(30, Math.round(cvs.height*0.035));
   const x = (cvs.width-w)/2;
   // 進捗バーの下+24px、画面中央より上側
@@ -1068,6 +1068,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
