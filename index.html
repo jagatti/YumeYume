@@ -311,6 +311,7 @@ const notesChart = [
 let chartIndex = 0;
 let R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
 let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=55;
+let bestScore = Number(localStorage.getItem('bestScore')) || 0;
 let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=0, spCountdownTimer=0, spCountdownValue=0;
 let popups=[], hitRings=[], lastInputWasTouch=false;
 let gameState = "init", countdownValue = 3, totalNotesSpawned = 0, clearStartFrame = null, resultStartFrame = null;
@@ -323,11 +324,13 @@ let judgeCount = {
   BAD: 0,
   MISS: 0
 };
+  
 let spScoreBuffNotes = 0;
 let noteCounter = 0;
 let totalSPUsed = 0;
 let permanentScoreBuff = 0;
 let acFailFlashTimer = 0;
+let bestScore = 0;
 let waitingClearFrame = null; 
   
 // --- コンボボーナス倍率計算 ---
@@ -882,6 +885,14 @@ function update(){
   if(gameState==="clear" && frame-clearStartFrame>120){
     gameState="result";
     resultStartFrame=frame;
+    // スコア更新時
+    if(score > bestScore) {
+     bestScore = score;
+     localStorage.setItem('bestScore', bestScore);
+    }
+}
+// ページ読み込み時
+let bestScore = Number(localStorage.getItem('bestScore')) || 0;
   }
   if(spValue>=SP_MAX){ if(!spFullNotified){ triggerSPVisual(); spFullNotified=true; } }
   else spFullNotified=false;
@@ -1176,6 +1187,13 @@ function render(){
     ctx.font=`bold ${scoreFontSize}px system-ui`;
     ctx.lineWidth=10; ctx.strokeStyle='#000'; ctx.strokeText(`SCORE: ${score}`, 0, 0);
     ctx.fillStyle='#39ff14'; ctx.fillText(`SCORE: ${score}`, 0, 0);
+    // ★BEST SCORE表示
+    ctx.font=`bold ${scoreFontSize*0.8}px system-ui`;
+    ctx.lineWidth=8;
+    ctx.strokeStyle="#000";
+    ctx.strokeText(`BEST SCORE: ${bestScore}`, 0, 46);
+    ctx.fillStyle="#ffd700";
+    ctx.fillText(`BEST SCORE: ${bestScore}`, 0, 46);
 
     ctx.font=`bold ${Math.round(cvs.height*0.04)}px system-ui`;
     ctx.lineWidth=6; ctx.strokeStyle='#000';
@@ -1198,5 +1216,6 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
