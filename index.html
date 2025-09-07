@@ -912,6 +912,7 @@ function update(){
       totalNotesSpawned++;
       chartIndex++;
     }
+    if(acFailFlashTimer > 0) acFailFlashTimer--;
   }
   for(const n of notes) n.t++;
   const keep=[];for(const n of notes){if(n.t<=n.duration+5) keep.push(n);else applyMiss('MISS');}notes=keep;
@@ -1228,3 +1229,4 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
