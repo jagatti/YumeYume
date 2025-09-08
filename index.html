@@ -342,17 +342,27 @@ async function loadTapSE() {
   tapBuffer = await audioContext.decodeAudioData(arrayBuffer);
 }
 
-// --- assignACNoteIndexes ---
+//
+function findClosestNoteIndex(time) {
+  let minDiff = Infinity;
+  let idx = -1;
+  for (let i = 0; i < notesChart.length; i++) {
+    const diff = Math.abs(notesChart[i].time - time);
+    if (diff < minDiff) {
+      minDiff = diff;
+      idx = i;
+    }
+  }
+  return idx;
+}
 function assignACNoteIndexes() {
   for (const ac of acList) {
-    // 開始ノーツidx: startTime以上で最初
-    ac.startIdx = notesChart.findIndex(n => n.time >= ac.startTime);
-    // 終了ノーツidx: endTime以下で最後
-    let lastIdx = -1;
-    for (let i = 0; i < notesChart.length; i++) {
-      if (notesChart[i].time <= ac.endTime) lastIdx = i;
-    }
-    ac.endIdx = lastIdx;
+    // 完全一致優先、なければ最も近いノーツ
+    ac.startIdx = notesChart.findIndex(n => n.time === ac.startTime);
+    if (ac.startIdx === -1) ac.startIdx = findClosestNoteIndex(ac.startTime);
+
+    ac.endIdx = notesChart.findIndex(n => n.time === ac.endTime);
+    if (ac.endIdx === -1) ac.endIdx = findClosestNoteIndex(ac.endTime);
   }
 }
   
@@ -376,9 +386,9 @@ function playTapSE() {
   
 // --- AC（アピールチャンス）関連（進捗保存のため追加） ---
   acList.forEach(ac => {
-  ac.tapScore = 0; // タップで得たスコア
-  ac.spScore = 0;  // SP発動で得たスコア
-});
+    ac.tapScore = 0; // タップで得たスコア
+    ac.spScore = 0;  // SP発動で得たスコア
+  });
   
 // --- AC取得関数 ---
 function getACatTime(time) {
@@ -1310,6 +1320,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
