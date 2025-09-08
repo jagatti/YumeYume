@@ -349,7 +349,7 @@ function getComboBonus(combo) {
   const se = document.createElement('audio');
   se.src = 'tap.mp3';
   se.preload = 'auto';
-  se.volume = 0.8;
+  se.volume = 1.0;
   tapSEPool.push(se);
 }
   
@@ -515,7 +515,6 @@ function calcTapBase(){
 
 // --- 判定ごとのスコア補正 ---
 function calcTapScoreAndLabel(dist, baseRaw){
-  playTapSE();
   let label='WONDERFUL', mult=1.2;
   if(dist<=6){label='WONDERFUL';mult=1.2;}
   else if(dist<=10){label='GREAT';mult=1.1;}
@@ -532,6 +531,7 @@ function calcTapScoreAndLabel(dist, baseRaw){
 
 // --- スコア加算処理 ---
 function awardHit(target, points, label, resetCombo, baseRaw){
+  playTapSE();
   let nowTime = bgm.currentTime || 0;
   let acBuff = 1.0;
   if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) acBuff = 1.1;
@@ -1238,6 +1238,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
