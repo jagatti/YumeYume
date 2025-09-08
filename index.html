@@ -841,8 +841,9 @@ function update(){
   if(spBoostTimer>0) spBoostTimer--;
   hitRings=hitRings.filter(r=>{r.r+=4; r.alpha-=0.06; return r.alpha>0;});
   popups=popups.filter(p=>{p.timer--; return p.timer>0;});
-}
-
+    }
+  }
+  
 // --- ノーツ描画 ---
 function drawNotes(){
   for(let i=0;i<notes.length;i++){
@@ -1353,4 +1354,5 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
