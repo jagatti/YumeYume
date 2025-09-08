@@ -750,7 +750,7 @@ retryBtn.onclick = ()=>{
   });
 };
   
-// --- ノーツ描画（ACクリア時は黄色化/進捗ピンクバー修正済み） ---
+// --- ノーツ描画（グロー＋リム＋主円＋中心ドット） ---
 function drawNotes(){
   for(let i=0;i<notes.length;i++){
     const n = notes[i];
@@ -761,19 +761,67 @@ function drawNotes(){
     const noteTime = noteInfo.time;
 
     // 1つでもクリア済みAC区間に入っていれば黄色
-    let noteColor = "#3b82f6";
+    let isAcCleared = false;
     for(const ac of acList){
       if(ac.state === "cleared" && noteTime >= ac.startTime && noteTime <= ac.endTime){
-        noteColor = "#FFD700";
+        isAcCleared = true;
         break;
       }
     }
 
-    const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
-    ctx.fillStyle = noteColor;
-    ctx.beginPath(); ctx.arc(pos.x, pos.y, R, 0, Math.PI*2); ctx.fill();
+    // 色設定
+    let mainColor = isAcCleared ? "#ffd700" : "#00eaff";
+    let glowColor = isAcCleared ? "rgba(255,220,60,0.7)" : "rgba(0,200,255,0.7)";
+    let rimColor  = isAcCleared ? "#ffe777" : "#7fffff";
+    let dotColor  = isAcCleared ? "#ffe066" : "#1cd9ee";
 
-    // AC区間開始ノーツ
+    const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
+    const r = R;
+
+    // --- 1. 外側グロー ---
+    ctx.save();
+    ctx.globalAlpha = 0.90;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, r * 1.15, 0, Math.PI * 2);
+    const glow = ctx.createRadialGradient(pos.x, pos.y, r * 0.6, pos.x, pos.y, r * 1.2);
+    glow.addColorStop(0, glowColor);
+    glow.addColorStop(0.7, isAcCleared ? "rgba(255,220,60,0.15)" : "rgba(0,200,255,0.18)");
+    glow.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = glow;
+    ctx.fill();
+    ctx.restore();
+
+    // --- 2. 外枠リム ---
+    ctx.save();
+    ctx.strokeStyle = rimColor;
+    ctx.lineWidth = r * 0.18;
+    ctx.globalAlpha = 0.82;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, r * 0.87, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // --- 3. 主円 ---
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, r * 0.72, 0, Math.PI * 2);
+    ctx.fillStyle = mainColor;
+    ctx.shadowColor = mainColor;
+    ctx.shadowBlur = r * 0.16;
+    ctx.globalAlpha = isAcCleared ? 0.72 : 0.6;
+    ctx.fill();
+    ctx.restore();
+
+    // --- 4. 中心ドット ---
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, r * 0.22, 0, Math.PI * 2);
+    ctx.fillStyle = dotColor;
+    ctx.globalAlpha = 0.88;
+    ctx.fill();
+    ctx.restore();
+
+    // --- START/FINISHラベル ---
     const ac = getACatTime(noteTime);
     if(ac && Math.abs(noteTime - ac.startTime) < 0.1){
       ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
@@ -784,7 +832,6 @@ function drawNotes(){
       ctx.fillStyle = "#ff69b4";
       ctx.fillText("START", pos.x, pos.y+R+13);
     }
-    // AC区間終了ノーツ
     if(ac && Math.abs(noteTime - ac.endTime) < 0.1){
       ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
       ctx.textAlign = "center";
@@ -796,7 +843,7 @@ function drawNotes(){
     }
   }
 }
-
+  
 // --- AC通知パネル ---
 function drawACMissionNotice(){
   let nowTime = bgm.currentTime || 0;
@@ -1001,13 +1048,7 @@ function drawTargets(){
     ctx.beginPath(); ctx.arc(t.x,t.y,t.r,0,Math.PI*2); ctx.stroke();
   }
 }
-function drawNotes(){
-  ctx.fillStyle='#3b82f6';
-  for(const n of notes){
-    const pos=cubicBezier(n.path.p0,n.path.p1,n.path.p2,n.path.p3, Math.min(1,n.t/n.duration));
-    ctx.beginPath(); ctx.arc(pos.x,pos.y,R,0,Math.PI*2); ctx.fill();
-  }
-}
+
 function drawHitRings(){
   for(const ring of hitRings){
     ctx.strokeStyle=`rgba(255,255,255,${ring.alpha})`;
@@ -1246,6 +1287,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
