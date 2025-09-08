@@ -341,6 +341,20 @@ async function loadTapSE() {
   const arrayBuffer = await response.arrayBuffer();
   tapBuffer = await audioContext.decodeAudioData(arrayBuffer);
 }
+
+// --- assignACNoteIndexes ---
+function assignACNoteIndexes() {
+  for (const ac of acList) {
+    // 開始ノーツidx: startTime以上で最初
+    ac.startIdx = notesChart.findIndex(n => n.time >= ac.startTime);
+    // 終了ノーツidx: endTime以下で最後
+    let lastIdx = -1;
+    for (let i = 0; i < notesChart.length; i++) {
+      if (notesChart[i].time <= ac.endTime) lastIdx = i;
+    }
+    ac.endIdx = lastIdx;
+  }
+}
   
 // --- コンボボーナス倍率計算 ---
 function getComboBonus(combo) {
@@ -695,6 +709,7 @@ cvs.addEventListener('click',handlePointer);
 
 startBtn.onclick = function() {
   loadTapSE();
+  assignACNoteIndexes();
   if(gameState === "init"){
     chartIndex = 0;
     totalNotesSpawned = 0;
@@ -832,11 +847,10 @@ function update(){
 function drawNotes(){
   for(let i=0;i<notes.length;i++){
     const n = notes[i];
-    // 譜面上のindexを計算
-    const globalIdx = chartIndex - notes.length + i;
-    const noteInfo = notesChart[globalIdx];
+    const noteInfo = notesChart[n.chartIdx];
     if(!noteInfo) continue;
     const noteTime = noteInfo.time;
+    const idx = n.chartIdx;
 
     // 1つでもクリア済みAC区間に入っていれば黄色
     let isAcCleared = false;
@@ -1365,6 +1379,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
