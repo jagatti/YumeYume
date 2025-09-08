@@ -11,7 +11,7 @@
   #startBtn:hover{background:#27ac0e;color:#fff;}
   #retryBtn{position:absolute;right:5vw;top:4vw;min-width:64px;font-size:1.1rem;padding:0.4em 1.1em;background:#ffa500;color:#fff;border:none;border-radius:0.7em;box-shadow:0 2px 10px #ffa50040;cursor:pointer;z-index:101;display:none;opacity:0.94;transition:background 0.2s;}
   #retryBtn:hover{ background:#ff8000; }
-  canvas{background:#1e293b;border:2px solid #334155;border-radius:10px;touch-action:none;display:block;}
+  canvas{background:transparent;border:2px solid #334155;border-radius:10px;touch-action:none;display:block;}
 </style>
 </head>
 <body>
@@ -318,15 +318,7 @@ let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=
 let popups=[], hitRings=[], lastInputWasTouch=false;
 let gameState = "init", countdownValue = 3, totalNotesSpawned = 0, clearStartFrame = null, resultStartFrame = null;
 let skillHistory = [], appealBoostNotes = 0, skillActivationCount = 0, spUseCount = 0, progressDisplay = 0;
-let judgeCount = {
-  CRITICAL: 0,
-  WONDERFUL: 0,
-  GREAT: 0,
-  NICE: 0,
-  BAD: 0,
-  MISS: 0
-};
-  
+let judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
 let spScoreBuffNotes = 0;
 let noteCounter = 0;
 let totalSPUsed = 0;
@@ -1341,4 +1333,5 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
