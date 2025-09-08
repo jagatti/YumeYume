@@ -358,14 +358,18 @@ function findClosestNoteIndex(time) {
   }
   return idx;
 }
+  
+// --- assignACNoteIndexes ---
 function assignACNoteIndexes() {
   for (const ac of acList) {
-    // 完全一致優先、なければ最も近いノーツ
-    ac.startIdx = notesChart.findIndex(n => n.time === ac.startTime);
-    if (ac.startIdx === -1) ac.startIdx = findClosestNoteIndex(ac.startTime);
-
-    ac.endIdx = notesChart.findIndex(n => n.time === ac.endTime);
-    if (ac.endIdx === -1) ac.endIdx = findClosestNoteIndex(ac.endTime);
+    // 開始ノーツidx: startTime以上で最初
+    ac.startIdx = notesChart.findIndex(n => n.time >= ac.startTime);
+    // 終了ノーツidx: endTime以下で最後
+    let lastIdx = -1;
+    for (let i = 0; i < notesChart.length; i++) {
+      if (notesChart[i].time <= ac.endTime) lastIdx = i;
+    }
+    ac.endIdx = lastIdx;
   }
 }
   
@@ -1320,6 +1324,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
