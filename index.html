@@ -331,7 +331,8 @@ let noteCounter = 0;
 let totalSPUsed = 0;
 let permanentScoreBuff = 0;
 let acFailFlashTimer = 0;
-let waitingClearFrame = null; 
+let waitingClearFrame = null;
+let tapSEPoolIndex = 0;
   
 // --- コンボボーナス倍率計算 ---
 function getComboBonus(combo) {
@@ -340,6 +341,17 @@ function getComboBonus(combo) {
   if (combo >= 31) return 1.02;
   if (combo >= 11) return 1.01;
   return 1.0;
+}
+
+  // --- JSにSEプールを用意
+  const TAP_SE_POOL_SIZE = 8;
+  const tapSEPool = [];
+  for(let i=0; i<TAP_SE_POOL_SIZE; i++){
+  const se = document.createElement('audio');
+  se.src = 'tap.mp3';
+  se.preload = 'auto';
+  se.volume = 0.8;
+  tapSEPool.push(se);
 }
   
 // --- AC（アピールチャンス）関連（進捗保存のため追加） ---
@@ -480,11 +492,15 @@ function updateACOnSPUse(nowTime, spScore) {
   });
 }
   
+// --- 再生関数
 function playTapSE() {
-  const se = document.getElementById('tapSE');
-  const clone = se.cloneNode();
-  clone.volume = 0.5;
-  clone.play();
+  const se = tapSEPool[tapSEPoolIndex];
+  // 巻き戻してから再生
+  try {
+    se.currentTime = 0;
+    se.play();
+  } catch(e){}
+  tapSEPoolIndex = (tapSEPoolIndex + 1) % TAP_SE_POOL_SIZE;
 }
   
 // --- 基本スコアの計算を一律30000・上限50000に ---
@@ -1222,6 +1238,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
