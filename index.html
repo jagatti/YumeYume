@@ -775,7 +775,7 @@ function drawNotes(){
 
     // AC区間開始ノーツ
     const ac = getACatTime(noteTime);
-    if(ac && Math.abs(noteTime - ac.startTime) < 0.01){
+    if(ac && Math.abs(noteTime - ac.startTime) < 0.05){
       ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
       ctx.textAlign = "center";
       ctx.lineWidth = 4;
@@ -785,7 +785,7 @@ function drawNotes(){
       ctx.fillText("START", pos.x, pos.y+R+13);
     }
     // AC区間終了ノーツ
-    if(ac && Math.abs(noteTime - ac.endTime) < 0.01){
+    if(ac && Math.abs(noteTime - ac.endTime) < 0.05){
       ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
       ctx.textAlign = "center";
       ctx.lineWidth = 3;
@@ -1246,6 +1246,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
