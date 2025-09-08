@@ -823,7 +823,7 @@ function drawNotes(){
 
     // --- START/FINISHラベル ---
     const ac = getACatTime(noteTime);
-    if(ac && Math.abs(noteTime - ac.startTime) < 0.1){
+    if(ac && Math.abs(noteTime - ac.startTime) < 0.01){
       ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
       ctx.textAlign = "center";
       ctx.lineWidth = 4;
@@ -832,7 +832,7 @@ function drawNotes(){
       ctx.fillStyle = "#ff69b4";
       ctx.fillText("START", pos.x, pos.y+R+13);
     }
-    if(ac && Math.abs(noteTime - ac.endTime) < 0.1){
+    if(ac && Math.abs(noteTime - ac.endTime) < 0.01){
       ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
       ctx.textAlign = "center";
       ctx.lineWidth = 3;
@@ -1287,6 +1287,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
