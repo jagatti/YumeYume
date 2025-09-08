@@ -331,7 +331,16 @@ let totalSPUsed = 0;
 let permanentScoreBuff = 0;
 let acFailFlashTimer = 0;
 let waitingClearFrame = null;
-let tapSEPoolIndex = 0;
+let audioContext;
+let tapBuffer = null;
+
+// 効果音を事前にバッファ化
+async function loadTapSE() {
+  audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+  const response = await fetch('tap.wav');
+  const arrayBuffer = await response.arrayBuffer();
+  tapBuffer = await audioContext.decodeAudioData(arrayBuffer);
+}
   
 // --- コンボボーナス倍率計算 ---
 function getComboBonus(combo) {
@@ -342,15 +351,13 @@ function getComboBonus(combo) {
   return 1.0;
 }
 
-  // --- JSにSEプールを用意
-  const TAP_SE_POOL_SIZE = 8;
-  const tapSEPool = [];
-  for(let i=0; i<TAP_SE_POOL_SIZE; i++){
-  const se = document.createElement('audio');
-  se.src = 'tap.mp3';
-  se.preload = 'auto';
-  se.volume = 1.0;
-  tapSEPool.push(se);
+// 効果音再生
+function playTapSE() {
+  if (!tapBuffer) return;
+  const source = audioContext.createBufferSource();
+  source.buffer = tapBuffer;
+  source.connect(audioContext.destination);
+  source.start(0);
 }
   
 // --- AC（アピールチャンス）関連（進捗保存のため追加） ---
@@ -491,17 +498,14 @@ function updateACOnSPUse(nowTime, spScore) {
   });
 }
   
-// --- 再生関数
-function playTapSE() {
-  const se = tapSEPool[tapSEPoolIndex];
-  // 巻き戻してから再生
-  try {
-    se.pause(); 
-    se.currentTime = 0;
-    se.play().catch(()=>{});
-  } catch(e){}
-  tapSEPoolIndex = (tapSEPoolIndex + 1) % TAP_SE_POOL_SIZE;
-}
+// ユーザー操作時に一度だけ呼ぶ
+window.addEventListener('touchstart', () => {
+  if (!audioContext) loadTapSE();
+}, { once: true });
+window.addEventListener('mousedown', () => {
+  if (!audioContext) loadTapSE();
+}, { once: true });
+
   
 // --- 基本スコアの計算を一律30000・上限50000に ---
 function calcTapBase(){
@@ -678,6 +682,7 @@ cvs.addEventListener('touchstart',handlePointer,{passive:false});
 cvs.addEventListener('click',handlePointer);
 
 startBtn.onclick = function() {
+  loadTapSE();
   if(gameState === "init"){
     chartIndex = 0;
     totalNotesSpawned = 0;
@@ -1238,6 +1243,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
