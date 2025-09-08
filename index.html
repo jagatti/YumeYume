@@ -20,7 +20,6 @@
 <button id="startBtn">S.T.A.R.T!!</button>
 <button id="retryBtn">リトライ</button>
 <audio id="bgm" src="YumeYume5.mp3" preload="auto" loop></audio>
-<audio id="tapSE" src="tap.mp3" preload="auto"></audio>
 <script>
   
 // --- AC（アピールチャンス）設定（timeベース完全版） ---
@@ -497,8 +496,9 @@ function playTapSE() {
   const se = tapSEPool[tapSEPoolIndex];
   // 巻き戻してから再生
   try {
+    se.pause(); 
     se.currentTime = 0;
-    se.play();
+    se.play().catch(()=>{});
   } catch(e){}
   tapSEPoolIndex = (tapSEPoolIndex + 1) % TAP_SE_POOL_SIZE;
 }
@@ -1238,6 +1238,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
