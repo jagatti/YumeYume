@@ -721,8 +721,8 @@ function handlePointer(e){
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
 cvs.addEventListener('click',handlePointer);
 
-startBtn.onclick = function() {
-  loadTapSE();
+startBtn.onclick = async function() {
+  await loadTapSE();
   assignACNoteIndexes();
   if(gameState === "init"){
     chartIndex = 0;
@@ -1325,6 +1325,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
