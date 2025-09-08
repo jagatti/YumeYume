@@ -1026,15 +1026,7 @@ function update(){
     if(acFailFlashTimer > 0) acFailFlashTimer--;
     return;
   }
-  if (gameState === "playing" && !bgm.paused) {
-    const bgmNowSec = bgm.currentTime;
-    while (chartIndex < notesChart.length && bgmNowSec >= notesChart[chartIndex].time) {
-      spawnNote(notesChart[chartIndex].side);
-      totalNotesSpawned++;
-      chartIndex++;
-    }
-    if(acFailFlashTimer > 0) acFailFlashTimer--;
-  }
+
   for(const n of notes) n.t++;
   const keep=[];for(const n of notes){if(n.t<=n.duration+5) keep.push(n);else applyMiss('MISS');}notes=keep;
   if(gameState==="playing" && chartIndex>=notesChart.length && notes.length===0){
@@ -1380,26 +1372,3 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
