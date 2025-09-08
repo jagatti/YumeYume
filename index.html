@@ -843,7 +843,7 @@ function update(){
   popups=popups.filter(p=>{p.timer--; return p.timer>0;});
 }
 
-// --- ノーツ描画（グロー＋リム＋主円＋中心ドット） ---
+// --- ノーツ描画 ---
 function drawNotes(){
   for(let i=0;i<notes.length;i++){
     const n = notes[i];
@@ -852,10 +852,10 @@ function drawNotes(){
     const noteTime = noteInfo.time;
     const idx = n.chartIdx;
 
-    // 1つでもクリア済みAC区間に入っていれば黄色
+    // AC区間に入っているか（indexベースで判定）
     let isAcCleared = false;
     for(const ac of acList){
-      if(ac.state === "cleared" && noteTime >= ac.startTime && noteTime <= ac.endTime){
+      if(ac.state === "cleared" && ac.startIdx !== -1 && ac.endIdx !== -1 && idx >= ac.startIdx && idx <= ac.endIdx){
         isAcCleared = true;
         break;
       }
@@ -913,25 +913,26 @@ function drawNotes(){
     ctx.fill();
     ctx.restore();
 
-    // --- START/FINISHラベル ---
-    const ac = getACatTime(noteTime);
-    if(ac && Math.abs(noteTime - ac.startTime) < 0.01){
-      ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
-      ctx.textAlign = "center";
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = "#fff";
-      ctx.strokeText("START", pos.x, pos.y+R+13);
-      ctx.fillStyle = "#ff69b4";
-      ctx.fillText("START", pos.x, pos.y+R+13);
-    }
-    if(ac && Math.abs(noteTime - ac.endTime) < 0.01){
-      ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
-      ctx.textAlign = "center";
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = "#ff69b4";
-      ctx.strokeText("FINISH", pos.x, pos.y+R+13);
-      ctx.fillStyle = "#fff";
-      ctx.fillText("FINISH", pos.x, pos.y+R+13);
+    // --- START/FINISHラベル（indexで判定）---
+    for(const ac of acList){
+      if(ac.startIdx === idx){
+        ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
+        ctx.textAlign = "center";
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#fff";
+        ctx.strokeText("START", pos.x, pos.y+R+13);
+        ctx.fillStyle = "#ff69b4";
+        ctx.fillText("START", pos.x, pos.y+R+13);
+      }
+      if(ac.endIdx === idx){
+        ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
+        ctx.textAlign = "center";
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#ff69b4";
+        ctx.strokeText("FINISH", pos.x, pos.y+R+13);
+        ctx.fillStyle = "#fff";
+        ctx.fillText("FINISH", pos.x, pos.y+R+13);
+      }
     }
   }
 }
@@ -1379,6 +1380,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
