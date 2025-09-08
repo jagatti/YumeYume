@@ -764,20 +764,6 @@ startBtn.onclick = async function() {
   }
 };
   
-// --- 背景画像を30%明るさで描画 ---
-function render() {
-  // 背景画像（30%不透明度）をcanvas全体に描画
-  if(bgimg.complete && bgimg.naturalWidth > 0) {
-    ctx.save();
-    ctx.globalAlpha = 0.3;
-    ctx.drawImage(bgimg, 0, 0, cvs.width, cvs.height);
-    ctx.globalAlpha = 1;
-    ctx.restore();
-  } else {
-    ctx.fillStyle = "#0f172a";
-    ctx.fillRect(0,0,cvs.width,cvs.height);
-  }
-  
 // --- リトライボタン挙動 ---
 retryBtn.onclick = ()=>{
   gameState = "init";
@@ -1246,7 +1232,19 @@ function drawJudgeCountsResult() {
 }
 
 function render(){
-  ctx.clearRect(0,0,cvs.width,cvs.height);
+   ctx.clearRect(0,0,cvs.width,cvs.height);
+  // 背景画像（30%不透明度）をcanvas全体に描画
+  if(bgimg.complete && bgimg.naturalWidth > 0) {
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.drawImage(bgimg, 0, 0, cvs.width, cvs.height);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  } else {
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(0,0,cvs.width,cvs.height);
+  }
+  
   drawProgressBarAC();
   drawTargets();
   drawNotes();
@@ -1333,5 +1331,6 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
