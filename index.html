@@ -19,7 +19,7 @@
 <canvas id="game"></canvas>
 <button id="startBtn">S.T.A.R.T!!</button>
 <button id="retryBtn">リトライ</button>
-<audio id="bgm" src="YumeYume5.mp3" preload="auto" loop></audio>
+<audio id="bgm" src="YumeYume.wav" preload="auto" loop></audio>
 <script>
   
 // --- AC（アピールチャンス）設定（timeベース完全版） ---
@@ -75,7 +75,7 @@ const rotateMsg = document.getElementById('rotateMsg');
 const startBtn = document.getElementById('startBtn');
 const retryBtn = document.getElementById('retryBtn');
 const bgm = document.getElementById('bgm');
-bgm.volume = 0.01;
+bgm.volume = 0.1;
 
 
 // --- 譜面データを直接埋め込む ---
@@ -1246,6 +1246,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
