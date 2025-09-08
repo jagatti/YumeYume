@@ -333,7 +333,10 @@ let acFailFlashTimer = 0;
 let waitingClearFrame = null;
 let audioContext;
 let tapBuffer = null;
-
+  
+// ノーツ到達までの秒数
+const noteTravelSec = noteDuration / 60;
+  
 // 効果音を事前にバッファ化
 async function loadTapSE() {
   audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
@@ -391,13 +394,10 @@ function playTapSE() {
   });
   
 // --- AC取得関数 ---
-function getACatTime(time) {
-  return acList.find(ac => time >= ac.startTime && time <= ac.endTime);
-}
 function getActiveACByTime(nowTime) {
   return acList.find(ac =>
-    (ac.state === "active" || (ac.state === "cleared" && nowTime >= ac.startTime && nowTime <= ac.endTime))
-    && nowTime >= ac.startTime && nowTime <= ac.endTime
+    (ac.state === "active" || (ac.state === "cleared" && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec))
+    && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec
   );
 }
 function isACActiveByTime(nowTime) {
@@ -405,7 +405,7 @@ function isACActiveByTime(nowTime) {
 }
 function isACClearedNowByTime(nowTime) {
   return !!acList.find(ac =>
-    ac.state === "cleared" && nowTime >= ac.startTime && nowTime <= ac.endTime
+    ac.state === "cleared" && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec
   );
 }
   
@@ -1320,6 +1320,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
