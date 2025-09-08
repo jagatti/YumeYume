@@ -1007,25 +1007,6 @@ function drawProgressBarAC(){
     }
   }
 }
-  
-function update(){
-  frame++;
-  if(gameState==="countdown"){
-    if(frame % 60 === 0 && countdownValue>0){
-      countdownValue--;
-      if(countdownValue===0){
-        setTimeout(()=>{
-          gameState="playing";
-          frame = 0;
-          bgm.currentTime = 0;
-          bgm.volume = 0.10;
-          bgm.play().catch(()=>{});
-        },1000);
-      }
-    }
-    if(acFailFlashTimer > 0) acFailFlashTimer--;
-    return;
-  }
 
   for(const n of notes) n.t++;
   const keep=[];for(const n of notes){if(n.t<=n.duration+5) keep.push(n);else applyMiss('MISS');}notes=keep;
@@ -1372,3 +1353,4 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
