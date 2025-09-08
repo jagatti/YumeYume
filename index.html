@@ -493,7 +493,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
     // --- AC失敗判定と赤フラッシュ演出 ---
     if (
       ac.state === "active" &&
-      nowTime > ac.endTime && // AC時間を過ぎた
+      nowTime > ac.endTime + noteTravelSec && // AC時間を過ぎた
       !ac.cleared             // まだクリアしてない
     ) {
       ac.state = "ended";
@@ -1325,5 +1325,6 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
