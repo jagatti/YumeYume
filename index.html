@@ -16,6 +16,7 @@
 </head>
 <body>
 <div id="rotateMsg">横画面にしてください</div>
+<img id="bgimg" src="bg.jpg" style="display:none;">
 <canvas id="game"></canvas>
 <button id="startBtn">S.T.A.R.T!!</button>
 <button id="retryBtn">リトライ</button>
@@ -75,6 +76,7 @@ const rotateMsg = document.getElementById('rotateMsg');
 const startBtn = document.getElementById('startBtn');
 const retryBtn = document.getElementById('retryBtn');
 const bgm = document.getElementById('bgm');
+const bgimg = document.getElementById('bgimg');
 bgm.volume = 0.1;
 
 
@@ -770,6 +772,20 @@ startBtn.onclick = async function() {
   }
 };
   
+// --- 背景画像を30%明るさで描画 ---
+function render() {
+  // 背景画像（30%不透明度）をcanvas全体に描画
+  if(bgimg.complete && bgimg.naturalWidth > 0) {
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.drawImage(bgimg, 0, 0, cvs.width, cvs.height);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  } else {
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(0,0,cvs.width,cvs.height);
+  }
+  
 // --- リトライボタン挙動 ---
 retryBtn.onclick = ()=>{
   gameState = "init";
@@ -1325,7 +1341,4 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
-
-
-
 
