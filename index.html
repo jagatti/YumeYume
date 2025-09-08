@@ -20,6 +20,7 @@
 <button id="startBtn">S.T.A.R.T!!</button>
 <button id="retryBtn">リトライ</button>
 <audio id="bgm" src="YumeYume5.mp3" preload="auto" loop></audio>
+<audio id="tapSE" src="tap.mp3" preload="auto"></audio>
 <script>
   
 // --- AC（アピールチャンス）設定（timeベース完全版） ---
@@ -479,6 +480,13 @@ function updateACOnSPUse(nowTime, spScore) {
   });
 }
   
+function playTapSE() {
+  const se = document.getElementById('tapSE');
+  const clone = se.cloneNode();
+  clone.volume = 0.5;
+  clone.play();
+}
+  
 // --- 基本スコアの計算を一律30000・上限50000に ---
 function calcTapBase(){
   let baseRaw = 30000; // 1タップごとに一律
@@ -507,6 +515,7 @@ function calcTapScoreAndLabel(dist, baseRaw){
 
 // --- スコア加算処理 ---
 function awardHit(target, points, label, resetCombo, baseRaw){
+  playTapSE();
   let nowTime = bgm.currentTime || 0;
   let acBuff = 1.0;
   if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) acBuff = 1.1;
@@ -1213,6 +1222,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
