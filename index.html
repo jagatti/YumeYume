@@ -462,7 +462,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
   noteCounter++;
   acList.forEach(ac => {
     // --- AC開始時バフ抽選 ---
-    if (Math.abs(nowTime - ac.startTime) < 0.5 && ac.state === "waiting") {
+    if (Math.abs(nowTime - (ac.startTime + noteTravelSec)) < 0.5 && ac.state === "waiting")  {
       ac.state = "active";
       if(Math.random() < 0.3){
         permanentScoreBuff++;
@@ -470,7 +470,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
         if(skillHistory.length>5) skillHistory.pop();
       }
     }
-    if (ac.state === "active" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
+    if (ac.state === "active" && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec) {
       if (ac.type === "score") {
         ac.tapScore += pointsWithCombo;
         ac.progress = ac.tapScore + ac.spScore;
@@ -507,7 +507,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
 function updateACOnSPUse(nowTime, spScore) {
   totalSPUsed++;
   acList.forEach(ac => {
-    if (ac.state === "active" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
+    if (ac.state === "active" && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec) {
       if (ac.type === "sp") {
         ac.progress += 1;
         if (!ac.cleared && ac.progress >= ac.target) {
@@ -954,7 +954,8 @@ function drawNotes(){
 // --- AC通知パネル ---
 function drawACMissionNotice(){
   let nowTime = bgm.currentTime || 0;
-  const ac = acList.find(ac => (ac.state === "active" || ac.state === "cleared") && nowTime >= ac.startTime && nowTime <= ac.endTime);
+  const ac = acList.find(ac => (ac.state === "active" || ac.state === "cleared") &&
+    nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec);
   if(!ac) return;
   // 横幅を広く&進捗バーより下で中央より上位置
   const barMarginLeft = 20;
@@ -995,8 +996,8 @@ function drawProgressBarAC(){
   const lastTime = notesChart[notesChart.length-1].time;
   // ACピンク区間（下地）
   for(const ac of acList){
-    const startRatio = ac.startTime/lastTime;
-    const endRatio = ac.endTime/lastTime;
+    const startRatio = (ac.startTime + noteTravelSec) / (lastTime + noteTravelSec);
+    const endRatio = (ac.endTime + noteTravelSec) / (lastTime + noteTravelSec);
     ctx.fillStyle = "#ff69b4";
     ctx.globalAlpha = 0.35;
     ctx.fillRect(x + barWidth*startRatio, y, barWidth*(endRatio-startRatio), barHeight);
@@ -1004,7 +1005,7 @@ function drawProgressBarAC(){
     // 進捗（クリア時黄色、未クリア白）を上に細く重ねて表示
     if(ac.state === "active" || ac.state === "cleared"){
       let nowTime = bgm.currentTime || 0;
-      if(nowTime >= ac.startTime && nowTime <= ac.endTime && ac.target > 0){
+      if(nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec && ac.target > 0){
         let progressRatio = ac.type === "score"
           ? Math.min(1, (ac.progress || 0) / ac.target)
           : Math.min(1, (ac.progress || 0) / ac.target);
@@ -1324,10 +1325,5 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
-
-
-
-
-
 
 
