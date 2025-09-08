@@ -309,9 +309,8 @@ const notesChart = [
   {"time": 86.39, "side": "left"}
 ];
   
-// --- ゲーム進行・内部変数 ---
-let chartIndex = 0;
-let R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
+// --- グローバル変数 ---
+let chartIndex = 0, R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
 let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=55;
 let bestScore = Number(localStorage.getItem('bestScore')) || 0;
 let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=0, spCountdownTimer=0, spCountdownValue=0;
@@ -319,14 +318,8 @@ let popups=[], hitRings=[], lastInputWasTouch=false;
 let gameState = "init", countdownValue = 3, totalNotesSpawned = 0, clearStartFrame = null, resultStartFrame = null;
 let skillHistory = [], appealBoostNotes = 0, skillActivationCount = 0, spUseCount = 0, progressDisplay = 0;
 let judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
-let spScoreBuffNotes = 0;
-let noteCounter = 0;
-let totalSPUsed = 0;
-let permanentScoreBuff = 0;
-let acFailFlashTimer = 0;
-let waitingClearFrame = null;
-let audioContext;
-let tapBuffer = null;
+let spScoreBuffNotes = 0, noteCounter = 0, totalSPUsed = 0, permanentScoreBuff = 0, acFailFlashTimer = 0, waitingClearFrame = null;
+let audioContext, tapBuffer = null;
   
 // ノーツ到達までの秒数
 const noteTravelSec = noteDuration / 60;
@@ -1331,6 +1324,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
