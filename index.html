@@ -1017,7 +1017,7 @@ function drawProgressBarWithAC(){
     let width      = barWidth * (endRatio - startRatio);
     if(isNaN(startRatio) || isNaN(endRatio) || width <= 0) continue;
     ctx.fillStyle = "#ff69b4";
-    ctx.globalAlpha = 0.35;
+    ctx.globalAlpha = 0.75;
     ctx.fillRect(
       x + barWidth * startRatio,
       y,
@@ -1320,6 +1320,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
