@@ -634,7 +634,7 @@ function judgeNotesGlobal(){
     const baseRaw = calcTapBase();
     const {points,label,reset}=calcTapScoreAndLabel(bestDist, baseRaw);
     if(label!=='MISS'){
-      awardHit(bestTarget, points, label, reset, baseRaw);
+      awardHit(bestTarget, points, label, reset, baseRaw, n.chartIdx);
       notes.splice(bestIdx,1);
       return true;
     }else{ return false; }
@@ -1325,6 +1325,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
