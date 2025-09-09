@@ -991,7 +991,7 @@ function drawProgressBarAC(){
     const startRatio = (ac.startTime + noteTravelSec) / songLen;
     const endRatio = (ac.endTime + noteTravelSec) / songLen;
     ctx.fillStyle = "#ff69b4";
-    ctx.globalAlpha = 0.35;
+    ctx.globalAlpha = 0.8;
     ctx.fillRect(
       x + barWidth * startRatio,
       y,
@@ -1328,6 +1328,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
