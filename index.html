@@ -955,7 +955,7 @@ function drawACMissionNotice(){
   const y = Math.max( barWidth*0.02+50, cvs.height*0.12 );
   ctx.save();
   ctx.textAlign = "center";
-  ctx.font = `bold ${Math.round(h*0.5)}px system-ui`;
+  ctx.font = `bold ${Math.round(h*0.4)}px system-ui`;
   ctx.lineWidth = 3;
   ctx.strokeStyle = ac.cleared ? "#FFD700" : "#ff69b4";
   ctx.fillStyle = ac.cleared ? "#FFD700" : "#ff69b4";
@@ -1325,6 +1325,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
