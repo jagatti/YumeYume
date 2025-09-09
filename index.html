@@ -1029,17 +1029,20 @@ function drawProgressBar() {
   const barHeight = 12;
   const x = barMarginLeft;
   const y = 10;
+
+  // --- 1. グレー下地 ---
   ctx.fillStyle = '#4b5563';
   ctx.fillRect(x, y, barWidth, barHeight);
 
-  // 曲の進捗率
+  // --- 2. 水色進捗 ---
   let progress = 0;
   if (bgm.duration && bgm.duration > 0) {
     progress = Math.min(1, bgm.currentTime / bgm.duration);
   }
-
   ctx.fillStyle = '#00e5ff';
   ctx.fillRect(x, y, barWidth * progress, barHeight);
+
+  // --- 3. 白枠 ---
   ctx.strokeStyle = '#fff';
   ctx.lineWidth = 2;
   ctx.strokeRect(x, y, barWidth, barHeight);
@@ -1325,6 +1328,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
