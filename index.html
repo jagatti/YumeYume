@@ -597,7 +597,7 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
   for(const ac of acList){
     if(ac.state === "waiting" && chartIdx === ac.startIdx){
       ac.state = "active";
-      if(Math.random() < 0.3){
+      if(Math.random() < 0.9){
         permanentScoreBuff++;
         skillHistory.unshift({text:"[アピール増加永続 5%]", life:180});
         if(skillHistory.length>5) skillHistory.pop();
@@ -1325,6 +1325,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
