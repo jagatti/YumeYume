@@ -449,15 +449,7 @@ function triggerSPVisual(){ spFlashTimer=10; spRingTimer=spRingSpeed; }
 function updateACOnTap(pointsWithCombo, nowTime) {
   noteCounter++;
   acList.forEach(ac => {
-    // --- AC開始時バフ抽選 ---
-    if (Math.abs(nowTime - (ac.startTime + noteTravelSec)) < 0.5 && ac.state === "waiting")  {
-      ac.state = "active";
-      if(Math.random() < 0.3){
-        permanentScoreBuff++;
-        skillHistory.unshift({text:"[アピール増加永続 5%]", life:180});
-        if(skillHistory.length>5) skillHistory.pop();
-      }
-    }
+    
     if (ac.state === "active" && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec) {
       if (ac.type === "score") {
         ac.tapScore += pointsWithCombo;
@@ -559,7 +551,7 @@ function calcTapScoreAndLabel(dist, baseRaw){
 }
 
 // --- スコア加算処理 ---
-function awardHit(target, points, label, resetCombo, baseRaw){
+function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
   playTapSE();
   let nowTime = bgm.currentTime || 0;
   let acBuff = 1.0;
@@ -600,6 +592,19 @@ function awardHit(target, points, label, resetCombo, baseRaw){
     }
     if(skillHistory.length>5) skillHistory.pop();
   }
+
+  // ★★ AC開始バフ抽選（STARTノーツ到達時のみ） ★★
+  for(const ac of acList){
+    if(ac.state === "waiting" && chartIdx === ac.startIdx){
+      ac.state = "active";
+      if(Math.random() < 0.3){
+        permanentScoreBuff++;
+        skillHistory.unshift({text:"[アピール増加永続 5%]", life:180});
+        if(skillHistory.length>5) skillHistory.pop();
+      }
+    }
+  }
+
   updateACOnTap(pointsWithCombo, nowTime);
 }
   
@@ -1320,6 +1325,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
