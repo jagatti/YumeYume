@@ -973,35 +973,6 @@ function drawACMissionNotice(){
   ctx.restore();
 }
 
-// --- 進捗バー ピンクAC区間（time基準・修正版） ---
-function drawProgressBarAC(){
-  const barMarginLeft = 20;
-  const barMarginRight = 200;
-  const barWidth = Math.max(140, cvs.width - barMarginLeft - barMarginRight);
-  const barHeight = 12;
-  const x = barMarginLeft;
-  const y = 10;
-
-  // 曲の長さを取得
-  let songLen = bgm.duration && bgm.duration > 0 ? bgm.duration : (notesChart[notesChart.length-1].time + noteTravelSec);
-
-  // AC区間をピンクで描画（進捗と独立、常に表示）
-  for(const ac of acList){
-    // 曲の長さ基準でAC区間の開始/終了位置を計算
-    const startRatio = (ac.startTime + noteTravelSec) / songLen;
-    const endRatio = (ac.endTime + noteTravelSec) / songLen;
-    ctx.fillStyle = "#ff69b4";
-    ctx.globalAlpha = 0.8;
-    ctx.fillRect(
-      x + barWidth * startRatio,
-      y,
-      barWidth * (endRatio - startRatio),
-      barHeight
-    );
-    ctx.globalAlpha = 1;
-  }
-}
-
 // --- 以降は描画処理など ---
 function strokeRainbowText(text,x,y,font){
   ctx.textAlign='center'; ctx.font=font;
@@ -1022,7 +993,7 @@ function strokeOrangeWhiteText(text,x,y,font){
   ctx.fillStyle='#ffa500'; ctx.fillText(text,x,y);
 }
   
-function drawProgressBar() {
+function drawProgressBarWithAC(){
   const barMarginLeft = 20;
   const barMarginRight = 200;
   const barWidth = Math.max(140, cvs.width - barMarginLeft - barMarginRight);
@@ -1030,11 +1001,33 @@ function drawProgressBar() {
   const x = barMarginLeft;
   const y = 10;
 
-  // --- 1. グレー下地 ---
+  // 1. グレー下地
   ctx.fillStyle = '#4b5563';
   ctx.fillRect(x, y, barWidth, barHeight);
 
-  // --- 2. 水色進捗 ---
+  // 2. ピンクAC区間
+  let lastNoteTime = notesChart[notesChart.length-1]?.time || 0;
+  let fallbackSongLen = lastNoteTime + noteTravelSec + 3;
+  let songLen = (bgm.duration && !isNaN(bgm.duration) && bgm.duration > 1)
+    ? bgm.duration
+    : fallbackSongLen;
+  for(const ac of acList){
+    let startRatio = (ac.startTime + noteTravelSec) / songLen;
+    let endRatio   = (ac.endTime   + noteTravelSec) / songLen;
+    let width      = barWidth * (endRatio - startRatio);
+    if(isNaN(startRatio) || isNaN(endRatio) || width <= 0) continue;
+    ctx.fillStyle = "#ff69b4";
+    ctx.globalAlpha = 0.35;
+    ctx.fillRect(
+      x + barWidth * startRatio,
+      y,
+      width,
+      barHeight
+    );
+    ctx.globalAlpha = 1;
+  }
+
+  // 3. 水色進捗
   let progress = 0;
   if (bgm.duration && bgm.duration > 0) {
     progress = Math.min(1, bgm.currentTime / bgm.duration);
@@ -1042,7 +1035,7 @@ function drawProgressBar() {
   ctx.fillStyle = '#00e5ff';
   ctx.fillRect(x, y, barWidth * progress, barHeight);
 
-  // --- 3. 白枠 ---
+  // 4. 白枠
   ctx.strokeStyle = '#fff';
   ctx.lineWidth = 2;
   ctx.strokeRect(x, y, barWidth, barHeight);
@@ -1242,8 +1235,7 @@ function render(){
     ctx.fillRect(0,0,cvs.width,cvs.height);
   }
   
-  drawProgressBarAC();
-  drawProgressBar();
+  drawProgressBarWithAC();
   drawTargets();
   drawNotes();
   drawHitRings();
@@ -1328,6 +1320,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
