@@ -327,10 +327,19 @@ const noteTravelSec = noteDuration / 60;
   
 // 効果音を事前にバッファ化
 async function loadTapSE() {
-  audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
-  const response = await fetch('tap.wav');
-  const arrayBuffer = await response.arrayBuffer();
-  tapBuffer = await audioContext.decodeAudioData(arrayBuffer);
+  // AudioContextが既に作成済みならresume
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  // ここでresumeしておく（ユーザー操作時は必ず許可される）
+  await audioContext.resume();
+
+  // 効果音ロード
+  if (!tapBuffer) {
+    const response = await fetch('tap.wav');
+    const arrayBuffer = await response.arrayBuffer();
+    tapBuffer = await audioContext.decodeAudioData(arrayBuffer);
+  }
 }
 
 //
@@ -517,10 +526,10 @@ function updateACOnSPUse(nowTime, spScore) {
   
 // ユーザー操作時に一度だけ呼ぶ
 window.addEventListener('touchstart', () => {
-  if (!audioContext) loadTapSE();
+  loadTapSE(); // resumeも含む
 }, { once: true });
 window.addEventListener('mousedown', () => {
-  if (!audioContext) loadTapSE();
+  loadTapSE();
 }, { once: true });
 
   
@@ -1325,6 +1334,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
