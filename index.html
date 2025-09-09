@@ -981,33 +981,24 @@ function drawProgressBarAC(){
   const barHeight = 12;
   const x = barMarginLeft;
   const y = 10;
-  const lastTime = notesChart[notesChart.length-1].time;
-  // ACピンク区間（下地）
+
+  // 曲の長さを取得
+  let songLen = bgm.duration && bgm.duration > 0 ? bgm.duration : (notesChart[notesChart.length-1].time + noteTravelSec);
+
+  // AC区間をピンクで描画（進捗と独立、常に表示）
   for(const ac of acList){
-    const startRatio = (ac.startTime + noteTravelSec) / (lastTime + noteTravelSec);
-    const endRatio = (ac.endTime + noteTravelSec) / (lastTime + noteTravelSec);
+    // 曲の長さ基準でAC区間の開始/終了位置を計算
+    const startRatio = (ac.startTime + noteTravelSec) / songLen;
+    const endRatio = (ac.endTime + noteTravelSec) / songLen;
     ctx.fillStyle = "#ff69b4";
     ctx.globalAlpha = 0.35;
-    ctx.fillRect(x + barWidth*startRatio, y, barWidth*(endRatio-startRatio), barHeight);
+    ctx.fillRect(
+      x + barWidth * startRatio,
+      y,
+      barWidth * (endRatio - startRatio),
+      barHeight
+    );
     ctx.globalAlpha = 1;
-    // 進捗（クリア時黄色、未クリア白）を上に細く重ねて表示
-    if(ac.state === "active" || ac.state === "cleared"){
-      let nowTime = bgm.currentTime || 0;
-      if(nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec && ac.target > 0){
-        let progressRatio = ac.type === "score"
-          ? Math.min(1, (ac.progress || 0) / ac.target)
-          : Math.min(1, (ac.progress || 0) / ac.target);
-        ctx.fillStyle = ac.cleared ? "#FFD700" : "#fff";
-        ctx.globalAlpha = 0.90;
-        ctx.fillRect(
-          x + barWidth*startRatio,
-          y-5,
-          barWidth*(endRatio-startRatio)*progressRatio,
-          5
-        );
-        ctx.globalAlpha = 1;
-      }
-    }
   }
 }
 
@@ -1030,7 +1021,8 @@ function strokeOrangeWhiteText(text,x,y,font){
   ctx.lineWidth=6; ctx.strokeStyle='#fff'; ctx.strokeText(text,x,y);
   ctx.fillStyle='#ffa500'; ctx.fillText(text,x,y);
 }
-function drawProgressBar(){
+  
+function drawProgressBar() {
   const barMarginLeft = 20;
   const barMarginRight = 200;
   const barWidth = Math.max(140, cvs.width - barMarginLeft - barMarginRight);
@@ -1039,12 +1031,20 @@ function drawProgressBar(){
   const y = 10;
   ctx.fillStyle = '#4b5563';
   ctx.fillRect(x, y, barWidth, barHeight);
+
+  // 曲の進捗率
+  let progress = 0;
+  if (bgm.duration && bgm.duration > 0) {
+    progress = Math.min(1, bgm.currentTime / bgm.duration);
+  }
+
   ctx.fillStyle = '#00e5ff';
-  ctx.fillRect(x, y, barWidth * progressDisplay, barHeight);
+  ctx.fillRect(x, y, barWidth * progress, barHeight);
   ctx.strokeStyle = '#fff';
   ctx.lineWidth = 2;
   ctx.strokeRect(x, y, barWidth, barHeight);
 }
+  
 function drawSkillHistory(){
   const maxItems = 5;
   const lineH = Math.max(16, Math.round(R*0.6));
@@ -1325,4 +1325,5 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
