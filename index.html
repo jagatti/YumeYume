@@ -587,12 +587,24 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
   addPopup(String(pointsWithCombo), midX, midY, 500, 'score');
   if(judgeCount[label] !== undefined) judgeCount[label]++;
   if(Math.random() < 0.33){
-    skillActivationCount++;
-    const skillType = Math.floor(Math.random()*3);
-    if(skillType===0){
-      score += baseRaw;
-      skillHistory.unshift({text:`[ボルテージ獲得 ${baseRaw}]`, life:180});
-    }else if(skillType===1){
+  skillActivationCount++;
+  const skillType = Math.floor(Math.random()*3);
+  if(skillType===0){
+    // --- ボルテージ獲得(バフ適用版) ---
+    let voltage = baseRaw;
+    if (appealBoostNotes > 0) voltage = Math.ceil(voltage * 1.12);
+    if (spBoostTimer > 0) voltage = Math.floor(voltage * 1.1);
+    const comboBonus = getComboBonus(combo + 1);
+    voltage = Math.floor(voltage * comboBonus);
+    let nowTime = bgm.currentTime || 0;
+    if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) voltage = Math.floor(voltage * 1.1);
+    if (spScoreBuffNotes > 0) voltage = Math.floor(voltage * 1.1);
+    let permanentBuff = 1 + permanentScoreBuff * 0.05;
+    voltage = Math.floor(voltage * permanentBuff);
+    if (voltage > 50000) voltage = 50000;
+    score += voltage;
+    skillHistory.unshift({text:`[ボルテージ獲得 ${voltage}]`, life:180});
+  　}else if(skillType===1){
       spValue = Math.min(SP_MAX, spValue+540);
       skillHistory.unshift({text:`[SPゲージ獲得 9%]`, life:180});
     }else{
@@ -1334,6 +1346,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
