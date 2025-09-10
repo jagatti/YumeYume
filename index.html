@@ -1217,65 +1217,52 @@ function drawACFailFlash(){
   const w = cvs.width, h = cvs.height;
   const maxT = 240;
   const fade = Math.max(0, Math.min(1, spBoostTimer / maxT));
-  const noteCount = 18; // 同時に出す音符数
-
-  // 虹色パレット
+  const noteCount = 16; // 少なめ
   const colors = [
-    "#ff4c4c", // 赤
-    "#ffa500", // オレンジ
-    "#ffe93a", // 黄
-    "#4cff4c", // 緑
-    "#39bfff", // 青
-    "#8b4cff", // 紫
-    "#ff6cff", // ピンク
+    "#ff4c4c", "#ffa500", "#ffe93a", "#4cff4c", "#39bfff", "#8b4cff", "#ff6cff",
   ];
 
-  // 音符のパラメータを決定
+  // 音符のベース位置を画面に満遍なく配置
   for (let i = 0; i < noteCount; i++) {
-    // 個々の音符の乱数シード（SPタイマーとiから生成）
-    const seed = (i * 73 + spBoostTimer * 3) % 1000;
-    // ランダムな出現位置/速度/大きさ
-    let t = (spBoostTimer + i * 30) % maxT;
-    let lifeRatio = 1 - (t / maxT);
-    let size = 34 + 30 * Math.sin((i * 31 + t) * 0.07);
-    let x = (w + 160) * Math.abs(Math.sin((i * 13 + t) * 0.021 + i)) - 80;
-    let y = h * lifeRatio - 32 + Math.sin(i + t * 0.11) * 18;
-    let angle = Math.sin((i * 7 + t) * 0.12) * 0.7;
+    // 基本位置：画面グリッド＋乱数
+    const gridX = ((i % 4) + 0.5) / 4 * w;
+    const gridY = ((Math.floor(i / 4) + 0.6) / 4) * h * 0.85 + h * 0.08;
+    // 時間経過でその場でゆらゆら揺れる（小さめに）
+    const t = spBoostTimer;
+    const dx = Math.sin(t * 0.06 + i) * 10;
+    const dy = Math.cos(t * 0.04 + i * 2) * 7;
+    const angle = Math.sin(t * 0.025 + i * 2) * 0.21;
+    const size = 22 + Math.sin(i * 2.7) * 4; // 小さめ
 
-    let alpha = 0.32 * fade * (0.7 + 0.3 * Math.sin(i + t * 0.13));
-    let color = colors[i % colors.length];
-
-    // 描画
     ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(x, y);
+    ctx.globalAlpha = 0.19 * fade;
+    ctx.translate(gridX + dx, gridY + dy);
     ctx.rotate(angle);
 
-    // 音符の形（8分音符風）
+    // 音符（8分音符風）
     ctx.beginPath();
-    // 丸
-    ctx.ellipse(0, 0, size * 0.37, size * 0.28, 0, 0, Math.PI * 2);
-    ctx.fillStyle = color;
+    ctx.ellipse(0, 0, size * 0.38, size * 0.26, 0, 0, Math.PI * 2);
+    ctx.fillStyle = colors[i % colors.length];
     ctx.shadowColor = "#fff";
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 9;
     ctx.fill();
 
     // 棒
     ctx.beginPath();
-    ctx.moveTo(size * 0.15, -size * 0.06);
-    ctx.lineTo(size * 0.15, -size * 0.7);
-    ctx.lineWidth = size * 0.13;
-    ctx.strokeStyle = color;
+    ctx.moveTo(size * 0.13, -size * 0.05);
+    ctx.lineTo(size * 0.13, -size * 0.56);
+    ctx.lineWidth = size * 0.10;
+    ctx.strokeStyle = colors[i % colors.length];
     ctx.lineCap = "round";
     ctx.shadowBlur = 0;
     ctx.stroke();
 
     // 旗
     ctx.beginPath();
-    ctx.moveTo(size * 0.15, -size * 0.7);
-    ctx.quadraticCurveTo(size * 0.55, -size * 0.75, size * 0.43, -size * 0.35);
-    ctx.lineWidth = size * 0.11;
-    ctx.strokeStyle = color;
+    ctx.moveTo(size * 0.13, -size * 0.56);
+    ctx.quadraticCurveTo(size * 0.40, -size * 0.63, size * 0.33, -size * 0.28);
+    ctx.lineWidth = size * 0.08;
+    ctx.strokeStyle = colors[i % colors.length];
     ctx.stroke();
 
     ctx.restore();
@@ -1417,6 +1404,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
