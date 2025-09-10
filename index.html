@@ -1211,7 +1211,62 @@ function drawACFailFlash(){
     ctx.restore();
   }
 }
-  
+  function drawSPBoostFrame() {
+  if (spBoostTimer <= 0) return;
+  const w = cvs.width, h = cvs.height;
+
+  // グラデーションの透明度
+  const gradAlpha = 0.55 * (spBoostTimer/240); // 演出フェードアウト
+
+  // 線のパターン
+  const lines = [
+    // {color, offset, fromX, fromY, toX, toY}
+    // 左上→右下
+    {color:"#ffa500", from:[0, 60], to:[w-60, h], width:5},
+    {color:"#39bfff", from:[0, 90], to:[w-90, h], width:3},
+    {color:"#ff92d2", from:[0, 120], to:[w-120, h], width:3},
+    // 左下→右上
+    {color:"#ffa500", from:[0, h-60], to:[w-60, 0], width:5},
+    {color:"#39bfff", from:[0, h-90], to:[w-90, 0], width:3},
+    {color:"#ff92d2", from:[0, h-120], to:[w-120, 0], width:3},
+    // 右上→左下
+    {color:"#ffa500", from:[w, 60], to:[60, h], width:5},
+    {color:"#39bfff", from:[w, 90], to:[90, h], width:3},
+    {color:"#ff92d2", from:[w, 120], to:[120, h], width:3},
+    // 右下→左上
+    {color:"#ffa500", from:[w, h-60], to:[60, 0], width:5},
+    {color:"#39bfff", from:[w, h-90], to:[90, 0], width:3},
+    {color:"#ff92d2", from:[w, h-120], to:[120, 0], width:3},
+  ];
+
+  // 描画
+  for (const ln of lines) {
+    ctx.save();
+    ctx.globalAlpha = gradAlpha;
+    ctx.strokeStyle = ln.color;
+
+    // グラデーション: 線の外側に透明が拡がる
+    let grad;
+    if (Math.abs(ln.from[0]-ln.to[0]) > Math.abs(ln.from[1]-ln.to[1])) {
+      // 横長
+      grad = ctx.createLinearGradient(ln.from[0], ln.from[1], ln.to[0], ln.to[1]);
+    } else {
+      // 縦長
+      grad = ctx.createLinearGradient(ln.from[0], ln.from[1], ln.to[0], ln.to[1]);
+    }
+    grad.addColorStop(0, ln.color + "00");
+    grad.addColorStop(0.15, ln.color + "99");
+    grad.addColorStop(0.85, ln.color + "99");
+    grad.addColorStop(1, ln.color + "00");
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = ln.width;
+    ctx.beginPath();
+    ctx.moveTo(ln.from[0], ln.from[1]);
+    ctx.lineTo(ln.to[0], ln.to[1]);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
 // ★ 判定回数リザルト左下表示
 function drawJudgeCountsResult() {
   const baseX = 30;
@@ -1269,6 +1324,7 @@ function render(){
   drawPopups();
   drawUI();
   drawOverlays();
+  drawSPBoostFrame();
   drawSkillHistory();
   drawACMissionNotice();
   drawACFailFlash();
@@ -1346,6 +1402,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
