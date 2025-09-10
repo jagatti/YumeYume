@@ -1215,62 +1215,70 @@ function drawACFailFlash(){
   function drawSPBoostFrame() {
   if (typeof spBoostTimer === 'undefined' || spBoostTimer <= 0) return;
   const w = cvs.width, h = cvs.height;
-  const centerX = w / 2;
-  const centerY = h - 60;  // 光円やパーティクルの中心
   const maxT = 240;
   const fade = Math.max(0, Math.min(1, spBoostTimer / maxT));
+  const noteCount = 18; // 同時に出す音符数
 
-  // --- 中央下半円の光エフェクト ---
-  {
-    const spRadius = Math.min(w, h) * 0.36;
-    const r = spRadius * (1 + 1.6 * (1 - fade));
-    let grad = ctx.createRadialGradient(centerX, centerY, spRadius * 0.3, centerX, centerY, r);
-    grad.addColorStop(0.0, "rgba(255,255,200,0.22)");
-    grad.addColorStop(0.5, "rgba(255,255,200,0.10)");
-    grad.addColorStop(1.0, "rgba(255,255,255,0.00)");
+  // 虹色パレット
+  const colors = [
+    "#ff4c4c", // 赤
+    "#ffa500", // オレンジ
+    "#ffe93a", // 黄
+    "#4cff4c", // 緑
+    "#39bfff", // 青
+    "#8b4cff", // 紫
+    "#ff6cff", // ピンク
+  ];
+
+  // 音符のパラメータを決定
+  for (let i = 0; i < noteCount; i++) {
+    // 個々の音符の乱数シード（SPタイマーとiから生成）
+    const seed = (i * 73 + spBoostTimer * 3) % 1000;
+    // ランダムな出現位置/速度/大きさ
+    let t = (spBoostTimer + i * 30) % maxT;
+    let lifeRatio = 1 - (t / maxT);
+    let size = 34 + 30 * Math.sin((i * 31 + t) * 0.07);
+    let x = (w + 160) * Math.abs(Math.sin((i * 13 + t) * 0.021 + i)) - 80;
+    let y = h * lifeRatio - 32 + Math.sin(i + t * 0.11) * 18;
+    let angle = Math.sin((i * 7 + t) * 0.12) * 0.7;
+
+    let alpha = 0.32 * fade * (0.7 + 0.3 * Math.sin(i + t * 0.13));
+    let color = colors[i % colors.length];
+
+    // 描画
     ctx.save();
-    ctx.globalAlpha = 0.68 * fade;
+    ctx.globalAlpha = alpha;
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+
+    // 音符の形（8分音符風）
     ctx.beginPath();
-    ctx.arc(centerX, centerY, r, Math.PI, Math.PI * 2, false);
-    ctx.lineTo(centerX, centerY);
-    ctx.closePath();
-    ctx.fillStyle = grad;
+    // 丸
+    ctx.ellipse(0, 0, size * 0.37, size * 0.28, 0, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.shadowColor = "#fff";
+    ctx.shadowBlur = 12;
     ctx.fill();
+
+    // 棒
+    ctx.beginPath();
+    ctx.moveTo(size * 0.15, -size * 0.06);
+    ctx.lineTo(size * 0.15, -size * 0.7);
+    ctx.lineWidth = size * 0.13;
+    ctx.strokeStyle = color;
+    ctx.lineCap = "round";
+    ctx.shadowBlur = 0;
+    ctx.stroke();
+
+    // 旗
+    ctx.beginPath();
+    ctx.moveTo(size * 0.15, -size * 0.7);
+    ctx.quadraticCurveTo(size * 0.55, -size * 0.75, size * 0.43, -size * 0.35);
+    ctx.lineWidth = size * 0.11;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+
     ctx.restore();
-  }
-
-  // --- パーティクル ---
-  {
-    const particleCount = 22;
-    for (let i = 0; i < particleCount; i++) {
-      const angle = ((i / particleCount) * Math.PI * 2) + (spBoostTimer * 0.1) + (i % 3);
-      const dist = (1 - fade) * (Math.max(w, h) * 0.36) + Math.random() * 8;
-      const px = centerX + Math.cos(angle) * dist;
-      const py = centerY + Math.sin(angle) * dist;
-      ctx.save();
-      ctx.globalAlpha = 0.32 * fade;
-      ctx.beginPath();
-      ctx.arc(px, py, 10 + ((i % 3) * 2), 0, Math.PI * 2);
-      ctx.fillStyle = ["#39bfff", "#ffa500", "#ff92d2"][i % 3];
-      ctx.shadowColor = "#fff";
-      ctx.shadowBlur = 8;
-      ctx.fill();
-      ctx.restore();
-    }
-  }
-
-  // --- 外周カラーフレーム ---
-  {
-    for (let i = 0; i < 3; i++) {
-      ctx.save();
-      ctx.globalAlpha = 0.13 * fade;
-      ctx.lineWidth = 18 - i * 6;
-      ctx.strokeStyle = ["#ffa500", "#39bfff", "#ff92d2"][i];
-      ctx.beginPath();
-      ctx.ellipse(centerX, centerY, w/2.2 - i*10, h/2.2 - i*10, 0, 0, Math.PI*2);
-      ctx.stroke();
-      ctx.restore();
-    }
   }
 }
   
@@ -1409,6 +1417,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
