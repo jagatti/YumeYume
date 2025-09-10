@@ -1173,12 +1173,12 @@ function drawPopups(){
 }
 function drawUI(){
   if(gameState!=="playing") return;
-  const cx=cvs.width - Math.max(40, Math.round(R*1.8));
+  const cx=cvs.width - Math.max(70, Math.round(R*2.7));
   ctx.textAlign='center'; ctx.fillStyle='#fff';
-  ctx.font=`bold ${Math.max(20,Math.round(R*1.0))}px system-ui`; ctx.fillText(`${combo}`, cx, Math.max(24,Math.round(R*1.0)));
-  ctx.font=`bold ${Math.max(10,Math.round(R*0.5))}px system-ui`; ctx.fillText('COMBO', cx, Math.max(40,Math.round(R*1.6)));
+  ctx.font=`bold ${Math.max(38,Math.round(R*1.7))}px system-ui`; ctx.fillText(`${combo}`, cx, Math.max(40,Math.round(R*1.4)));
+  ctx.font=`bold ${Math.max(20,Math.round(R*0.9))}px system-ui`; ctx.fillText('COMBO', cx, Math.max(70,Math.round(R*2.0)));
   ctx.textAlign='right'; ctx.font=`bold ${Math.max(16,Math.round(R*0.7))}px system-ui`;
-  ctx.fillText(`Score: ${score}`, cvs.width-12, cvs.height-16);
+  ctx.fillText(`SCORE: ${score}`, cvs.width-12, cvs.height-16);
 }
 function drawOverlays(){
   const f=popups.find(p=>p.type==='flash');
@@ -1414,6 +1414,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
