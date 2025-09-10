@@ -1273,21 +1273,6 @@ function drawACFailFlash(){
     }
   }
 }
-
-  // 外周に淡いカラーフレーム
-  {
-    for (let i = 0; i < 3; i++) {
-      ctx.save();
-      ctx.globalAlpha = 0.13 * fade;
-      ctx.lineWidth = 18 - i * 6;
-      ctx.strokeStyle = ["#ffa500", "#39bfff", "#ff92d2"][i];
-      ctx.beginPath();
-      ctx.ellipse(centerX, centerY, w/2.2 - i*10, h/2.2 - i*10, 0, 0, Math.PI*2);
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-}
   
 // ★ 判定回数リザルト左下表示
 function drawJudgeCountsResult() {
@@ -1424,6 +1409,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
