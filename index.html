@@ -1214,76 +1214,82 @@ function drawACFailFlash(){
   
 function drawSPBoostFrame() {
   if (typeof spBoostTimer === 'undefined' || spBoostTimer <= 0) return;
-  const w = cvs.width, h = cvs.height;
-  const gradAlpha = 0.55 * (spBoostTimer / 240);
+  const w = cvs.width, h = cvs.height, t = spBoostTimer;
+  const centerX = w / 2, centerY = h / 2;
+  const maxT = 240;
+  const fade = Math.max(0, Math.min(1, t / maxT));
 
-  // 線の色・太さ・本数（画像2準拠）
-  const colors = ["#ff92d2", "#39bfff", "#ffa500"];
-  const lineWidths = [8, 7, 7];
-  const offsets = [0, 18, 36]; // 隅からのずらし（線間隔）
-
-  // 斜めラインの長さ
-  const lineLen = Math.min(w, h) * 0.38;
-
-  for (let i = 0; i < offsets.length; i++) {
-    let o = offsets[i];
+  // 四隅から中心へ光の筋
+  for (let c = 0; c < 4; c++) {
+    // 0:左上, 1:右上, 2:右下, 3:左下
+    const sx = (c === 0 || c === 3) ? 0 : w;
+    const sy = (c === 0 || c === 1) ? 0 : h;
     ctx.save();
-    ctx.globalAlpha = gradAlpha;
-    ctx.lineWidth = lineWidths[i];
-
-    // --- 左上隅 ---
-    {
-      let grad = ctx.createLinearGradient(o, o, o + lineLen, o + lineLen);
-      grad.addColorStop(0, colors[i]);
-      grad.addColorStop(0.65, colors[i]);
-      grad.addColorStop(1, colors[i] + "00");
+    ctx.globalAlpha = 0.26 * fade;
+    for (let i = 0; i < 3; i++) {
+      const color = ["#39bfff", "#ffa500", "#ff92d2"][i];
+      ctx.lineWidth = 16 - i * 4;
+      let grad = ctx.createLinearGradient(sx, sy, centerX, centerY);
+      grad.addColorStop(0, color);
+      grad.addColorStop(0.7, color + "99");
+      grad.addColorStop(1, color + "00");
       ctx.strokeStyle = grad;
       ctx.beginPath();
-      ctx.moveTo(o, o);
-      ctx.lineTo(o + lineLen, o + lineLen);
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(centerX, centerY);
       ctx.stroke();
     }
-
-    // --- 右上隅 ---
-    {
-      let grad = ctx.createLinearGradient(w - o, o, w - o - lineLen, o + lineLen);
-      grad.addColorStop(0, colors[i]);
-      grad.addColorStop(0.65, colors[i]);
-      grad.addColorStop(1, colors[i] + "00");
-      ctx.strokeStyle = grad;
-      ctx.beginPath();
-      ctx.moveTo(w - o, o);
-      ctx.lineTo(w - o - lineLen, o + lineLen);
-      ctx.stroke();
-    }
-
-    // --- 右下隅 ---
-    {
-      let grad = ctx.createLinearGradient(w - o, h - o, w - o - lineLen, h - o - lineLen);
-      grad.addColorStop(0, colors[i]);
-      grad.addColorStop(0.65, colors[i]);
-      grad.addColorStop(1, colors[i] + "00");
-      ctx.strokeStyle = grad;
-      ctx.beginPath();
-      ctx.moveTo(w - o, h - o);
-      ctx.lineTo(w - o - lineLen, h - o - lineLen);
-      ctx.stroke();
-    }
-
-    // --- 左下隅 ---
-    {
-      let grad = ctx.createLinearGradient(o, h - o, o + lineLen, h - o - lineLen);
-      grad.addColorStop(0, colors[i]);
-      grad.addColorStop(0.65, colors[i]);
-      grad.addColorStop(1, colors[i] + "00");
-      ctx.strokeStyle = grad;
-      ctx.beginPath();
-      ctx.moveTo(o, h - o);
-      ctx.lineTo(o + lineLen, h - o - lineLen);
-      ctx.stroke();
-    }
-
     ctx.restore();
+  }
+
+  // 中央から広がる光円
+  {
+    ctx.save();
+    const r = Math.max(w, h) * 0.49 * (1 - fade * 0.3);
+    let grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, r);
+    grad.addColorStop(0, "rgba(255,255,200,0.14)");
+    grad.addColorStop(0.45, "rgba(255,255,200,0.09)");
+    grad.addColorStop(1, "rgba(255,255,255,0.00)");
+    ctx.globalAlpha = 0.86 * fade;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // パーティクル（星・円）
+  {
+    const particleCount = 22;
+    for (let i = 0; i < particleCount; i++) {
+      const angle = ((i / particleCount) * Math.PI * 2) + (t * 0.1) + (i % 3);
+      const dist = (1 - fade) * (Math.max(w, h) * 0.36) + Math.random() * 8;
+      const px = centerX + Math.cos(angle) * dist;
+      const py = centerY + Math.sin(angle) * dist;
+      ctx.save();
+      ctx.globalAlpha = 0.32 * fade;
+      ctx.beginPath();
+      ctx.arc(px, py, 10 + ((i % 3) * 2), 0, Math.PI * 2);
+      ctx.fillStyle = ["#39bfff", "#ffa500", "#ff92d2"][i % 3];
+      ctx.shadowColor = "#fff";
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // 外周に淡いカラーフレーム
+  {
+    for (let i = 0; i < 3; i++) {
+      ctx.save();
+      ctx.globalAlpha = 0.13 * fade;
+      ctx.lineWidth = 18 - i * 6;
+      ctx.strokeStyle = ["#ffa500", "#39bfff", "#ff92d2"][i];
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY, w/2.2 - i*10, h/2.2 - i*10, 0, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 }
   
@@ -1422,6 +1428,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
