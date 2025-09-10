@@ -1217,22 +1217,33 @@ function drawACFailFlash(){
   const w = cvs.width, h = cvs.height;
   const maxT = 240;
   const fade = Math.max(0, Math.min(1, spBoostTimer / maxT));
-  const noteCount = 16; // 少なめ
+  const noteCount = 16;
   const colors = [
     "#ff4c4c", "#ffa500", "#ffe93a", "#4cff4c", "#39bfff", "#8b4cff", "#ff6cff",
   ];
 
-  // 音符のベース位置を画面に満遍なく配置
+  // グリッド状に音符を配置
   for (let i = 0; i < noteCount; i++) {
-    // 基本位置：画面グリッド＋乱数
+    // 基本位置
     const gridX = ((i % 4) + 0.5) / 4 * w;
-    const gridY = ((Math.floor(i / 4) + 0.6) / 4) * h * 0.85 + h * 0.08;
-    // 時間経過でその場でゆらゆら揺れる（小さめに）
+    const gridY = ((Math.floor(i / 4) + 0.7) / 4) * h * 0.85 + h * 0.06;
     const t = spBoostTimer;
-    const dx = Math.sin(t * 0.06 + i) * 10;
-    const dy = Math.cos(t * 0.04 + i * 2) * 7;
-    const angle = Math.sin(t * 0.025 + i * 2) * 0.21;
-    const size = 22 + Math.sin(i * 2.7) * 4; // 小さめ
+
+    // カクカク（階段状に変化する）動き
+    // ステップ周期
+    const stepPeriod = 28 + (i % 5) * 7;
+    const step = Math.floor((t + i * 13) / stepPeriod) % 4;
+
+    // カクカク位置ずれパターン
+    const stepTable = [
+      {dx: 0, dy: 0, angle: 0},
+      {dx: 5, dy: -4, angle: 0.13},
+      {dx: -4, dy: 5, angle: -0.12},
+      {dx: 3, dy: -2, angle: 0.09}
+    ];
+    const {dx, dy, angle} = stepTable[step];
+
+    const size = 20 + Math.sin(i * 2.3) * 3;
 
     ctx.save();
     ctx.globalAlpha = 0.19 * fade;
@@ -1267,7 +1278,6 @@ function drawACFailFlash(){
 
     ctx.restore();
   }
-}
   
 // ★ 判定回数リザルト左下表示
 function drawJudgeCountsResult() {
@@ -1404,6 +1414,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
