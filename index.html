@@ -1217,77 +1217,59 @@ function drawACFailFlash(){
   const w = cvs.width, h = cvs.height;
   const gradAlpha = 0.55 * (spBoostTimer/240);
 
-  // 色セット（オレンジ・水色・ピンク）
+  // 線の色・太さ・本数
   const colors = ["#ffa500", "#39bfff", "#ff92d2"];
   const lineWidths = [5, 3, 3];
-  const offsets = [24, 48, 72]; // 線の間隔
+  const offsets = [36, 64, 92]; 
 
-  // 上辺
+  // ひし形の中心から上下左右へ、オフセットごとに平行線を引く
   for (let i = 0; i < offsets.length; i++) {
+    let o = offsets[i];
     ctx.save();
     ctx.globalAlpha = gradAlpha;
-    let grad = ctx.createLinearGradient(offsets[i], 0, w - offsets[i], 0);
-    grad.addColorStop(0, colors[i]+"00");
-    grad.addColorStop(0.15, colors[i]);
-    grad.addColorStop(0.85, colors[i]);
-    grad.addColorStop(1, colors[i]+"00");
-    ctx.strokeStyle = grad;
+    ctx.strokeStyle = colors[i];
     ctx.lineWidth = lineWidths[i];
+
+    // --- 右上→右→右下
+    let grad1 = ctx.createLinearGradient(w/2, o, w-o, h/2);
+    grad1.addColorStop(0, colors[i]);
+    grad1.addColorStop(1, colors[i]+"00");
+    ctx.strokeStyle = grad1;
     ctx.beginPath();
-    ctx.moveTo(offsets[i], 0);
-    ctx.lineTo(w - offsets[i], 0);
+    ctx.moveTo(w/2, o);
+    ctx.lineTo(w-o, h/2);
     ctx.stroke();
-    ctx.restore();
-  }
-  // 下辺
-  for (let i = 0; i < offsets.length; i++) {
-    ctx.save();
-    ctx.globalAlpha = gradAlpha;
-    let grad = ctx.createLinearGradient(offsets[i], h, w - offsets[i], h);
-    grad.addColorStop(0, colors[i]+"00");
-    grad.addColorStop(0.15, colors[i]);
-    grad.addColorStop(0.85, colors[i]);
-    grad.addColorStop(1, colors[i]+"00");
-    ctx.strokeStyle = grad;
-    ctx.lineWidth = lineWidths[i];
+
+    // --- 右下→下→左下
+    let grad2 = ctx.createLinearGradient(w-o, h/2, w/2, h-o);
+    grad2.addColorStop(0, colors[i]);
+    grad2.addColorStop(1, colors[i]+"00");
+    ctx.strokeStyle = grad2;
     ctx.beginPath();
-    ctx.moveTo(offsets[i], h);
-    ctx.lineTo(w - offsets[i], h);
+    ctx.moveTo(w-o, h/2);
+    ctx.lineTo(w/2, h-o);
     ctx.stroke();
-    ctx.restore();
-  }
-  // 左辺
-  for (let i = 0; i < offsets.length; i++) {
-    ctx.save();
-    ctx.globalAlpha = gradAlpha;
-    let grad = ctx.createLinearGradient(0, offsets[i], 0, h - offsets[i]);
-    grad.addColorStop(0, colors[i]+"00");
-    grad.addColorStop(0.15, colors[i]);
-    grad.addColorStop(0.85, colors[i]);
-    grad.addColorStop(1, colors[i]+"00");
-    ctx.strokeStyle = grad;
-    ctx.lineWidth = lineWidths[i];
+
+    // --- 左下→左→左上
+    let grad3 = ctx.createLinearGradient(w/2, h-o, o, h/2);
+    grad3.addColorStop(0, colors[i]);
+    grad3.addColorStop(1, colors[i]+"00");
+    ctx.strokeStyle = grad3;
     ctx.beginPath();
-    ctx.moveTo(0, offsets[i]);
-    ctx.lineTo(0, h - offsets[i]);
+    ctx.moveTo(w/2, h-o);
+    ctx.lineTo(o, h/2);
     ctx.stroke();
-    ctx.restore();
-  }
-  // 右辺
-  for (let i = 0; i < offsets.length; i++) {
-    ctx.save();
-    ctx.globalAlpha = gradAlpha;
-    let grad = ctx.createLinearGradient(w, offsets[i], w, h - offsets[i]);
-    grad.addColorStop(0, colors[i]+"00");
-    grad.addColorStop(0.15, colors[i]);
-    grad.addColorStop(0.85, colors[i]);
-    grad.addColorStop(1, colors[i]+"00");
-    ctx.strokeStyle = grad;
-    ctx.lineWidth = lineWidths[i];
+
+    // --- 左上→上→右上
+    let grad4 = ctx.createLinearGradient(o, h/2, w/2, o);
+    grad4.addColorStop(0, colors[i]);
+    grad4.addColorStop(1, colors[i]+"00");
+    ctx.strokeStyle = grad4;
     ctx.beginPath();
-    ctx.moveTo(w, offsets[i]);
-    ctx.lineTo(w, h - offsets[i]);
+    ctx.moveTo(o, h/2);
+    ctx.lineTo(w/2, o);
     ctx.stroke();
+
     ctx.restore();
   }
 }
@@ -1427,6 +1409,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
