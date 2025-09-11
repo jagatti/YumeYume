@@ -83,12 +83,15 @@ bgm.volume = 0.1;
 
 // --- 譜面データを直接埋め込む ---
 const notesChart = [
- {"time": 0.54, "side": "left"},
+  {"time": 0.54, "side": "left"},
+  {"time": 0.54, "side": "right"},//追加
   {"time": 1.11, "side": "left"},
   {"time": 1.48, "side": "right"},
   {"time": 1.86, "side": "right"},
+  {"time": 1.86, "side": "left"},//追加
   {"time": 2.61, "side": "right"},
   {"time": 2.99, "side": "right"},
+  {"time": 2.99, "side": "left"},//追加
   {"time": 3.18, "side": "left"},
   {"time": 3.55, "side": "left"},
   {"time": 4.12, "side": "left"},
@@ -732,8 +735,9 @@ function handlePointer(e){
   applyMiss('MISS');
 }
   
+// --- イベント登録 ---
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
-cvs.addEventListener('click',handlePointer);
+cvs.addEventListener('mousedown',handlePointer); // PC多指対策: mousedown→click
 
 startBtn.onclick = async function() {
   await loadTapSE();
@@ -870,9 +874,113 @@ function update(){
   hitRings=hitRings.filter(r=>{r.r+=4; r.alpha-=0.06; return r.alpha>0;});
   popups=popups.filter(p=>{p.timer--; return p.timer>0;});
   }
+  // --- ユーティリティ: 同時押しペア情報を取得 ---
+function getSimultaneousPairs() {
+  // timeが一致し、sideが違う2ノーツのペアを列挙
+  const pairs = [];
+  for (let i = 0; i < notes.length; i++) {
+    const n1 = notes[i];
+    if (n1.paired) continue;
+    for (let j = i + 1; j < notes.length; j++) {
+      const n2 = notes[j];
+      if (n2.paired) continue;
+      if (n1.chartIdx !== undefined && n2.chartIdx !== undefined) {
+        const ni = notesChart[n1.chartIdx];
+        const nj = notesChart[n2.chartIdx];
+        if (ni && nj && ni.time === nj.time && ni.side !== nj.side) {
+          n1.paired = n2.paired = true;
+          pairs.push([n1, n2]);
+        }
+      }
+    }
+  }
+  notes.forEach(n => delete n.paired);
+  return pairs;
+}
+
+// --- ポインタ/タッチイベントで複数同時判定対応 ---
+function handlePointer(e){
+  if(gameState!=="playing") return;
+  const isTouch = e.type.startsWith('touch');
+  if(isTouch){ lastInputWasTouch=true; e.preventDefault(); }
+  if(!isTouch && lastInputWasTouch){ lastInputWasTouch=false; return; }
+  // すべてのタッチ点 or クリック1点
+  let touches = [];
+  if (isTouch) {
+    for (let t of e.touches) {
+      touches.push({ x: t.clientX, y: t.clientY });
+    }
+  } else {
+    touches.push({ x: e.clientX, y: e.clientY });
+  }
+  const rect=cvs.getBoundingClientRect();
+  const scaleX = cvs.width  / rect.width;
+  const scaleY = cvs.height / rect.height;
+  let anyHit = false;
+  let alreadyHitIdx = []; // 一つの指で複数ノーツを同時消去しない工夫
+  for (let i = 0; i < touches.length; i++) {
+    const mx = (touches[i].x - rect.left) * scaleX;
+    const my = (touches[i].y - rect.top ) * scaleY;
+
+    // SP半円内
+    if(isInSPSemicircle(mx,my)){
+      if(spValue >= SP_MAX){
+        tryUseSP(mx,my);
+        anyHit = true;
+        continue;
+      }
+      continue;
+    }
+    // 近いノーツのみ消す（同時押し/複数指対応）
+    if(judgeNotesAt(mx, my, alreadyHitIdx)) anyHit = true;
+    else applyMiss('MISS');
+  }
+  return anyHit;
+}
+
+// --- タッチ点ごとに最も近いノーツ1つだけ判定（同時押し可） ---
+function judgeNotesAt(mx, my, alreadyHitIdx){
+  let bestIdx=-1, bestDist=Infinity, bestTarget=null;
+  for(let i=0;i<notes.length;i++){
+    if (alreadyHitIdx && alreadyHitIdx.includes(i)) continue;
+    const n=notes[i];
+    const target=n.side==='left'?leftTarget:rightTarget;
+    const pos=cubicBezier(n.path.p0,n.path.p1,n.path.p2,n.path.p3, Math.min(1,n.t/n.duration));
+    const judgeDist=Math.hypot(pos.x-mx, pos.y-my);
+    if(judgeDist<bestDist){bestDist=judgeDist; bestIdx=i; bestTarget=target;}
+  }
+  if(bestIdx>=0){
+    const baseRaw = calcTapBase();
+    const {points,label,reset}=calcTapScoreAndLabel(bestDist, baseRaw);
+    if(label!=='MISS'){
+      awardHit(bestTarget, points, label, reset, baseRaw, notes[bestIdx].chartIdx);
+      notes.splice(bestIdx,1);
+      if (alreadyHitIdx) alreadyHitIdx.push(bestIdx);
+      return true;
+    }
+  }
+  return false;
+}
   
-// --- ノーツ描画 ---
+// --- ノーツ描画: 同時押しペア間に白線描画 ---
 function drawNotes(){
+  // 1. 同時ペアの白い線（細め）
+  const pairs = getSimultaneousPairs();
+  ctx.save();
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = R * 0.19;
+  ctx.globalAlpha = 0.8;
+  for (const [n1, n2] of pairs) {
+    const pos1 = cubicBezier(n1.path.p0, n1.path.p1, n1.path.p2, n1.path.p3, Math.min(1, n1.t/n1.duration));
+    const pos2 = cubicBezier(n2.path.p0, n2.path.p1, n2.path.p2, n2.path.p3, Math.min(1, n2.t/n2.duration));
+    ctx.beginPath();
+    ctx.moveTo(pos1.x, pos1.y);
+    ctx.lineTo(pos2.x, pos2.y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 2. 通常ノーツ描画（元のまま）
   for(let i=0;i<notes.length;i++){
     const n = notes[i];
     const noteInfo = notesChart[n.chartIdx];
@@ -898,7 +1006,7 @@ function drawNotes(){
     const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
     const r = R;
 
-    // --- 1. 外側グロー ---
+    // --- グロー ---
     ctx.save();
     ctx.globalAlpha = 0.90;
     ctx.beginPath();
@@ -911,7 +1019,7 @@ function drawNotes(){
     ctx.fill();
     ctx.restore();
 
-    // --- 2. 外枠リム ---
+    // --- 外枠 ---
     ctx.save();
     ctx.strokeStyle = rimColor;
     ctx.lineWidth = r * 0.18;
@@ -921,7 +1029,7 @@ function drawNotes(){
     ctx.stroke();
     ctx.restore();
 
-    // --- 3. 主円 ---
+    // --- 主円 ---
     ctx.save();
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, r * 0.72, 0, Math.PI * 2);
@@ -932,7 +1040,7 @@ function drawNotes(){
     ctx.fill();
     ctx.restore();
 
-    // --- 4. 中心ドット ---
+    // --- 中心ドット ---
     ctx.save();
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, r * 0.22, 0, Math.PI * 2);
@@ -941,7 +1049,7 @@ function drawNotes(){
     ctx.fill();
     ctx.restore();
 
-    // --- START/FINISHラベル（indexで判定）---
+    // --- START/FINISHラベル ---
     for(const ac of acList){
       if(ac.startIdx === idx){
         ctx.font = `bold ${Math.round(R*0.8)}px system-ui`;
@@ -1414,31 +1522,3 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
