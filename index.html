@@ -717,40 +717,32 @@ function handlePointer(e){
   if(isTouch){ lastInputWasTouch=true; e.preventDefault(); }
   if(!isTouch && lastInputWasTouch){ lastInputWasTouch=false; return; }
 
-  const rect = cvs.getBoundingClientRect();
+  const rect=cvs.getBoundingClientRect();
   const scaleX = cvs.width  / rect.width;
   const scaleY = cvs.height / rect.height;
 
   let anyHit = false;
+  let alreadyHitIdx = [];
   if(isTouch){
-    // マルチタッチ全指ループ
     for(const t of e.touches){
-      // ※判定座標は左右ゾーン中央いずれかで固定（例: 左右同時を許可しないなら左ゾーンだけでも可）
-      // ここでは「左右両方」で一番近いノーツを消す従来仕様
-      const mx = (leftTarget.x + rightTarget.x) / 2;
-      const my = (leftTarget.y + rightTarget.y) / 2;
-      // SP半円のみ本当の指位置で判定
-      const tx = (t.clientX-rect.left)*scaleX;
-      const ty = (t.clientY-rect.top )*scaleY;
-      if(isInSPSemicircle(tx,ty)){
-        if(spValue >= SP_MAX){ tryUseSP(tx,ty); anyHit=true; }
+      // ここで「実際の指位置」を使う
+      const mx = (t.clientX-rect.left)*scaleX;
+      const my = (t.clientY-rect.top )*scaleY;
+      if(isInSPSemicircle(mx,my)){
+        if(spValue >= SP_MAX){ tryUseSP(mx,my); anyHit=true; }
         continue;
       }
-      // ノーツ判定（1本指で1ノーツだけ消える従来仕様）
-      if(judgeNotesGlobal(mx, my)) anyHit=true;
+      if(judgeNotesAt(mx, my, alreadyHitIdx)) anyHit=true;
     }
     if(!anyHit) applyMiss('MISS');
   }else{
-    // PCは1点だけ
-    const mx = (leftTarget.x + rightTarget.x) / 2;
-    const my = (leftTarget.y + rightTarget.y) / 2;
-    const px = (e.clientX-rect.left)*scaleX;
-    const py = (e.clientY-rect.top )*scaleY;
-    if(isInSPSemicircle(px,py)){
-      if(spValue >= SP_MAX){ tryUseSP(px,py); return; }
+    const mx = (e.clientX-rect.left)*scaleX;
+    const my = (e.clientY-rect.top )*scaleY;
+    if(isInSPSemicircle(mx,my)){
+      if(spValue >= SP_MAX){ tryUseSP(mx,my); return; }
       return;
     }
-    if(judgeNotesGlobal(mx, my)) return;
+    if(judgeNotesAt(mx, my, [])) return;
     applyMiss('MISS');
   }
 }
@@ -1542,5 +1534,6 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
