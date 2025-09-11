@@ -916,46 +916,6 @@ function getSimultaneousPairs() {
   return pairs;
 }
 
-// --- ポインタ/タッチイベントで複数同時判定対応 ---
-function handlePointer(e){
-  if(gameState!=="playing") return;
-  const isTouch = e.type.startsWith('touch');
-  if(isTouch){ lastInputWasTouch=true; e.preventDefault(); }
-  if(!isTouch && lastInputWasTouch){ lastInputWasTouch=false; return; }
-  // すべてのタッチ点 or クリック1点
-  let touches = [];
-  if (isTouch) {
-    for (let t of e.touches) {
-      touches.push({ x: t.clientX, y: t.clientY });
-    }
-  } else {
-    touches.push({ x: e.clientX, y: e.clientY });
-  }
-  const rect=cvs.getBoundingClientRect();
-  const scaleX = cvs.width  / rect.width;
-  const scaleY = cvs.height / rect.height;
-  let anyHit = false;
-  let alreadyHitIdx = []; // 一つの指で複数ノーツを同時消去しない工夫
-  for (let i = 0; i < touches.length; i++) {
-    const mx = (touches[i].x - rect.left) * scaleX;
-    const my = (touches[i].y - rect.top ) * scaleY;
-
-    // SP半円内
-    if(isInSPSemicircle(mx,my)){
-      if(spValue >= SP_MAX){
-        tryUseSP(mx,my);
-        anyHit = true;
-        continue;
-      }
-      continue;
-    }
-    // 近いノーツのみ消す（同時押し/複数指対応）
-    if(judgeNotesAt(mx, my, alreadyHitIdx)) anyHit = true;
-    else applyMiss('MISS');
-  }
-  return anyHit;
-}
-
 // --- タッチ点ごとに最も近いノーツ1つだけ判定（同時押し可） ---
 function judgeNotesAt(mx, my, alreadyHitIdx){
   let bestIdx=-1, bestDist=Infinity, bestTarget=null;
@@ -1540,6 +1500,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
