@@ -717,34 +717,40 @@ function handlePointer(e){
   if(isTouch){ lastInputWasTouch=true; e.preventDefault(); }
   if(!isTouch && lastInputWasTouch){ lastInputWasTouch=false; return; }
 
-  const rect=cvs.getBoundingClientRect();
-  const scaleX = cvs.width  / rect.width;
-  const scaleY = cvs.height / rect.height;
-
-  let anyHit = false;
-  let alreadyHitIdx = [];
+  // タッチ点でSP半円だけ本当の座標で判定
   if(isTouch){
     for(const t of e.touches){
-      // ここで「実際の指位置」を使う
+      const rect = cvs.getBoundingClientRect();
+      const scaleX = cvs.width  / rect.width;
+      const scaleY = cvs.height / rect.height;
       const mx = (t.clientX-rect.left)*scaleX;
       const my = (t.clientY-rect.top )*scaleY;
       if(isInSPSemicircle(mx,my)){
-        if(spValue >= SP_MAX){ tryUseSP(mx,my); anyHit=true; }
-        continue;
+        if(spValue >= SP_MAX){ tryUseSP(mx,my); }
+        return;
       }
-      if(judgeNotesAt(mx, my, alreadyHitIdx)) anyHit=true;
     }
-    if(!anyHit) applyMiss('MISS');
   }else{
+    const rect = cvs.getBoundingClientRect();
+    const scaleX = cvs.width  / rect.width;
+    const scaleY = cvs.height / rect.height;
     const mx = (e.clientX-rect.left)*scaleX;
     const my = (e.clientY-rect.top )*scaleY;
     if(isInSPSemicircle(mx,my)){
-      if(spValue >= SP_MAX){ tryUseSP(mx,my); return; }
+      if(spValue >= SP_MAX){ tryUseSP(mx,my); }
       return;
     }
-    if(judgeNotesAt(mx, my, [])) return;
-    applyMiss('MISS');
   }
+
+  // 画面どこタップでも「左右判定ゾーン中心」で判定
+  let anyHit = false;
+  let alreadyHitIdx = [];
+  // 左ゾーン中心で判定
+  if(judgeNotesAt(leftTarget.x, leftTarget.y, alreadyHitIdx)) anyHit=true;
+  // 右ゾーン中心で判定
+  if(judgeNotesAt(rightTarget.x, rightTarget.y, alreadyHitIdx)) anyHit=true;
+
+  if(!anyHit) applyMiss('MISS');
 }
   
 // --- イベント登録 ---
@@ -1534,6 +1540,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
