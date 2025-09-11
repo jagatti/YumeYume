@@ -559,14 +559,38 @@ function calcTapBase(){
   }
   return Math.min(50000, baseRaw);
 }
-
-// --- 判定ごとのスコア補正 ---
+  
+// 同時押し（左右同時刻）ペアのindexリストを作成
+function getSimultaneousPairsInNotes() {
+  const pairs = [];
+  const used = new Set();
+  for (let i = 0; i < notes.length; i++) {
+    if (used.has(i)) continue;
+    const ni = notes[i];
+    for (let j = i + 1; j < notes.length; j++) {
+      if (used.has(j)) continue;
+      const nj = notes[j];
+      if (ni.chartIdx !== undefined && nj.chartIdx !== undefined) {
+        const ci = notesChart[ni.chartIdx];
+        const cj = notesChart[nj.chartIdx];
+        if (ci && cj && ci.time === cj.time && ci.side !== cj.side) {
+          pairs.push([i, j]);
+          used.add(i); used.add(j);
+          break;
+        }
+      }
+    }
+  }
+  return pairs;
+}
+  
+// 判定ラベル・スコア計算
 function calcTapScoreAndLabel(dist, baseRaw){
   let label='WONDERFUL', mult=1.2;
   if(dist<=10){label='WONDERFUL';mult=1.2;}
   else if(dist<=18){label='GREAT';mult=1.1;}
-  else if(dist<=24){label='NICE';mult=1.0;}
-  else if(dist<=28){label='BAD';mult=0.9;}
+  else if(dist<=25){label='NICE';mult=1.0;}
+  else if(dist<=32){label='BAD';mult=0.9;}
   else {return {points:0,label:'MISS',reset:true};}
   let points=Math.floor(baseRaw*mult);
   if(Math.random()<0.3){ points=Math.floor(points*1.5); label='CRITICAL'; }
@@ -725,13 +749,15 @@ function tryUseSP(mx,my){
   return true;
 }
   
+// == タップ時の処理 ==
+// ペア判定→単発判定、MISSはupdate()の寿命切れ時のみ
 function handlePointer(e){
   if(gameState!=="playing") return;
   const isTouch = e.type.startsWith('touch');
   if(isTouch){ lastInputWasTouch=true; e.preventDefault(); }
   if(!isTouch && lastInputWasTouch){ lastInputWasTouch=false; return; }
 
-  // タッチ点でSP半円だけ本当の座標で判定
+  // SP半円だけは本物の座標で判定
   if(isTouch){
     for(const t of e.touches){
       const rect = cvs.getBoundingClientRect();
@@ -756,15 +782,36 @@ function handlePointer(e){
     }
   }
 
-  // 画面どこタップでも「左右判定ゾーン中心」で判定
-  let anyHit = false;
+  // --- 1. 同時ペア消去優先 ---
+  let pairs = getSimultaneousPairsInNotes();
   let alreadyHitIdx = [];
-  // 左ゾーン中心で判定
-  if(judgeNotesAt(leftTarget.x, leftTarget.y, alreadyHitIdx)) anyHit=true;
-  // 右ゾーン中心で判定
-  if(judgeNotesAt(rightTarget.x, rightTarget.y, alreadyHitIdx)) anyHit=true;
+  // 距離閾値（BADまでOKの値）
+  const thres = 32;
 
-  if(!anyHit) applyMiss('MISS');
+  for (let [i, j] of pairs) {
+    const ni = notes[i], nj = notes[j];
+    // 各ノーツの判定座標
+    const leftPos = {x: leftTarget.x, y: leftTarget.y};
+    const rightPos = {x: rightTarget.x, y: rightTarget.y};
+    // ノーツの現在位置
+    const bezi = cubicBezier(ni.path.p0, ni.path.p1, ni.path.p2, ni.path.p3, Math.min(1, ni.t/ni.duration));
+    const bezj = cubicBezier(nj.path.p0, nj.path.p1, nj.path.p2, nj.path.p3, Math.min(1, nj.t/nj.duration));
+    // 判定距離
+    const distL = Math.hypot(bezi.x-leftPos.x, bezi.y-leftPos.y);
+    const distR = Math.hypot(bezj.x-rightPos.x, bezj.y-rightPos.y);
+    if(distL<=thres && distR<=thres){
+      // 両方同時消去
+      // 必ずペアで同時判定・同時消去
+      judgeNotesAt(leftTarget.x, leftTarget.y, alreadyHitIdx);
+      judgeNotesAt(rightTarget.x, rightTarget.y, alreadyHitIdx);
+      return; // 1回のタップで1ペアまで消す（通常音ゲー仕様に近い）
+    }
+  }
+
+  // --- 2. ペアで消えなかったら通常の単発判定 ---
+  judgeNotesAt(leftTarget.x, leftTarget.y, alreadyHitIdx);
+  judgeNotesAt(rightTarget.x, rightTarget.y, alreadyHitIdx);
+  // MISS判定はしない（updateのみで処理）
 }
   
 // --- イベント登録 ---
@@ -930,7 +977,7 @@ function getSimultaneousPairs() {
   return pairs;
 }
 
-// --- タッチ点ごとに最も近いノーツ1つだけ判定（同時押し可） ---
+// 判定本体: 指定座標(mx, my)で一番近いノーツを判定
 function judgeNotesAt(mx, my, alreadyHitIdx){
   let bestIdx=-1, bestDist=Infinity, bestTarget=null;
   for(let i=0;i<notes.length;i++){
@@ -1514,10 +1561,3 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
