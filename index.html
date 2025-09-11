@@ -646,50 +646,27 @@ function isInSPSemicircle(mx,my){
   return (dist<=r) && (my<=cy);
 }
   
-// --- judgeNotesGlobalを「画面どこでも同時押し判定」に修正 ---
-function judgeNotesGlobal(){
-  let hit = false;
-  // 左ゾーン
-  let leftIdx = -1, leftDist = Infinity;
+// ノーツ判定関数（以前のまま：座標指定できるよう修正）
+function judgeNotesGlobal(mx, my){
+  let bestIdx=-1, bestDist=Infinity, bestTarget=null;
   for(let i=0;i<notes.length;i++){
-    if(notes[i].side === "left"){
-      const pos = cubicBezier(notes[i].path.p0,notes[i].path.p1,notes[i].path.p2,notes[i].path.p3, Math.min(1,notes[i].t/notes[i].duration));
-      const dist = Math.hypot(pos.x-leftTarget.x, pos.y-leftTarget.y);
-      if(dist < leftDist){ leftDist = dist; leftIdx = i; }
-    }
+    const n=notes[i];
+    const target=n.side==='left'?leftTarget:rightTarget;
+    const pos=cubicBezier(n.path.p0,n.path.p1,n.path.p2,n.path.p3, Math.min(1,n.t/n.duration));
+    // 判定座標との差で判定（mx, myを使う）
+    const judgeDist=Math.hypot(pos.x-mx, pos.y-my);
+    if(judgeDist<bestDist){bestDist=judgeDist; bestIdx=i; bestTarget=target;}
   }
-  // 右ゾーン
-  let rightIdx = -1, rightDist = Infinity;
-  for(let i=0;i<notes.length;i++){
-    if(notes[i].side === "right"){
-      const pos = cubicBezier(notes[i].path.p0,notes[i].path.p1,notes[i].path.p2,notes[i].path.p3, Math.min(1,notes[i].t/notes[i].duration));
-      const dist = Math.hypot(pos.x-rightTarget.x, pos.y-rightTarget.y);
-      if(dist < rightDist){ rightDist = dist; rightIdx = i; }
-    }
-  }
-  // 左
-  if(leftIdx !== -1){
+  if(bestIdx>=0){
     const baseRaw = calcTapBase();
-    const {points,label,reset}=calcTapScoreAndLabel(leftDist, baseRaw);
+    const {points,label,reset}=calcTapScoreAndLabel(bestDist, baseRaw);
     if(label!=='MISS'){
-      awardHit(leftTarget, points, label, reset, baseRaw, notes[leftIdx].chartIdx);
-      notes.splice(leftIdx,1);
-      hit = true;
-      // 右側のidxが左より後ろだったら-1（spliceでズレるため）
-      if(rightIdx > leftIdx) rightIdx--;
-    }
+      awardHit(bestTarget, points, label, reset, baseRaw, notes[bestIdx].chartIdx);
+      notes.splice(bestIdx,1);
+      return true;
+    }else{ return false; }
   }
-  // 右
-  if(rightIdx !== -1){
-    const baseRaw = calcTapBase();
-    const {points,label,reset}=calcTapScoreAndLabel(rightDist, baseRaw);
-    if(label!=='MISS'){
-      awardHit(rightTarget, points, label, reset, baseRaw, notes[rightIdx].chartIdx);
-      notes.splice(rightIdx,1);
-      hit = true;
-    }
-  }
-  return hit;
+  return false;
 }
 
 // --- SPゲージ使用時のスコア計算（上限250000制限を正しく適用） ---
@@ -739,26 +716,43 @@ function handlePointer(e){
   const isTouch = e.type.startsWith('touch');
   if(isTouch){ lastInputWasTouch=true; e.preventDefault(); }
   if(!isTouch && lastInputWasTouch){ lastInputWasTouch=false; return; }
-  const rect=cvs.getBoundingClientRect();
-  const clientX = isTouch ? e.touches[0].clientX : e.clientX;
-  const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+
+  const rect = cvs.getBoundingClientRect();
   const scaleX = cvs.width  / rect.width;
   const scaleY = cvs.height / rect.height;
-  const mx=(clientX-rect.left)*scaleX;
-  const my=(clientY-rect.top )*scaleY;
 
-  // SP半円内のタップなら…
-  if(isInSPSemicircle(mx,my)){
-    // SP満タン時だけ発動
-    if(spValue >= SP_MAX){
-      tryUseSP(mx,my); // SP発動
+  let anyHit = false;
+  if(isTouch){
+    // マルチタッチ全指ループ
+    for(const t of e.touches){
+      // ※判定座標は左右ゾーン中央いずれかで固定（例: 左右同時を許可しないなら左ゾーンだけでも可）
+      // ここでは「左右両方」で一番近いノーツを消す従来仕様
+      const mx = (leftTarget.x + rightTarget.x) / 2;
+      const my = (leftTarget.y + rightTarget.y) / 2;
+      // SP半円のみ本当の指位置で判定
+      const tx = (t.clientX-rect.left)*scaleX;
+      const ty = (t.clientY-rect.top )*scaleY;
+      if(isInSPSemicircle(tx,ty)){
+        if(spValue >= SP_MAX){ tryUseSP(tx,ty); anyHit=true; }
+        continue;
+      }
+      // ノーツ判定（1本指で1ノーツだけ消える従来仕様）
+      if(judgeNotesGlobal(mx, my)) anyHit=true;
     }
-    // SPが満タンでない場合は何もしない（MISSにしない）
-    return;
+    if(!anyHit) applyMiss('MISS');
+  }else{
+    // PCは1点だけ
+    const mx = (leftTarget.x + rightTarget.x) / 2;
+    const my = (leftTarget.y + rightTarget.y) / 2;
+    const px = (e.clientX-rect.left)*scaleX;
+    const py = (e.clientY-rect.top )*scaleY;
+    if(isInSPSemicircle(px,py)){
+      if(spValue >= SP_MAX){ tryUseSP(px,py); return; }
+      return;
+    }
+    if(judgeNotesGlobal(mx, my)) return;
+    applyMiss('MISS');
   }
-  // それ以外はノーツ判定
-  if(judgeNotesGlobal()) return;
-  applyMiss('MISS');
 }
   
 // --- イベント登録 ---
@@ -1548,4 +1542,5 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
