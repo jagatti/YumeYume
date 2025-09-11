@@ -645,25 +645,51 @@ function isInSPSemicircle(mx,my){
   const dx=mx-cx, dy=my-cy, dist=Math.hypot(dx,dy);
   return (dist<=r) && (my<=cy);
 }
+  
+// --- judgeNotesGlobalを「画面どこでも同時押し判定」に修正 ---
 function judgeNotesGlobal(){
-  let bestIdx=-1, bestDist=Infinity, bestTarget=null;
+  let hit = false;
+  // 左ゾーン
+  let leftIdx = -1, leftDist = Infinity;
   for(let i=0;i<notes.length;i++){
-    const n=notes[i];
-    const target=n.side==='left'?leftTarget:rightTarget;
-    const pos=cubicBezier(n.path.p0,n.path.p1,n.path.p2,n.path.p3, Math.min(1,n.t/n.duration));
-    const judgeDist=Math.hypot(pos.x-target.x, pos.y-target.y);
-    if(judgeDist<bestDist){bestDist=judgeDist; bestIdx=i; bestTarget=target;}
+    if(notes[i].side === "left"){
+      const pos = cubicBezier(notes[i].path.p0,notes[i].path.p1,notes[i].path.p2,notes[i].path.p3, Math.min(1,notes[i].t/notes[i].duration));
+      const dist = Math.hypot(pos.x-leftTarget.x, pos.y-leftTarget.y);
+      if(dist < leftDist){ leftDist = dist; leftIdx = i; }
+    }
   }
-  if(bestIdx>=0){
+  // 右ゾーン
+  let rightIdx = -1, rightDist = Infinity;
+  for(let i=0;i<notes.length;i++){
+    if(notes[i].side === "right"){
+      const pos = cubicBezier(notes[i].path.p0,notes[i].path.p1,notes[i].path.p2,notes[i].path.p3, Math.min(1,notes[i].t/notes[i].duration));
+      const dist = Math.hypot(pos.x-rightTarget.x, pos.y-rightTarget.y);
+      if(dist < rightDist){ rightDist = dist; rightIdx = i; }
+    }
+  }
+  // 左
+  if(leftIdx !== -1){
     const baseRaw = calcTapBase();
-    const {points,label,reset}=calcTapScoreAndLabel(bestDist, baseRaw);
+    const {points,label,reset}=calcTapScoreAndLabel(leftDist, baseRaw);
     if(label!=='MISS'){
-      awardHit(bestTarget, points, label, reset, baseRaw, notes[bestIdx].chartIdx);
-      notes.splice(bestIdx,1);
-      return true;
-    }else{ return false; }
+      awardHit(leftTarget, points, label, reset, baseRaw, notes[leftIdx].chartIdx);
+      notes.splice(leftIdx,1);
+      hit = true;
+      // 右側のidxが左より後ろだったら-1（spliceでズレるため）
+      if(rightIdx > leftIdx) rightIdx--;
+    }
   }
-  return false;
+  // 右
+  if(rightIdx !== -1){
+    const baseRaw = calcTapBase();
+    const {points,label,reset}=calcTapScoreAndLabel(rightDist, baseRaw);
+    if(label!=='MISS'){
+      awardHit(rightTarget, points, label, reset, baseRaw, notes[rightIdx].chartIdx);
+      notes.splice(rightIdx,1);
+      hit = true;
+    }
+  }
+  return hit;
 }
 
 // --- SPゲージ使用時のスコア計算（上限250000制限を正しく適用） ---
@@ -1522,3 +1548,4 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
