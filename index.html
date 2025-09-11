@@ -589,8 +589,8 @@ function calcTapScoreAndLabel(dist, baseRaw){
   let label='WONDERFUL', mult=1.2;
   if(dist<=10){label='WONDERFUL';mult=1.2;}
   else if(dist<=18){label='GREAT';mult=1.1;}
-  else if(dist<=25){label='NICE';mult=1.0;}
-  else if(dist<=32){label='BAD';mult=0.9;}
+  else if(dist<=24){label='NICE';mult=1.0;}
+  else if(dist<=28){label='BAD';mult=0.9;}
   else {return {points:0,label:'MISS',reset:true};}
   let points=Math.floor(baseRaw*mult);
   if(Math.random()<0.3){ points=Math.floor(points*1.5); label='CRITICAL'; }
@@ -1561,3 +1561,4 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
