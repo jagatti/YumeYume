@@ -835,10 +835,51 @@ function handlePointer(e){
     return;
   }
 
-  // --- (2) 1本指時は左右ゾーン両方で判定（画面どこタップでも） ---
+  // --- (2) 1本指時は左右ゾーン両方で単発ノーツのみ判定 ---
+  // 1本指では同時押しペア（左右同時刻）は絶対に消さない！
   let excludeNotes = [];
-  judgeSingleNoteAt(leftTarget.x, leftTarget.y, excludeNotes);
-  judgeSingleNoteAt(rightTarget.x, rightTarget.y, excludeNotes);
+  // それぞれ「単発ノーツ（同時刻ペアでない）」だけを判定対象にする
+  function isNotPairNote(n){
+    // nと同時刻・反対側のノーツが存在しなければ単発ノーツ
+    return !notes.some(other =>
+      other !== n &&
+      notesChart[n.chartIdx]?.time === notesChart[other.chartIdx]?.time &&
+      notesChart[n.chartIdx]?.side !== notesChart[other.chartIdx]?.side
+    );
+  }
+  let targetNotes = notes.filter(isNotPairNote);
+  // 左ゾーン
+  let bestL = null, bestDistL = Infinity;
+  for(const n of targetNotes){
+    if(n.side !== 'left') continue;
+    const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
+    const dist = Math.hypot(pos.x-leftTarget.x, pos.y-leftTarget.y);
+    if(dist < bestDistL){ bestDistL = dist; bestL = n; }
+  }
+  if(bestL){
+    const baseRaw = calcTapBase();
+    const res = calcTapScoreAndLabel(bestDistL, baseRaw);
+    if(res.label !== 'MISS'){
+      awardHit(leftTarget, res.points, res.label, res.reset, baseRaw, bestL.chartIdx);
+      notes = notes.filter(n => n !== bestL);
+    }
+  }
+  // 右ゾーン
+  let bestR = null, bestDistR = Infinity;
+  for(const n of targetNotes){
+    if(n.side !== 'right') continue;
+    const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
+    const dist = Math.hypot(pos.x-rightTarget.x, pos.y-rightTarget.y);
+    if(dist < bestDistR){ bestDistR = dist; bestR = n; }
+  }
+  if(bestR){
+    const baseRaw = calcTapBase();
+    const res = calcTapScoreAndLabel(bestDistR, baseRaw);
+    if(res.label !== 'MISS'){
+      awardHit(rightTarget, res.points, res.label, res.reset, baseRaw, bestR.chartIdx);
+      notes = notes.filter(n => n !== bestR);
+    }
+  }
   // MISS判定はしない(updateのみ)
 }
 
@@ -1589,6 +1630,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
