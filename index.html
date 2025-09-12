@@ -785,7 +785,7 @@ function handlePointer(e){
   }
   if(!isTouch && lastInputWasTouch){ lastInputWasTouch=false; return; }
 
-  // SP半円だけは本物の座標で判定（現状仕様のまま）
+  // SP半円は従来通り: この部分はそのまま
   if(isTouch){
     for(const t of e.touches){
       const rect = cvs.getBoundingClientRect();
@@ -810,11 +810,14 @@ function handlePointer(e){
     }
   }
 
-  // --- (1) 2本指以上なら同時押しペア判定のみ ---
+  // === コア判定 ===
+
+  // (1) 2本指タップ時は同時押しペアだけを消す
   if(fingers >= 2){
     const thres = 32;
     const pairs = getSimultaneousPairsInNotes();
     for (const [nL, nR] of pairs) {
+      // 判定タイミングはノーツがゾーンに重なった時だけ
       const posL = cubicBezier(nL.path.p0, nL.path.p1, nL.path.p2, nL.path.p3, Math.min(1, nL.t/nL.duration));
       const posR = cubicBezier(nR.path.p0, nR.path.p1, nR.path.p2, nR.path.p3, Math.min(1, nR.t/nR.duration));
       const distL = Math.hypot(posL.x - leftTarget.x, posL.y - leftTarget.y);
@@ -831,14 +834,11 @@ function handlePointer(e){
         }
       }
     }
-    // 2本指タップ時は、同時押しペアしか消えない（単発ノーツは消せない）
+    // 2本指時はペアのみ。単発ノーツは消さない
     return;
   }
 
-  // --- (2) 1本指時は左右ゾーン両方で単発ノーツのみ判定 ---
-  // 1本指では同時押しペア（左右同時刻）は絶対に消さない！
-  let excludeNotes = [];
-  // それぞれ「単発ノーツ（同時刻ペアでない）」だけを判定対象にする
+  // (2) 1本指タップ時は単発ノーツのみを左右ゾーンそれぞれで消す（ペアは絶対消さない）
   function isNotPairNote(n){
     // nと同時刻・反対側のノーツが存在しなければ単発ノーツ
     return !notes.some(other =>
@@ -848,6 +848,7 @@ function handlePointer(e){
     );
   }
   let targetNotes = notes.filter(isNotPairNote);
+
   // 左ゾーン
   let bestL = null, bestDistL = Infinity;
   for(const n of targetNotes){
@@ -864,6 +865,7 @@ function handlePointer(e){
       notes = notes.filter(n => n !== bestL);
     }
   }
+
   // 右ゾーン
   let bestR = null, bestDistR = Infinity;
   for(const n of targetNotes){
@@ -1630,6 +1632,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
