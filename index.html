@@ -574,7 +574,7 @@ function getSimultaneousPairsInNotes() {
         const ci = notesChart[ni.chartIdx];
         const cj = notesChart[nj.chartIdx];
         if (ci && cj && ci.time === cj.time && ci.side !== cj.side) {
-          pairs.push([i, j]);
+          pairs.push([ni, nj]);
           used.add(i); used.add(j);
           break;
         }
@@ -582,6 +582,29 @@ function getSimultaneousPairsInNotes() {
     }
   }
   return pairs;
+}
+
+  // --- 2. ノーツ判定関数(ノーツ参照で直接消す) ---
+function judgeSingleNoteAt(mx, my, excludeNotes) {
+  let bestNote = null, bestDist = Infinity, bestTarget = null;
+  for (const n of notes) {
+    if (excludeNotes && excludeNotes.includes(n)) continue;
+    const target = n.side === 'left' ? leftTarget : rightTarget;
+    const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
+    const judgeDist = Math.hypot(pos.x - mx, pos.y - my);
+    if (judgeDist < bestDist) { bestDist = judgeDist; bestNote = n; bestTarget = target; }
+  }
+  if (bestNote) {
+    const baseRaw = calcTapBase();
+    const {points, label, reset} = calcTapScoreAndLabel(bestDist, baseRaw);
+    if (label !== 'MISS') {
+      awardHit(bestTarget, points, label, reset, baseRaw, bestNote.chartIdx);
+      notes = notes.filter(n => n !== bestNote);
+      if (excludeNotes) excludeNotes.push(bestNote);
+      return true;
+    }
+  }
+  return false;
 }
   
 // 判定ラベル・スコア計算
@@ -782,36 +805,36 @@ function handlePointer(e){
     }
   }
 
-  // --- 1. 同時ペア消去優先 ---
-  let pairs = getSimultaneousPairsInNotes();
-  let alreadyHitIdx = [];
-  // 距離閾値（BADまでOKの値）
+ // --- (1) 同時ペア優先消去 ---
   const thres = 32;
-
-  for (let [i, j] of pairs) {
-    const ni = notes[i], nj = notes[j];
-    // 各ノーツの判定座標
+  const pairs = getSimultaneousPairsInNotes(); // ノーツ参照のペア
+  for (const [nL, nR] of pairs) {
     const leftPos = {x: leftTarget.x, y: leftTarget.y};
     const rightPos = {x: rightTarget.x, y: rightTarget.y};
-    // ノーツの現在位置
-    const bezi = cubicBezier(ni.path.p0, ni.path.p1, ni.path.p2, ni.path.p3, Math.min(1, ni.t/ni.duration));
-    const bezj = cubicBezier(nj.path.p0, nj.path.p1, nj.path.p2, nj.path.p3, Math.min(1, nj.t/nj.duration));
-    // 判定距離
-    const distL = Math.hypot(bezi.x-leftPos.x, bezi.y-leftPos.y);
-    const distR = Math.hypot(bezj.x-rightPos.x, bezj.y-rightPos.y);
-    if(distL<=thres && distR<=thres){
-      // 両方同時消去
-      // 必ずペアで同時判定・同時消去
-      judgeNotesAt(leftTarget.x, leftTarget.y, alreadyHitIdx);
-      judgeNotesAt(rightTarget.x, rightTarget.y, alreadyHitIdx);
-      return; // 1回のタップで1ペアまで消す（通常音ゲー仕様に近い）
+    const posL = cubicBezier(nL.path.p0, nL.path.p1, nL.path.p2, nL.path.p3, Math.min(1, nL.t/nL.duration));
+    const posR = cubicBezier(nR.path.p0, nR.path.p1, nR.path.p2, nR.path.p3, Math.min(1, nR.t/nR.duration));
+    const distL = Math.hypot(posL.x - leftPos.x, posL.y - leftPos.y);
+    const distR = Math.hypot(posR.x - rightPos.x, posR.y - rightPos.y);
+    if (distL <= thres && distR <= thres) {
+      // ペア同時消去・同時にスコア加算
+      const baseRaw = calcTapBase();
+      const resL = calcTapScoreAndLabel(distL, baseRaw);
+      const resR = calcTapScoreAndLabel(distR, baseRaw);
+      // どちらもMISSでなければ
+      if (resL.label !== 'MISS' && resR.label !== 'MISS') {
+        awardHit(leftTarget, resL.points, resL.label, resL.reset, baseRaw, nL.chartIdx);
+        awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, nR.chartIdx);
+        notes = notes.filter(n => n !== nL && n !== nR);
+        return;
+      }
     }
   }
 
-  // --- 2. ペアで消えなかったら通常の単発判定 ---
-  judgeNotesAt(leftTarget.x, leftTarget.y, alreadyHitIdx);
-  judgeNotesAt(rightTarget.x, rightTarget.y, alreadyHitIdx);
-  // MISS判定はしない（updateのみで処理）
+  // --- (2) ペアで消せなかったら通常の単発判定 ---
+  let excludeNotes = [];
+  judgeSingleNoteAt(leftTarget.x, leftTarget.y, excludeNotes);
+  judgeSingleNoteAt(rightTarget.x, rightTarget.y, excludeNotes);
+  // MISS判定はしない(updateのみ)
 }
   
 // --- イベント登録 ---
@@ -1561,4 +1584,5 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
