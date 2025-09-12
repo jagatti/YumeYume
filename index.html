@@ -777,10 +777,15 @@ function tryUseSP(mx,my){
 function handlePointer(e){
   if(gameState!=="playing") return;
   const isTouch = e.type.startsWith('touch');
-  if(isTouch){ lastInputWasTouch=true; e.preventDefault(); }
+  let fingers = 1;
+  if(isTouch){
+    lastInputWasTouch=true;
+    e.preventDefault();
+    fingers = (e.touches && e.touches.length) ? e.touches.length : 1;
+  }
   if(!isTouch && lastInputWasTouch){ lastInputWasTouch=false; return; }
 
-  // SP半円だけは本物の座標で判定
+  // SP半円だけは本物の座標で判定（現状仕様のまま）
   if(isTouch){
     for(const t of e.touches){
       const rect = cvs.getBoundingClientRect();
@@ -805,38 +810,38 @@ function handlePointer(e){
     }
   }
 
- // --- (1) 同時ペア優先消去 ---
-  const thres = 32;
-  const pairs = getSimultaneousPairsInNotes(); // ノーツ参照のペア
-  for (const [nL, nR] of pairs) {
-    const leftPos = {x: leftTarget.x, y: leftTarget.y};
-    const rightPos = {x: rightTarget.x, y: rightTarget.y};
-    const posL = cubicBezier(nL.path.p0, nL.path.p1, nL.path.p2, nL.path.p3, Math.min(1, nL.t/nL.duration));
-    const posR = cubicBezier(nR.path.p0, nR.path.p1, nR.path.p2, nR.path.p3, Math.min(1, nR.t/nR.duration));
-    const distL = Math.hypot(posL.x - leftPos.x, posL.y - leftPos.y);
-    const distR = Math.hypot(posR.x - rightPos.x, posR.y - rightPos.y);
-    if (distL <= thres && distR <= thres) {
-      // ペア同時消去・同時にスコア加算
-      const baseRaw = calcTapBase();
-      const resL = calcTapScoreAndLabel(distL, baseRaw);
-      const resR = calcTapScoreAndLabel(distR, baseRaw);
-      // どちらもMISSでなければ
-      if (resL.label !== 'MISS' && resR.label !== 'MISS') {
-        awardHit(leftTarget, resL.points, resL.label, resL.reset, baseRaw, nL.chartIdx);
-        awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, nR.chartIdx);
-        notes = notes.filter(n => n !== nL && n !== nR);
-        return;
+  // --- (1) 2本指以上なら同時押しペア判定のみ ---
+  if(fingers >= 2){
+    const thres = 32;
+    const pairs = getSimultaneousPairsInNotes();
+    for (const [nL, nR] of pairs) {
+      const posL = cubicBezier(nL.path.p0, nL.path.p1, nL.path.p2, nL.path.p3, Math.min(1, nL.t/nL.duration));
+      const posR = cubicBezier(nR.path.p0, nR.path.p1, nR.path.p2, nR.path.p3, Math.min(1, nR.t/nR.duration));
+      const distL = Math.hypot(posL.x - leftTarget.x, posL.y - leftTarget.y);
+      const distR = Math.hypot(posR.x - rightTarget.x, posR.y - rightTarget.y);
+      if (distL <= thres && distR <= thres) {
+        const baseRaw = calcTapBase();
+        const resL = calcTapScoreAndLabel(distL, baseRaw);
+        const resR = calcTapScoreAndLabel(distR, baseRaw);
+        if (resL.label !== 'MISS' && resR.label !== 'MISS') {
+          awardHit(leftTarget, resL.points, resL.label, resL.reset, baseRaw, nL.chartIdx);
+          awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, nR.chartIdx);
+          notes = notes.filter(n => n !== nL && n !== nR);
+          return;
+        }
       }
     }
+    // 2本指タップ時は、同時押しペアしか消えない（単発ノーツは消せない）
+    return;
   }
 
-  // --- (2) ペアで消せなかったら通常の単発判定 ---
+  // --- (2) 1本指時は左右ゾーン両方で判定（画面どこタップでも） ---
   let excludeNotes = [];
   judgeSingleNoteAt(leftTarget.x, leftTarget.y, excludeNotes);
   judgeSingleNoteAt(rightTarget.x, rightTarget.y, excludeNotes);
   // MISS判定はしない(updateのみ)
 }
-  
+
 // --- イベント登録 ---
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
 cvs.addEventListener('mousedown',handlePointer); // PC多指対策: mousedown→click
@@ -1584,5 +1589,6 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
