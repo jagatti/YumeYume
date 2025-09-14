@@ -329,7 +329,7 @@ const notesChart = [
   
 // --- グローバル変数 ---
 let chartIndex = 0, R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
-let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=55;
+let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=65;
 let bestScore = Number(localStorage.getItem('bestScore')) || 0;
 let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=0, spCountdownTimer=0, spCountdownValue=0;
 let popups=[], hitRings=[], lastInputWasTouch=false;
@@ -773,7 +773,7 @@ function tryUseSP(mx,my){
 }
   
 // == タップ時の処理 ==
-// ペア判定→単発判定、MISSはupdate()の寿命切れ時のみ
+// ペアも単発も「距離判定」で、2本指時は同時ペアの右→左の順で個別に判定・消去
 function handlePointer(e){
   if(gameState!=="playing") return;
   const isTouch = e.type.startsWith('touch');
@@ -812,27 +812,34 @@ function handlePointer(e){
 
   // === コア判定 ===
 
-  // (1) 2本指タップ時は同時押しペアだけを消す
+  // (1) 2本指タップ時は同時押しペアを右→左の順で個別に距離判定
   if(fingers >= 2){
-    const thres = 32;
-    const pairs = getSimultaneousPairsInNotes();
+    const pairs = getSimultaneousPairsInNotes(); // [[nL, nR], ...]
     for (const [nL, nR] of pairs) {
-      // 判定タイミングはノーツがゾーンに重なった時だけ
-      const posL = cubicBezier(nL.path.p0, nL.path.p1, nL.path.p2, nL.path.p3, Math.min(1, nL.t/nL.duration));
-      const posR = cubicBezier(nR.path.p0, nR.path.p1, nR.path.p2, nR.path.p3, Math.min(1, nR.t/nR.duration));
-      const distL = Math.hypot(posL.x - leftTarget.x, posL.y - leftTarget.y);
-      const distR = Math.hypot(posR.x - rightTarget.x, posR.y - rightTarget.y);
-      if (distL <= thres && distR <= thres) {
-        const baseRaw = calcTapBase();
-        const resL = calcTapScoreAndLabel(distL, baseRaw);
-        const resR = calcTapScoreAndLabel(distR, baseRaw);
-        if (resL.label !== 'MISS' && resR.label !== 'MISS') {
-          awardHit(leftTarget, resL.points, resL.label, resL.reset, baseRaw, nL.chartIdx);
-          awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, nR.chartIdx);
-          notes = notes.filter(n => n !== nL && n !== nR);
-          return;
-        }
+      // 右ノーツ（rightNote）を先に判定
+      let right = nL, left = nR;
+      // 強制的にsideで右・左を決める（side=="right"が右）
+      if(notesChart[nL.chartIdx]?.side === "left" && notesChart[nR.chartIdx]?.side === "right"){
+        left = nL; right = nR;
       }
+      const posR = cubicBezier(right.path.p0, right.path.p1, right.path.p2, right.path.p3, Math.min(1, right.t/right.duration));
+      const distR = Math.hypot(posR.x - rightTarget.x, posR.y - rightTarget.y);
+      const baseRaw = calcTapBase();
+      const resR = calcTapScoreAndLabel(distR, baseRaw);
+      if(resR.label !== 'MISS'){
+        awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, right.chartIdx);
+        notes = notes.filter(n => n !== right);
+      }
+      // 次に左ノーツ（leftNote）を判定
+      const posL = cubicBezier(left.path.p0, left.path.p1, left.path.p2, left.path.p3, Math.min(1, left.t/left.duration));
+      const distL = Math.hypot(posL.x - leftTarget.x, posL.y - leftTarget.y);
+      const resL = calcTapScoreAndLabel(distL, baseRaw);
+      if(resL.label !== 'MISS'){
+        awardHit(leftTarget, resL.points, resL.label, resL.reset, baseRaw, left.chartIdx);
+        notes = notes.filter(n => n !== left);
+      }
+      // どちらもMISSだった場合は何もしない（updateでMISS処理）
+      // いずれかが判定範囲内ならそのノーツだけ消す
     }
     // 2本指時はペアのみ。単発ノーツは消さない
     return;
@@ -1632,6 +1639,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
