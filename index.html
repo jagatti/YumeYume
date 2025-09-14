@@ -70,7 +70,7 @@ const acList = [
   }
 ];
   
-// --- 必ずcvs/ctxなどの変数定義を最初に！ ---
+// --- 必須グローバル変数 ---
 const cvs = document.getElementById('game');
 const ctx = cvs.getContext('2d');
 const rotateMsg = document.getElementById('rotateMsg');
@@ -342,16 +342,12 @@ let audioContext, tapBuffer = null;
 // ノーツ到達までの秒数
 const noteTravelSec = noteDuration / 60;
   
-// 効果音を事前にバッファ化
+// --- 効果音ロード ---
 async function loadTapSE() {
-  // AudioContextが既に作成済みならresume
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
   }
-  // ここでresumeしておく（ユーザー操作時は必ず許可される）
   await audioContext.resume();
-
-  // 効果音ロード
   if (!tapBuffer) {
     const response = await fetch('tap.wav');
     const arrayBuffer = await response.arrayBuffer();
@@ -552,7 +548,7 @@ window.addEventListener('mousedown', () => {
   
 // --- 基本スコアの計算を一律30000・上限50000に ---
 function calcTapBase(){
-  let baseRaw = 30000; // 1タップごとに一律
+  let baseRaw = 30000; 
   if (appealBoostNotes > 0) {
     baseRaw = Math.ceil(baseRaw * 1.12);
     appealBoostNotes--;
@@ -584,7 +580,7 @@ function getSimultaneousPairsInNotes() {
   return pairs;
 }
 
-  // --- 2. ノーツ判定関数(ノーツ参照で直接消す) ---
+  // --- ノーツ判定関数(ノーツ参照で直接消す) ---
 function judgeSingleNoteAt(mx, my, excludeNotes) {
   let bestNote = null, bestDist = Infinity, bestTarget = null;
   for (const n of notes) {
@@ -678,7 +674,7 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
     if(skillHistory.length>5) skillHistory.pop();
   }
 
-  // ★★ AC開始バフ抽選（STARTノーツ到達時のみ） ★★
+  // AC開始バフ抽選（STARTノーツ到達時のみ）
   for(const ac of acList){
     if(ac.state === "waiting" && chartIdx === ac.startIdx){
       ac.state = "active";
@@ -707,7 +703,7 @@ function isInSPSemicircle(mx,my){
   return (dist<=r) && (my<=cy);
 }
   
-// ノーツ判定関数（以前のまま：座標指定できるよう修正）
+// ノーツ判定関数
 function judgeNotesGlobal(mx, my){
   let bestIdx=-1, bestDist=Infinity, bestTarget=null;
   for(let i=0;i<notes.length;i++){
@@ -730,7 +726,7 @@ function judgeNotesGlobal(mx, my){
   return false;
 }
 
-// --- SPゲージ使用時のスコア計算（上限250000制限を正しく適用） ---
+// --- SPゲージ使用時のスコア計算 ---
 function tryUseSP(mx,my){
   if(spValue<SP_MAX) return false;
   if(!isInSPSemicircle(mx,my)) return false;
@@ -785,7 +781,7 @@ function handlePointer(e){
   }
   if(!isTouch && lastInputWasTouch){ lastInputWasTouch=false; return; }
 
-  // SP半円は従来通り: この部分はそのまま
+  // SP半円は従来通り
   if(isTouch){
     for(const t of e.touches){
       const rect = cvs.getBoundingClientRect();
@@ -812,13 +808,11 @@ function handlePointer(e){
 
   // === コア判定 ===
 
-  // (1) 2本指タップ時は同時押しペアを右→左の順で個別に距離判定
+  // 2本指なら同時押しペアを右→左順で判定（どちらかだけでも消える）
   if(fingers >= 2){
     const pairs = getSimultaneousPairsInNotes(); // [[nL, nR], ...]
     for (const [nL, nR] of pairs) {
-      // 右ノーツ（rightNote）を先に判定
       let right = nL, left = nR;
-      // 強制的にsideで右・左を決める（side=="right"が右）
       if(notesChart[nL.chartIdx]?.side === "left" && notesChart[nR.chartIdx]?.side === "right"){
         left = nL; right = nR;
       }
@@ -830,7 +824,6 @@ function handlePointer(e){
         awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, right.chartIdx);
         notes = notes.filter(n => n !== right);
       }
-      // 次に左ノーツ（leftNote）を判定
       const posL = cubicBezier(left.path.p0, left.path.p1, left.path.p2, left.path.p3, Math.min(1, left.t/left.duration));
       const distL = Math.hypot(posL.x - leftTarget.x, posL.y - leftTarget.y);
       const resL = calcTapScoreAndLabel(distL, baseRaw);
@@ -838,16 +831,13 @@ function handlePointer(e){
         awardHit(leftTarget, resL.points, resL.label, resL.reset, baseRaw, left.chartIdx);
         notes = notes.filter(n => n !== left);
       }
-      // どちらもMISSだった場合は何もしない（updateでMISS処理）
-      // いずれかが判定範囲内ならそのノーツだけ消す
+      // どちらもMISSなら何もしない
     }
-    // 2本指時はペアのみ。単発ノーツは消さない
     return;
   }
 
-  // (2) 1本指タップ時は単発ノーツのみを左右ゾーンそれぞれで消す（ペアは絶対消さない）
+  // 1本指時は単発ノーツのみ左右順に判定
   function isNotPairNote(n){
-    // nと同時刻・反対側のノーツが存在しなければ単発ノーツ
     return !notes.some(other =>
       other !== n &&
       notesChart[n.chartIdx]?.time === notesChart[other.chartIdx]?.time &&
@@ -856,7 +846,6 @@ function handlePointer(e){
   }
   let targetNotes = notes.filter(isNotPairNote);
 
-  // 左ゾーン
   let bestL = null, bestDistL = Infinity;
   for(const n of targetNotes){
     if(n.side !== 'left') continue;
@@ -873,7 +862,6 @@ function handlePointer(e){
     }
   }
 
-  // 右ゾーン
   let bestR = null, bestDistR = Infinity;
   for(const n of targetNotes){
     if(n.side !== 'right') continue;
@@ -889,12 +877,11 @@ function handlePointer(e){
       notes = notes.filter(n => n !== bestR);
     }
   }
-  // MISS判定はしない(updateのみ)
 }
 
 // --- イベント登録 ---
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
-cvs.addEventListener('mousedown',handlePointer); // PC多指対策: mousedown→click
+cvs.addEventListener('mousedown',handlePointer);
 
 startBtn.onclick = async function() {
   await loadTapSE();
@@ -922,7 +909,7 @@ startBtn.onclick = async function() {
     noteCounter = 0;
     totalSPUsed = 0;
 
-    // --- ★ 永続バフ初期化&50%で発動処理 ---
+    // --- 永続バフ初期化&50%で発動処理 ---
     permanentScoreBuff = 0;
     if(Math.random() < 0.5){
       permanentScoreBuff++;
@@ -985,7 +972,7 @@ function update(){
   if (gameState === "playing" && !bgm.paused) {
     const bgmNowSec = bgm.currentTime;
     while (chartIndex < notesChart.length && bgmNowSec >= notesChart[chartIndex].time) {
-      spawnNote(notesChart[chartIndex].side, chartIndex); // ←ここでchartIndexを渡す！
+      spawnNote(notesChart[chartIndex].side, chartIndex); 
       totalNotesSpawned++;
       chartIndex++;
     }
@@ -1081,7 +1068,7 @@ function judgeNotesAt(mx, my, alreadyHitIdx){
   
 // --- ノーツ描画: 同時押しペア間に白線描画 ---
 function drawNotes(){
-  // 1. 同時ペアの白い線（細め）
+  // 1. 同時ペアの白い線
   const pairs = getSimultaneousPairs();
   ctx.save();
   ctx.strokeStyle = "#fff";
@@ -1097,7 +1084,7 @@ function drawNotes(){
   }
   ctx.restore();
 
-  // 2. 通常ノーツ描画（元のまま）
+  // 2. 通常ノーツ描画
   for(let i=0;i<notes.length;i++){
     const n = notes[i];
     const noteInfo = notesChart[n.chartIdx];
@@ -1196,7 +1183,7 @@ function drawACMissionNotice(){
   const ac = acList.find(ac => (ac.state === "active" || ac.state === "cleared") &&
     nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec);
   if(!ac) return;
-  // 横幅を広く&進捗バーより下で中央より上位置
+  // 進捗バーより下で中央より上位置
   const barMarginLeft = 20;
   const barMarginRight = 200;
   const barWidth = Math.max(140, cvs.width - barMarginLeft - barMarginRight);
@@ -1343,7 +1330,7 @@ function drawSPGauge(){
   ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(nx,ny); ctx.stroke();
   ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(cx,cy,Math.max(3, radius*0.06),0,Math.PI*2); ctx.fill();
 
-  // ★満タン時発光エフェクト
+  // 満タン時発光エフェクト
   if(spValue >= SP_MAX){
     ctx.save();
     ctx.globalAlpha = 0.33; // 薄い発光
@@ -1504,7 +1491,7 @@ function drawACFailFlash(){
     ctx.restore();
   }
 } 
-// ★ 判定回数リザルト左下表示
+// 判定回数リザルト左下表示
 function drawJudgeCountsResult() {
   const baseX = 30;
   const baseY = cvs.height - 28;
@@ -1610,7 +1597,7 @@ function render(){
     ctx.font=`bold ${scoreFontSize}px system-ui`;
     ctx.lineWidth=10; ctx.strokeStyle='#000'; ctx.strokeText(`SCORE: ${score}`, 0, 0);
     ctx.fillStyle='#39ff14'; ctx.fillText(`SCORE: ${score}`, 0, 0);
-    // ★BEST SCORE表示
+    // BEST SCORE表示
     ctx.font=`bold ${scoreFontSize*0.8}px system-ui`;
     ctx.lineWidth=8;
     ctx.strokeStyle="#000";
@@ -1639,11 +1626,3 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
