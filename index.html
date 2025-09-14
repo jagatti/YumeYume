@@ -58,13 +58,13 @@ const acList = [
     startTime: 69.22,
     endTime: 72.61,
     type: "score",
-    target: 530000,
+    target: 750000,
     rewardScore: 1000000,
     rewardSP: 3600,
     state: "waiting",
     progress: 0,
     cleared: false,
-    desc: "スコアを53万獲得する",
+    desc: "スコアを75万獲得する",
     tapScore: 0,
     spScore: 0
   }
@@ -667,7 +667,7 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
     voltage = Math.floor(voltage * permanentBuff);
     if (voltage > 50000) voltage = 50000;
     score += voltage;
-    skillHistory.unshift({text:`[ボルテージ獲得 ${voltage}]`, life:180});
+    skillHistory.unshift({text:`[追加スコア獲得 ${voltage}]`, life:180});
   　}else if(skillType===1){
       spValue = Math.min(SP_MAX, spValue+540);
       skillHistory.unshift({text:`[SPゲージ獲得 9%]`, life:180});
@@ -992,7 +992,7 @@ function update(){
     if(acFailFlashTimer > 0) acFailFlashTimer--;
   }
   for(const n of notes) n.t++;
-  const keep=[];for(const n of notes){if(n.t<=n.duration+10) keep.push(n);else applyMiss('MISS');}notes=keep;
+  const keep=[];for(const n of notes){if(n.t<=n.duration+5) keep.push(n);else applyMiss('MISS');}notes=keep;
   if(gameState==="playing" && chartIndex>=notesChart.length && notes.length===0){
     if(waitingClearFrame === null){
       waitingClearFrame = frame;
@@ -1639,6 +1639,7 @@ function loop(){ update(); render(); requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
+
 
 
 
