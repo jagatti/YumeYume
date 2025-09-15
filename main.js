@@ -58,8 +58,10 @@ bgm.volume = 0.1;
 // --- 譜面データを直接埋め込む ---
 const notesChart = [
   {"time": 0.54, "side": "left"},
+  {type:"long", side:"right", startTime:0.54, endTime:1.11},//テスト
   {"time": 1.11, "side": "left"},
   {"time": 1.48, "side": "right"},
+  {type:"long", side:"left", startTime:1.86, endTime:2.99},//テスト
   {"time": 1.86, "side": "right"},
   {"time": 2.61, "side": "right"},
   {"time": 2.99, "side": "right"},
@@ -1768,3 +1770,4 @@ function render(){
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 
 (function start(){ loop(); })();
+
