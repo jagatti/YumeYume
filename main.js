@@ -53,6 +53,8 @@ const retryBtn = document.getElementById('retryBtn');
 const bgm = document.getElementById('bgm');
 const bgimg = document.getElementById('bgimg');
 bgm.volume = 0.1;
+cvs.addEventListener('touchstart', e => { updateTouches(e); handlePointer(e); }, {passive:false});
+cvs.addEventListener('mousedown', e => { lastTouches = [{x: e.offsetX, y: e.offsetY}]; handlePointer(e); });
 
 
 // --- 譜面データを直接埋め込む ---
@@ -778,12 +780,12 @@ function handlePointer(e){
     for(const t of e.touches){
       const mx = (t.clientX-rect.left)*scaleX;
       const my = (t.clientY-rect.top )*scaleY;
-      pointerPositions.push({x: mx, y: my});
       // --- SP半円判定 ---
       if(isInSPSemicircle(mx,my)){
         if(spValue >= SP_MAX){ tryUseSP(mx,my); }
         return;
       }
+      pointerPositions.push({x: mx, y: my});
     }
   }else{
     const rect = cvs.getBoundingClientRect();
@@ -791,19 +793,17 @@ function handlePointer(e){
     const scaleY = cvs.height / rect.height;
     const mx = (e.clientX-rect.left)*scaleX;
     const my = (e.clientY-rect.top )*scaleY;
-    pointerPositions.push({x: mx, y: my});
-    // --- SP半円判定 ---
     if(isInSPSemicircle(mx,my)){
       if(spValue >= SP_MAX){ tryUseSP(mx,my); }
       return;
     }
+    pointerPositions.push({x: mx, y: my});
   }
-  // ===== ノーツ判定本体 =====
+  // ==== どこタップでも反応 ====
   let hitNotes = new Set();
   for(const p of pointerPositions){
     let best = null, bestDist = Infinity;
     for(const n of notes){
-      // 既に消した or ホールド中ロングは無視
       if(hitNotes.has(n)) continue;
       if(n.type === "long" && (n.holdActive || n.holdJudge)) continue;
       const progress = Math.min(1, n.t / n.duration);
@@ -1020,25 +1020,24 @@ function update(){
     if(acFailFlashTimer > 0) acFailFlashTimer--;
     return;
   }
-  iif (gameState === "playing" && !bgm.paused) {
-  const bgmNowSec = bgm.currentTime;
-  while (chartIndex < notesChart.length) {
-    const entry = notesChart[chartIndex];
-    // すべてのノーツで appearTime = entry.time - noteTravelSec
-    const appearTime = entry.time - noteTravelSec;
-    if (bgmNowSec >= appearTime) {
-      spawnNote(entry.side, chartIndex);
-      totalNotesSpawned++;
-      chartIndex++;
-    } else {
-      break;
+  // ↓↓↓ iif→ifに修正！
+  if (gameState === "playing" && !bgm.paused) {
+    const bgmNowSec = bgm.currentTime;
+    while (chartIndex < notesChart.length) {
+      const entry = notesChart[chartIndex];
+      const appearTime = entry.time - noteTravelSec;
+      if (bgmNowSec >= appearTime) {
+        spawnNote(entry.side, chartIndex);
+        totalNotesSpawned++;
+        chartIndex++;
+      } else {
+        break;
+      }
     }
+    if(acFailFlashTimer > 0) acFailFlashTimer--;
   }
-  if(acFailFlashTimer > 0) acFailFlashTimer--;
-}
   // ノーツ進行
   for(const n of notes) n.t++;
-  // ロングノーツ判定処理
   updateLongNotes();
   // ノーツ消去
   const keep = [];
@@ -1793,6 +1792,7 @@ function render(){
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 
 (function start(){ loop(); })();
+
 
 
 
