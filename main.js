@@ -793,13 +793,12 @@ function handlePointer(e){
     pointerPositions.push({x: mx, y: my});
   }
 
-  // 画面上のどこでも一番近いノーツ（ロング始点も単発も）を判定
+  // 画面のどこでも一番近いノーツを探し、判定
   for(const p of pointerPositions){
     let best = null, bestDist = Infinity;
     for(const n of notes){
-      // タップは未判定、ロングは未holdActive/未判定
-      if(n.type === "tap" && n.judged) continue;
-      if(n.type === "long" && (n.holdActive || n.holdJudge)) continue;
+      if(n.type==="tap" && n.judged) continue;
+      if(n.type==="long" && (n.holdActive || n.holdJudge)) continue;
       const progress = Math.min(1, n.t / n.duration);
       const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, progress);
       const dist = Math.hypot(pos.x-p.x, pos.y-p.y);
@@ -809,6 +808,7 @@ function handlePointer(e){
     }
     if(best && bestDist < 48){ // 判定範囲は調整
       if(best.type === "tap"){
+        // どこでもタップで判定
         const baseRaw = calcTapBase();
         const {points, label, reset} = calcTapScoreAndLabel(bestDist, baseRaw);
         if(label !== "MISS"){
@@ -821,9 +821,9 @@ function handlePointer(e){
         }
       }
       if(best.type === "long"){
+        // どこでもタップでロング始点
         best.holdActive = true;
         best.holdStartFrame = frame;
-        // 消さずにupdateLongNotesで処理
       }
     }
   }
@@ -927,7 +927,6 @@ function update(){
       const appearTime = entry.time - noteTravelSec;
       if (bgmNowSec >= appearTime) {
         spawnNote(entry.side, chartIndex);
-        totalNotesSpawned++;
         chartIndex++;
       } else {
         break;
@@ -1690,6 +1689,7 @@ function render(){
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 
 (function start(){ loop(); })();
+
 
 
 
