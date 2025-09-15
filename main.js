@@ -793,11 +793,12 @@ function handlePointer(e){
     pointerPositions.push({x: mx, y: my});
   }
 
-  // 画面上のどこでも一番近いノーツ（ロング始点含む）を判定
+  // 画面上のどこでも一番近いノーツ（ロング始点も単発も）を判定
   for(const p of pointerPositions){
     let best = null, bestDist = Infinity;
     for(const n of notes){
-      // ロングはholdActive/holdJudgeでないものだけ
+      // タップは未判定、ロングは未holdActive/未判定
+      if(n.type === "tap" && n.judged) continue;
       if(n.type === "long" && (n.holdActive || n.holdJudge)) continue;
       const progress = Math.min(1, n.t / n.duration);
       const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, progress);
@@ -808,7 +809,6 @@ function handlePointer(e){
     }
     if(best && bestDist < 48){ // 判定範囲は調整
       if(best.type === "tap"){
-        // タップノーツ判定
         const baseRaw = calcTapBase();
         const {points, label, reset} = calcTapScoreAndLabel(bestDist, baseRaw);
         if(label !== "MISS"){
@@ -821,101 +821,9 @@ function handlePointer(e){
         }
       }
       if(best.type === "long"){
-        // ロングノーツ始点判定
         best.holdActive = true;
         best.holdStartFrame = frame;
         // 消さずにupdateLongNotesで処理
-      }
-    }
-  }
-}
-  // === コア判定 ===
-  if(fingers >= 2){
-    const pairs = getSimultaneousPairsInNotes(); // [[nL, nR], ...]
-    for (const [nL, nR] of pairs) {
-      let right = nL, left = nR;
-      if(notesChart[nL.chartIdx]?.side === "left" && notesChart[nR.chartIdx]?.side === "right"){
-        left = nL; right = nR;
-      }
-      const posR = cubicBezier(right.path.p0, right.path.p1, right.path.p2, right.path.p3, Math.min(1, right.t/right.duration));
-      const distR = Math.hypot(posR.x - rightTarget.x, posR.y - rightTarget.y);
-      const baseRaw = calcTapBase();
-      const resR = calcTapScoreAndLabel(distR, baseRaw);
-      if(resR.label !== 'MISS'){
-        awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, right.chartIdx);
-        notes = notes.filter(n => n !== right);
-      }
-      const posL = cubicBezier(left.path.p0, left.path.p1, left.path.p2, left.path.p3, Math.min(1, left.t/left.duration));
-      const distL = Math.hypot(posL.x - leftTarget.x, posL.y - leftTarget.y);
-      const resL = calcTapScoreAndLabel(distL, baseRaw);
-      if(resL.label !== 'MISS'){
-        awardHit(leftTarget, resL.points, resL.label, resL.reset, baseRaw, left.chartIdx);
-        notes = notes.filter(n => n !== left);
-      }
-      // どちらもMISSなら何もしない
-    }
-    return;
-  }
-
-  // ==== 単発ノーツ（左右別） ====
-  function isNotPairNote(n){
-    return !notes.some(other =>
-      other !== n &&
-      notesChart[n.chartIdx]?.time === notesChart[other.chartIdx]?.time &&
-      notesChart[n.chartIdx]?.side !== notesChart[other.chartIdx]?.side
-    );
-  }
-  let targetNotes = notes.filter(isNotPairNote);
-
-  let bestL = null, bestDistL = Infinity;
-  for(const n of targetNotes){
-    if(n.side !== 'left') continue;
-    const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
-    for(let p of pointerPositions){
-      const dist = Math.hypot(pos.x-p.x, pos.y-p.y);
-      if(dist < bestDistL){ bestDistL = dist; bestL = n; }
-    }
-  }
-  if(bestL){
-    const baseRaw = calcTapBase();
-    const res = calcTapScoreAndLabel(bestDistL, baseRaw);
-    if(res.label !== 'MISS'){
-      awardHit(leftTarget, res.points, res.label, res.reset, baseRaw, bestL.chartIdx);
-      notes = notes.filter(n => n !== bestL);
-    }
-  }
-
-  let bestR = null, bestDistR = Infinity;
-  for(const n of targetNotes){
-    if(n.side !== 'right') continue;
-    const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
-    for(let p of pointerPositions){
-      const dist = Math.hypot(pos.x-p.x, pos.y-p.y);
-      if(dist < bestDistR){ bestDistR = dist; bestR = n; }
-    }
-  }
-  if(bestR){
-    const baseRaw = calcTapBase();
-    const res = calcTapScoreAndLabel(bestDistR, baseRaw);
-    if(res.label !== 'MISS'){
-      awardHit(rightTarget, res.points, res.label, res.reset, baseRaw, bestR.chartIdx);
-      notes = notes.filter(n => n !== bestR);
-    }
-  }
-
-  // ==== ロングノーツ始点判定（どこタップでもOK、個別に判定） ====
-  for(const n of notes){
-    if(n.type === "long" && !n.holdActive && !n.holdJudge){
-      if(n.t >= n.duration){
-        const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, 1);
-        for(let p of pointerPositions){
-          const dist = Math.hypot(pos.x-p.x, pos.y-p.y);
-          if(dist < R*1.2){
-            n.holdActive = true;
-            n.holdStartFrame = frame;
-            break;
-          }
-        }
       }
     }
   }
@@ -1116,10 +1024,9 @@ function getNearestFinger(pos){
 
 // 6. ロングノーツ判定（毎フレームupdateで呼ぶ）
 function updateLongNotes(){
-  // ロングノーツのホールド判定
   for(const n of notes){
     if(n.type === "long" && n.holdActive && !n.holdJudge){
-      // 指が1本もなければ（画面から全て離れたら）MISS
+      // 指が1本もなければMISS！
       if(lastTouches.length === 0){
         n.holdJudge = true;
         n.holdSuccess = false;
@@ -1783,6 +1690,7 @@ function render(){
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 
 (function start(){ loop(); })();
+
 
 
 
