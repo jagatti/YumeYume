@@ -767,21 +767,19 @@ function tryUseSP(mx,my){
 // ペアも単発も「距離判定」で、2本指時は同時ペアの右→左の順で個別に判定・消去
 function handlePointer(e){
   if(gameState!=="playing") return;
-  const isTouch = e.type.startsWith('touch');
-  let fingers = 1;
+  const isTouch = e.type && e.type.startsWith('touch');
   let pointerPositions = [];
-
   if(isTouch){
     lastInputWasTouch=true;
     e.preventDefault();
-    fingers = (e.touches && e.touches.length) ? e.touches.length : 1;
     const rect = cvs.getBoundingClientRect();
-    const scaleX = cvs.width  / rect.width;
+    const scaleX = cvs.width / rect.width;
     const scaleY = cvs.height / rect.height;
     for(const t of e.touches){
       const mx = (t.clientX-rect.left)*scaleX;
       const my = (t.clientY-rect.top )*scaleY;
       pointerPositions.push({x: mx, y: my});
+      // --- SP半円判定 ---
       if(isInSPSemicircle(mx,my)){
         if(spValue >= SP_MAX){ tryUseSP(mx,my); }
         return;
@@ -789,16 +787,50 @@ function handlePointer(e){
     }
   }else{
     const rect = cvs.getBoundingClientRect();
-    const scaleX = cvs.width  / rect.width;
+    const scaleX = cvs.width / rect.width;
     const scaleY = cvs.height / rect.height;
     const mx = (e.clientX-rect.left)*scaleX;
     const my = (e.clientY-rect.top )*scaleY;
     pointerPositions.push({x: mx, y: my});
+    // --- SP半円判定 ---
     if(isInSPSemicircle(mx,my)){
       if(spValue >= SP_MAX){ tryUseSP(mx,my); }
       return;
     }
   }
+  // ===== ノーツ判定本体 =====
+  let hitNotes = new Set();
+  for(const p of pointerPositions){
+    let best = null, bestDist = Infinity;
+    for(const n of notes){
+      // 既に消した or ホールド中ロングは無視
+      if(hitNotes.has(n)) continue;
+      if(n.type === "long" && (n.holdActive || n.holdJudge)) continue;
+      const progress = Math.min(1, n.t / n.duration);
+      const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, progress);
+      const dist = Math.hypot(pos.x-p.x, pos.y-p.y);
+      if(dist < bestDist){
+        best = n; bestDist = dist;
+      }
+    }
+    if(best){
+      const baseRaw = calcTapBase();
+      const {points, label, reset} = calcTapScoreAndLabel(bestDist, baseRaw);
+      if(label !== "MISS"){
+        awardHit(
+          best.side === "left" ? leftTarget : rightTarget,
+          points, label, reset, baseRaw, best.chartIdx
+        );
+        if(best.type === "tap") best.judged = true;
+        if(best.type === "long"){
+          best.holdActive = true;
+          best.holdStartFrame = frame;
+        }
+        hitNotes.add(best);
+      }
+    }
+  }
+}
 
   // === コア判定 ===
 
@@ -988,21 +1020,22 @@ function update(){
     if(acFailFlashTimer > 0) acFailFlashTimer--;
     return;
   }
-  if (gameState === "playing" && !bgm.paused) {
-    const bgmNowSec = bgm.currentTime;
-    while (chartIndex < notesChart.length) {
-      const entry = notesChart[chartIndex];
-      const appearTime = entry.type === "long" ? entry.time : entry.time;
-      if (bgmNowSec >= appearTime) {
-        spawnNote(entry.side, chartIndex);
-        totalNotesSpawned++;
-        chartIndex++;
-      } else {
-        break;
-      }
+  iif (gameState === "playing" && !bgm.paused) {
+  const bgmNowSec = bgm.currentTime;
+  while (chartIndex < notesChart.length) {
+    const entry = notesChart[chartIndex];
+    // すべてのノーツで appearTime = entry.time - noteTravelSec
+    const appearTime = entry.time - noteTravelSec;
+    if (bgmNowSec >= appearTime) {
+      spawnNote(entry.side, chartIndex);
+      totalNotesSpawned++;
+      chartIndex++;
+    } else {
+      break;
     }
-    if(acFailFlashTimer > 0) acFailFlashTimer--;
   }
+  if(acFailFlashTimer > 0) acFailFlashTimer--;
+}
   // ノーツ進行
   for(const n of notes) n.t++;
   // ロングノーツ判定処理
@@ -1082,11 +1115,11 @@ function updateTouches(e){
 }
 
 // 5. 判定関数
-function getNearestFinger(pos) {
+function getNearestFinger(pos){
   let minDist = Infinity;
-  for(let i=0;i<lastTouches.length;i++){
-    const d = Math.hypot(pos.x-lastTouches[i].x, pos.y-lastTouches[i].y);
-    if(d < minDist){ minDist=d; }
+  for(let t of lastTouches){
+    const d = Math.hypot(pos.x-t.x, pos.y-t.y);
+    if(d < minDist) minDist = d;
   }
   return minDist;
 }
@@ -1094,38 +1127,28 @@ function getNearestFinger(pos) {
 // 6. ロングノーツ判定（毎フレームupdateで呼ぶ）
 function updateLongNotes(){
   for(const n of notes){
-    if(n.type === "long" && !n.holdJudge){
-      // ノーツの現在位置
-      const progress = Math.min(1, n.t / n.duration);
-      const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, progress);
+    if(n.type === "long" && n.holdActive && !n.holdJudge){
+      // 判定円の上に指があるかを距離判定
+      const pos = n.side === "left" ? leftTarget : rightTarget;
       const dist = getNearestFinger(pos);
-      // 判定円到達後のホールド開始
-      if(n.t >= n.duration && !n.holdActive && dist < R*1.2){
-        n.holdActive = true;
-        n.holdStartFrame = frame;
+      if(dist > R*1.8){
+        n.holdJudge = true;
+        n.holdSuccess = false;
+        applyMiss('MISS');
       }
-      // ホールド中
-      if(n.holdActive && !n.holdJudge){
-        // 指が離れたら失敗
-        if(dist > R*1.8){
-          n.holdJudge = true;
-          n.holdSuccess = false;
-          applyMiss('MISS');
-        }
-        // 指が最後まで離れなければ成功
-        const holdFrames = Math.round(((n.endTime||0)-(notesChart[n.chartIdx]?.time||0))*60);
-        if(frame - n.holdStartFrame >= holdFrames){
-          n.holdJudge = true;
-          n.holdSuccess = true;
-          awardHit(
-            n.side === "left" ? leftTarget : rightTarget,
-            calcTapBase(),
-            "WONDERFUL",
-            false,
-            calcTapBase(),
-            n.chartIdx
-          );
-        }
+      // 終了まで押してたら成功
+      const holdFrames = Math.round((n.endTime - notesChart[n.chartIdx].time) * 60);
+      if(frame - n.holdStartFrame >= holdFrames){
+        n.holdJudge = true;
+        n.holdSuccess = true;
+        awardHit(
+          n.side === "left" ? leftTarget : rightTarget,
+          calcTapBase(),
+          "WONDERFUL",
+          false,
+          calcTapBase(),
+          n.chartIdx
+        );
       }
     }
   }
@@ -1770,5 +1793,6 @@ function render(){
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 
 (function start(){ loop(); })();
+
 
 
