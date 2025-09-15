@@ -53,8 +53,6 @@ const retryBtn = document.getElementById('retryBtn');
 const bgm = document.getElementById('bgm');
 const bgimg = document.getElementById('bgimg');
 bgm.volume = 0.1;
-cvs.addEventListener('touchstart', e => { updateTouches(e); handlePointer(e); }, {passive:false});
-cvs.addEventListener('mousedown', e => { lastTouches = [{x: e.offsetX, y: e.offsetY}]; handlePointer(e); });
 
 
 // --- 譜面データを直接埋め込む ---
@@ -771,16 +769,17 @@ function handlePointer(e){
   if(gameState!=="playing") return;
   const isTouch = e.type && e.type.startsWith('touch');
   let pointerPositions = [];
+  let fingers = 1;
   if(isTouch){
     lastInputWasTouch=true;
     e.preventDefault();
+    fingers = (e.touches && e.touches.length) ? e.touches.length : 1;
     const rect = cvs.getBoundingClientRect();
     const scaleX = cvs.width / rect.width;
     const scaleY = cvs.height / rect.height;
     for(const t of e.touches){
       const mx = (t.clientX-rect.left)*scaleX;
       const my = (t.clientY-rect.top )*scaleY;
-      // --- SP半円判定 ---
       if(isInSPSemicircle(mx,my)){
         if(spValue >= SP_MAX){ tryUseSP(mx,my); }
         return;
@@ -799,6 +798,35 @@ function handlePointer(e){
     }
     pointerPositions.push({x: mx, y: my});
   }
+
+  // === コア判定 ===
+  if(fingers >= 2){
+    const pairs = getSimultaneousPairsInNotes(); // [[nL, nR], ...]
+    for (const [nL, nR] of pairs) {
+      let right = nL, left = nR;
+      if(notesChart[nL.chartIdx]?.side === "left" && notesChart[nR.chartIdx]?.side === "right"){
+        left = nL; right = nR;
+      }
+      const posR = cubicBezier(right.path.p0, right.path.p1, right.path.p2, right.path.p3, Math.min(1, right.t/right.duration));
+      const distR = Math.hypot(posR.x - rightTarget.x, posR.y - rightTarget.y);
+      const baseRaw = calcTapBase();
+      const resR = calcTapScoreAndLabel(distR, baseRaw);
+      if(resR.label !== 'MISS'){
+        awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, right.chartIdx);
+        notes = notes.filter(n => n !== right);
+      }
+      const posL = cubicBezier(left.path.p0, left.path.p1, left.path.p2, left.path.p3, Math.min(1, left.t/left.duration));
+      const distL = Math.hypot(posL.x - leftTarget.x, posL.y - leftTarget.y);
+      const resL = calcTapScoreAndLabel(distL, baseRaw);
+      if(resL.label !== 'MISS'){
+        awardHit(leftTarget, resL.points, resL.label, resL.reset, baseRaw, left.chartIdx);
+        notes = notes.filter(n => n !== left);
+      }
+      // どちらもMISSなら何もしない
+    }
+    return;
+  }
+
   // ==== どこタップでも反応 ====
   let hitNotes = new Set();
   for(const p of pointerPositions){
@@ -831,36 +859,6 @@ function handlePointer(e){
     }
   }
 }
-
-  // === コア判定 ===
-
-  // 2本指なら同時押しペアを右→左順で判定（どちらかだけでも消える）
-  if(fingers >= 2){
-    const pairs = getSimultaneousPairsInNotes(); // [[nL, nR], ...]
-    for (const [nL, nR] of pairs) {
-      let right = nL, left = nR;
-      if(notesChart[nL.chartIdx]?.side === "left" && notesChart[nR.chartIdx]?.side === "right"){
-        left = nL; right = nR;
-      }
-      const posR = cubicBezier(right.path.p0, right.path.p1, right.path.p2, right.path.p3, Math.min(1, right.t/right.duration));
-      const distR = Math.hypot(posR.x - rightTarget.x, posR.y - rightTarget.y);
-      const baseRaw = calcTapBase();
-      const resR = calcTapScoreAndLabel(distR, baseRaw);
-      if(resR.label !== 'MISS'){
-        awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, right.chartIdx);
-        notes = notes.filter(n => n !== right);
-      }
-      const posL = cubicBezier(left.path.p0, left.path.p1, left.path.p2, left.path.p3, Math.min(1, left.t/left.duration));
-      const distL = Math.hypot(posL.x - leftTarget.x, posL.y - leftTarget.y);
-      const resL = calcTapScoreAndLabel(distL, baseRaw);
-      if(resL.label !== 'MISS'){
-        awardHit(leftTarget, resL.points, resL.label, resL.reset, baseRaw, left.chartIdx);
-        notes = notes.filter(n => n !== left);
-      }
-      // どちらもMISSなら何もしない
-    }
-    return;
-  }
 
   
   // 1. 単発ノーツ（左右別）従来のまま
@@ -1092,7 +1090,7 @@ function update(){
 
 // 4. タッチ位置管理
 let lastTouches = [];
-cvs.addEventListener('touchstart', e => { updateTouches(e); handlePointer(e); });
+cvs.addEventListener('touchstart', e => { updateTouches(e); handlePointer(e); }, {passive:false});
 cvs.addEventListener('touchmove', e => { updateTouches(e); });
 cvs.addEventListener('touchend', e => { updateTouches(e); });
 cvs.addEventListener('mousedown', e => { lastTouches = [{x: e.offsetX, y: e.offsetY}]; handlePointer(e); });
@@ -1792,6 +1790,7 @@ function render(){
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 
 (function start(){ loop(); })();
+
 
 
 
