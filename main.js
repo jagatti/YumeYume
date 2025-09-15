@@ -827,41 +827,7 @@ function handlePointer(e){
     return;
   }
 
-  // ==== どこタップでも反応 ====
-  let hitNotes = new Set();
-  for(const p of pointerPositions){
-    let best = null, bestDist = Infinity;
-    for(const n of notes){
-      if(hitNotes.has(n)) continue;
-      if(n.type === "long" && (n.holdActive || n.holdJudge)) continue;
-      const progress = Math.min(1, n.t / n.duration);
-      const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, progress);
-      const dist = Math.hypot(pos.x-p.x, pos.y-p.y);
-      if(dist < bestDist){
-        best = n; bestDist = dist;
-      }
-    }
-    if(best){
-      const baseRaw = calcTapBase();
-      const {points, label, reset} = calcTapScoreAndLabel(bestDist, baseRaw);
-      if(label !== "MISS"){
-        awardHit(
-          best.side === "left" ? leftTarget : rightTarget,
-          points, label, reset, baseRaw, best.chartIdx
-        );
-        if(best.type === "tap") best.judged = true;
-        if(best.type === "long"){
-          best.holdActive = true;
-          best.holdStartFrame = frame;
-        }
-        hitNotes.add(best);
-      }
-    }
-  }
-}
-
-  
-  // 1. 単発ノーツ（左右別）従来のまま
+  // ==== 単発ノーツ（左右別） ====
   function isNotPairNote(n){
     return !notes.some(other =>
       other !== n &&
@@ -875,7 +841,6 @@ function handlePointer(e){
   for(const n of targetNotes){
     if(n.side !== 'left') continue;
     const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
-    // 全指で一番近い指
     for(let p of pointerPositions){
       const dist = Math.hypot(pos.x-p.x, pos.y-p.y);
       if(dist < bestDistL){ bestDistL = dist; bestL = n; }
@@ -908,15 +873,13 @@ function handlePointer(e){
     }
   }
 
-  // 2. ロングノーツ始点判定（どこタップでもOK、個別に判定）
+  // ==== ロングノーツ始点判定（どこタップでもOK、個別に判定） ====
   for(const n of notes){
     if(n.type === "long" && !n.holdActive && !n.holdJudge){
-      // 始点まで到達していたら全指で判定
       if(n.t >= n.duration){
         const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, 1);
         for(let p of pointerPositions){
           const dist = Math.hypot(pos.x-p.x, pos.y-p.y);
-          // 判定ゾーンに指が入ったらホールド開始
           if(dist < R*1.2){
             n.holdActive = true;
             n.holdStartFrame = frame;
@@ -926,6 +889,7 @@ function handlePointer(e){
       }
     }
   }
+}
 
 // --- イベント登録 ---
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
@@ -1789,6 +1753,7 @@ function render(){
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 
 (function start(){ loop(); })();
+
 
 
 
