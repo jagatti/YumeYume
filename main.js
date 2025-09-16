@@ -1221,6 +1221,13 @@ function drawNotes(){
       }
     }
   }
+  for(let i=0;i<notes.length;i++){
+    const n = notes[i];
+    if(!n.flick) continue;
+    const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
+    const r = R;
+    drawFlickArrow(ctx, pos.x, pos.y, r, n.flick);
+  }
 }
 
 // フリックノーツの矢印描画。rはノーツ半径、dirは方向
@@ -1709,6 +1716,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
