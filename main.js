@@ -1240,33 +1240,38 @@ function drawFlickArrow(ctx, x, y, r, dir){
   if(dir === "down") angle = Math.PI/2;
   ctx.rotate(angle);
 
-  ctx.globalAlpha = 0.6;
+  // グロー円（大きめ）
+  ctx.globalAlpha = 0.8;
   ctx.beginPath();
-  ctx.arc(0, 0, r * 1.04, 0, Math.PI * 2);
+  ctx.arc(0, 0, r * 1.28, 0, Math.PI * 2);
   ctx.fillStyle = "#d833ff";
   ctx.shadowColor = "#d833ff";
-  ctx.shadowBlur = r*0.60;
+  ctx.shadowBlur = r*0.70;
   ctx.fill();
   ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
 
+  // 外枠（大きめ）
   ctx.beginPath();
-  ctx.arc(0, 0, r * 0.84, 0, Math.PI * 2);
-  ctx.lineWidth = r * 0.16;
+  ctx.arc(0, 0, r * 1.05, 0, Math.PI * 2);
+  ctx.lineWidth = r * 0.22;
   ctx.strokeStyle = "#fff";
   ctx.stroke();
 
+  // 矢印本体（大きく太く）
   ctx.beginPath();
-  ctx.moveTo(-r * 0.65, 0);
-  ctx.lineTo(-r * 0.25, -r * 0.28);
-  ctx.lineTo(-r * 0.25, -r * 0.13);
-  ctx.lineTo(r * 0.30, -r * 0.13);
-  ctx.lineTo(r * 0.30, r * 0.13);
-  ctx.lineTo(-r * 0.25, r * 0.13);
-  ctx.lineTo(-r * 0.25, r * 0.28);
+  ctx.moveTo(-r * 0.82, 0);
+  ctx.lineTo(-r * 0.33, -r * 0.40);
+  ctx.lineTo(-r * 0.33, -r * 0.18);
+  ctx.lineTo(r * 0.42, -r * 0.18);
+  ctx.lineTo(r * 0.42, r * 0.18);
+  ctx.lineTo(-r * 0.33, r * 0.18);
+  ctx.lineTo(-r * 0.33, r * 0.40);
   ctx.closePath();
   ctx.fillStyle = "#fff";
-  ctx.globalAlpha = 0.9;
+  ctx.globalAlpha = 0.95;
+  ctx.shadowColor = "#fff";
+  ctx.shadowBlur = r * 0.17;
   ctx.fill();
   ctx.restore();
 }
@@ -1716,6 +1721,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
