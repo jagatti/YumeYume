@@ -62,10 +62,14 @@ const notesChart = [
   {"time": 1.48, "side": "right"},
   {"time": 1.86, "side": "right"},
   {"time": 2.61, "side": "right"},
+  {"time": 2.61, "side": "left", "flick": "left"}, // 左フリック
   {"time": 2.99, "side": "right"},
+  {"time": 2.99, "side": "left", "flick": "up"},    // 上フリック
   {"time": 3.18, "side": "left"},
   {"time": 3.55, "side": "left"},
+  {"time": 3.78, "side": "left", "flick": "down"},    // 下フリック
   {"time": 4.12, "side": "left"},
+  {"time": 4.30, "side": "right", "flick": "right"},    // 右フリック
   {"time": 4.50, "side": "right"},
   {"time": 4.69, "side": "left"},
   {"time": 4.87, "side": "right"},
@@ -1702,4 +1706,5 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
