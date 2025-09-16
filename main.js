@@ -1118,7 +1118,7 @@ function drawNotes(){
   ctx.globalAlpha = 0.8;
   for (const [n1, n2] of pairs) {
     const pos1 = cubicBezier(n1.path.p0, n1.path.p1, n1.path.p2, n1.path.p3, Math.min(1, n1.t/n1.duration));
-    const pos2 = cubicBezier(n2.path.p0, n2.path.p1, n2.path.p2, n2.path.p3, Math.min(1, n2.t/n2.duration));
+    const pos2 = cubicBezier(n2.path.p0, n2.path.p1, n2.path.p2, n2.t/n2.duration);
     ctx.beginPath();
     ctx.moveTo(pos1.x, pos1.y);
     ctx.lineTo(pos2.x, pos2.y);
@@ -1134,15 +1134,6 @@ function drawNotes(){
     const idx = n.chartIdx;
     const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
     const r = R;
-    if(n.flick){
-    drawFlickArrow(ctx, pos.x, pos.y, r, n.flick);
-
-    // ノーツ色を紫系に変更
-    mainColor = "#d833ff";
-    glowColor = "rgba(216,51,255,0.7)";
-    rimColor = "#fff";
-    dotColor = "#fff";
-    }
 
     // AC区間に入っているか（indexベースで判定）
     let isAcCleared = false;
@@ -1152,10 +1143,24 @@ function drawNotes(){
         break;
       }
     }
+
+    // 必ずletで宣言し初期化する
     let mainColor = isAcCleared ? "#ffd700" : "#00eaff";
     let glowColor = isAcCleared ? "rgba(255,220,60,0.7)" : "rgba(0,200,255,0.7)";
     let rimColor  = isAcCleared ? "#ffe777" : "#7fffff";
     let dotColor  = isAcCleared ? "#ffe066" : "#1cd9ee";
+
+    // --- フリックノーツ描画 ---
+    if(n.flick){
+      drawFlickArrow(ctx, pos.x, pos.y, r, n.flick);
+      // フリックノーツは紫色系
+      mainColor = "#d833ff";
+      glowColor = "rgba(216,51,255,0.7)";
+      rimColor  = "#fff";
+      dotColor  = "#fff";
+    }
+
+    // --- グロー ---
     ctx.save();
     ctx.globalAlpha = 0.90;
     ctx.beginPath();
@@ -1168,6 +1173,7 @@ function drawNotes(){
     ctx.fill();
     ctx.restore();
 
+    // --- 外枠 ---
     ctx.save();
     ctx.strokeStyle = rimColor;
     ctx.lineWidth = r * 0.18;
@@ -1177,6 +1183,7 @@ function drawNotes(){
     ctx.stroke();
     ctx.restore();
 
+    // --- 主円 ---
     ctx.save();
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, r * 0.72, 0, Math.PI * 2);
@@ -1187,6 +1194,7 @@ function drawNotes(){
     ctx.fill();
     ctx.restore();
 
+    // --- 中心ドット ---
     ctx.save();
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, r * 0.22, 0, Math.PI * 2);
@@ -1218,7 +1226,8 @@ function drawNotes(){
     }
   }
 }
-  // フリックノーツの矢印描画。rはノーツ半径、dirは方向
+
+// フリックノーツの矢印描画。rはノーツ半径、dirは方向
 function drawFlickArrow(ctx, x, y, r, dir){
   ctx.save();
   ctx.translate(x, y);
@@ -1704,3 +1713,4 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
