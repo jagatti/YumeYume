@@ -401,7 +401,7 @@ function isACClearedNowByTime(nowTime) {
     ac.state === "cleared" && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec
   );
 }
-  
+
 // --- レイアウト・ターゲット位置 ---
 function resizeCanvas(){
   const landscape = window.innerWidth >= window.innerHeight;
@@ -431,8 +431,22 @@ function resizeCanvas(){
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-function cubicBezier(p0,p1,p2,p3,t){const u=1-t;return {x:u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,y:u*u*u*p0.y+3*u*u*t*p1.y+3*u*t*t*p2.y+t*t*t*p3.y};}
-function makePath(side){const target= side==='left'? leftTarget : rightTarget;const startX = side==='left' ? (-R*2-10) : (cvs.width+R*2+10);const start={x:startX, y: target.y - Math.max(180, R*6)};const c1={x: side==='left' ? target.x - Math.max(200,R*6) : target.x + Math.max(200,R*6), y: target.y - Math.max(200,R*6)};const c2={x: side==='left' ? target.x - Math.max(60,R*2)  : target.x + Math.max(60,R*2),  y: target.y - Math.max(40,R*1.3)};const end={x: target.x, y: target.y};return {p0:start,p1:c1,p2:c2,p3:end};}
+function cubicBezier(p0,p1,p2,p3,t){
+  const u=1-t;
+  return {
+    x:u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,
+    y:u*u*u*p0.y+3*u*u*t*p1.y+3*u*t*t*p2.y+t*t*t*p3.y
+  };
+}
+function makePath(side){
+  const target= side==='left'? leftTarget : rightTarget;
+  const startX = side==='left' ? (-R*2-10) : (cvs.width+R*2+10);
+  const start={x:startX, y: target.y - Math.max(180, R*6)};
+  const c1={x: side==='left' ? target.x - Math.max(200,R*6) : target.x + Math.max(200,R*6), y: target.y - Math.max(200,R*6)};
+  const c2={x: side==='left' ? target.x - Math.max(60,R*2)  : target.x + Math.max(60,R*2),  y: target.y - Math.max(40,R*1.3)};
+  const end={x: target.x, y: target.y};
+  return {p0:start,p1:c1,p2:c2,p3:end};
+}
 // --- spawnNote拡張（flick情報も保持） ---
 function spawnNote(side, chartIdx){
   const nc = notesChart[chartIdx];
@@ -525,20 +539,6 @@ window.addEventListener('touchstart', () => {
 window.addEventListener('mousedown', () => {
   loadTapSE();
 }, { once: true });
-
-cvs.addEventListener('touchstart', function(e){
-  if(e.touches && e.touches.length === 1){
-    const rect = cvs.getBoundingClientRect();
-    const scaleX = cvs.width  / rect.width;
-    const scaleY = cvs.height / rect.height;
-    const mx = (e.touches[0].clientX-rect.left)*scaleX;
-    const my = (e.touches[0].clientY-rect.top )*scaleY;
-    flickStart = {x: mx, y: my};
-  }
-}, {passive:false});
-cvs.addEventListener('touchend', function(e){
-  flickStart = null;
-}, {passive:false});
   
 // --- 基本スコアの計算を一律30000・上限50000に ---
 function calcTapBase(){
@@ -775,7 +775,7 @@ function handlePointer(e){
   }
   if(!isTouch && lastInputWasTouch){ lastInputWasTouch=false; return; }
 
-  // SP半円は従来通り
+  // SP半円判定
   if(isTouch){
     for(const t of e.touches){
       const rect = cvs.getBoundingClientRect();
@@ -810,22 +810,19 @@ function handlePointer(e){
       if(notesChart[nL.chartIdx]?.side === "left" && notesChart[nR.chartIdx]?.side === "right"){
         left = nL; right = nR;
       }
-      const posR = cubicBezier(right.path.p0, right.path.p1, right.path.p2, right.path.p3, Math.min(1, right.t/right.duration));
-      const distR = Math.hypot(posR.x - rightTarget.x, posR.y - rightTarget.y);
-      const baseRaw = calcTapBase();
-      const resR = calcTapScoreAndLabel(distR, baseRaw);
-      if(resR.label !== 'MISS'){
-        awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, right.chartIdx);
-        notes = notes.filter(n => n !== right);
-      }
-      const posL = cubicBezier(left.path.p0, left.path.p1, left.path.p2, left.path.p3, Math.min(1, left.t/left.duration));
-      const distL = Math.hypot(posL.x - leftTarget.x, posL.y - leftTarget.y);
-      const resL = calcTapScoreAndLabel(distL, baseRaw);
-      if(resL.label !== 'MISS'){
-        awardHit(leftTarget, resL.points, resL.label, resL.reset, baseRaw, left.chartIdx);
-        notes = notes.filter(n => n !== left);
-      }
-      // どちらもMISSなら何もしない
+      // ペアノーツのフリック対応
+      [right, left].forEach((note, idx) => {
+        const pos = cubicBezier(note.path.p0, note.path.p1, note.path.p2, note.path.p3, Math.min(1, note.t/note.duration));
+        const baseRaw = calcTapBase();
+        // フリックノーツの場合は通常判定せず
+        if(note.flick) return;
+        const dist = Math.hypot(pos.x - (note.side === 'left' ? leftTarget.x : rightTarget.x), pos.y - (note.side === 'left' ? leftTarget.y : rightTarget.y));
+        const res = calcTapScoreAndLabel(dist, baseRaw);
+        if(res.label !== 'MISS'){
+          awardHit(note.side === 'left' ? leftTarget : rightTarget, res.points, res.label, res.reset, baseRaw, note.chartIdx);
+          notes = notes.filter(n => n !== note);
+        }
+      });
     }
     return;
   }
@@ -842,7 +839,7 @@ function handlePointer(e){
 
   let bestL = null, bestDistL = Infinity;
   for(const n of targetNotes){
-    if(n.side !== 'left') continue;
+    if(n.side !== 'left' || n.flick) continue; // フリックノーツは除外
     const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
     const dist = Math.hypot(pos.x-leftTarget.x, pos.y-leftTarget.y);
     if(dist < bestDistL){ bestDistL = dist; bestL = n; }
@@ -858,7 +855,7 @@ function handlePointer(e){
 
   let bestR = null, bestDistR = Infinity;
   for(const n of targetNotes){
-    if(n.side !== 'right') continue;
+    if(n.side !== 'right' || n.flick) continue; // フリックノーツは除外
     const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
     const dist = Math.hypot(pos.x-rightTarget.x, pos.y-rightTarget.y);
     if(dist < bestDistR){ bestDistR = dist; bestR = n; }
@@ -913,6 +910,20 @@ function handlePointer(e){
 // --- イベント登録 ---
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
 cvs.addEventListener('mousedown',handlePointer);
+
+cvs.addEventListener('touchstart', function(e){
+  if(e.touches && e.touches.length === 1){
+    const rect = cvs.getBoundingClientRect();
+    const scaleX = cvs.width  / rect.width;
+    const scaleY = cvs.height / rect.height;
+    const mx = (e.touches[0].clientX-rect.left)*scaleX;
+    const my = (e.touches[0].clientY-rect.top )*scaleY;
+    flickStart = {x: mx, y: my};
+  }
+}, {passive:false});
+cvs.addEventListener('touchend', function(e){
+  flickStart = null;
+}, {passive:false});
 
 startBtn.onclick = async function() {
   await loadTapSE();
@@ -1120,8 +1131,9 @@ function drawNotes(){
     const n = notes[i];
     const noteInfo = notesChart[n.chartIdx];
     if(!noteInfo) continue;
-    const noteTime = noteInfo.time;
     const idx = n.chartIdx;
+    const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
+    const r = R;
     if(n.flick){
     drawFlickArrow(ctx, pos.x, pos.y, r, n.flick);
 
@@ -1140,17 +1152,10 @@ function drawNotes(){
         break;
       }
     }
-
-    // 色設定
     let mainColor = isAcCleared ? "#ffd700" : "#00eaff";
     let glowColor = isAcCleared ? "rgba(255,220,60,0.7)" : "rgba(0,200,255,0.7)";
     let rimColor  = isAcCleared ? "#ffe777" : "#7fffff";
     let dotColor  = isAcCleared ? "#ffe066" : "#1cd9ee";
-
-    const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
-    const r = R;
-
-    // --- グロー ---
     ctx.save();
     ctx.globalAlpha = 0.90;
     ctx.beginPath();
@@ -1163,7 +1168,6 @@ function drawNotes(){
     ctx.fill();
     ctx.restore();
 
-    // --- 外枠 ---
     ctx.save();
     ctx.strokeStyle = rimColor;
     ctx.lineWidth = r * 0.18;
@@ -1173,7 +1177,6 @@ function drawNotes(){
     ctx.stroke();
     ctx.restore();
 
-    // --- 主円 ---
     ctx.save();
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, r * 0.72, 0, Math.PI * 2);
@@ -1184,7 +1187,6 @@ function drawNotes(){
     ctx.fill();
     ctx.restore();
 
-    // --- 中心ドット ---
     ctx.save();
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, r * 0.22, 0, Math.PI * 2);
@@ -1224,10 +1226,8 @@ function drawFlickArrow(ctx, x, y, r, dir){
   if(dir === "left") angle = Math.PI;
   if(dir === "up") angle = -Math.PI/2;
   if(dir === "down") angle = Math.PI/2;
-  // 右はangle=0
   ctx.rotate(angle);
 
-  // グロー円
   ctx.globalAlpha = 0.6;
   ctx.beginPath();
   ctx.arc(0, 0, r * 1.04, 0, Math.PI * 2);
@@ -1238,14 +1238,12 @@ function drawFlickArrow(ctx, x, y, r, dir){
   ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
 
-  // 外枠
   ctx.beginPath();
   ctx.arc(0, 0, r * 0.84, 0, Math.PI * 2);
   ctx.lineWidth = r * 0.16;
   ctx.strokeStyle = "#fff";
   ctx.stroke();
 
-  // 矢印本体
   ctx.beginPath();
   ctx.moveTo(-r * 0.65, 0);
   ctx.lineTo(-r * 0.25, -r * 0.28);
@@ -1706,5 +1704,3 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
-
-
