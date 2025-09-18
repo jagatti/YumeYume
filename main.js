@@ -66,12 +66,8 @@ const notesChart = [
   {"time": 2.99, "side": "right"},
   {"time": 2.99, "side": "left", "flick": "up"},    // 上フリック
   {"time": 3.18, "side": "left"},
-  {"time": 3.55, "side": "left"},
   {"time": 3.78, "side": "left", "flick": "down"},    // 下フリック
-  {"time": 4.12, "side": "left"},
   {"time": 4.30, "side": "right", "flick": "right"},    // 右フリック
-  {"time": 4.50, "side": "right"},
-  {"time": 4.69, "side": "left"},
   {"time": 4.87, "side": "right"},
   {"time": 4.87, "side": "left"},//追加
   {"time": 5.25, "side": "left"},
@@ -869,12 +865,12 @@ function handlePointer(e){
     }
   }
   // --- ここからフリック判定を追加 ---
-  if(isTouch && flickStart && e.touches && e.touches.length === 1){
+  if(isTouch && flickStart && e.type === "touchend" && e.changedTouches && e.changedTouches.length === 1){
     const rect = cvs.getBoundingClientRect();
     const scaleX = cvs.width  / rect.width;
     const scaleY = cvs.height / rect.height;
-    const mx = (e.touches[0].clientX-rect.left)*scaleX;
-    const my = (e.touches[0].clientY-rect.top )*scaleY;
+    const mx = (e.changedTouches[0].clientX-rect.left)*scaleX;
+    const my = (e.changedTouches[0].clientY-rect.top )*scaleY;
     const dx = mx - flickStart.x;
     const dy = my - flickStart.y;
     const dist = Math.hypot(dx, dy);
@@ -1721,6 +1717,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
