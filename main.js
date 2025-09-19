@@ -759,6 +759,16 @@ function tryUseSP(mx,my){
   return true;
 }
   
+function getFlickAngle(flickDir){
+  switch(flickDir){
+    case "up": return -Math.PI / 2;
+    case "down": return Math.PI / 2;
+    case "right": return 0;
+    case "left": return Math.PI;
+    default: return 0;
+  }
+}
+
 // == タップ時の処理 ==
 // ペアも単発も「距離判定」で、2本指時は同時ペアの右→左の順で個別に判定・消去
 function handlePointer(e){
@@ -876,7 +886,7 @@ function handlePointer(e){
     const scaleX = cvs.width  / rect.width;
     const scaleY = cvs.height / rect.height;
     const mx = (e.touches[0].clientX-rect.left)*scaleX;
-    const my = (e.touches[0].clientY-rect.left)*scaleY;
+    const my = (e.touches[0].clientY-rect.top)*scaleY;
     const dx = mx - flickStart.x;
     const dy = my - flickStart.y;
     const dist = Math.hypot(dx, dy);
@@ -896,8 +906,11 @@ function handlePointer(e){
         console.log("n.flick:", n.flick); // notesの中身のflickを表示
         if(!n.flick) continue;
         //if(n.flick !== flickDir) continue; // この行を削除
+        const flickAngle = getFlickAngle(n.flick); // n.flickに対応する角度を取得
+        const angleDiff = Math.abs(angle - flickAngle); // 角度の差を計算
+        if(angleDiff > Math.PI / 4 && 2 * Math.PI - angleDiff > Math.PI / 4) continue; // 45度以上離れている場合はスキップ
         const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
-        const ndist = Math.hypot(pos.x - flickStart.x, pos.y - flickStart.y);
+        const ndist = flickStart ? Math.hypot(pos.x - flickStart.x, pos.y - flickStart.y) : Infinity;
         console.log("ndist:", ndist, "flickStart.x:", flickStart.x, "flickStart.y:", flickStart.y, "pos.x:", pos.x, "pos.y:", pos.y); // 追加
         if(ndist < bestDist){
           bestNote = n; bestDist = ndist;
@@ -913,16 +926,8 @@ function handlePointer(e){
       }
       flickStart = null;
     }
-    function getFlickAngle(flickDir){
-      switch(flickDir){
-        case "up": return -Math.PI / 2;
-        case "down": return Math.PI / 2;
-        case "right": return 0;
-        case "left": return Math.PI;
-        default: return 0;
-      }
-    }
   }
+}
   
 // --- イベント登録 ---
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
@@ -1741,6 +1746,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
