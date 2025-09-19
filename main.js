@@ -867,14 +867,13 @@ function handlePointer(e){
     }
   }
   // --- ここからフリック判定を追加 ---
-  if(isTouch && flickStart && e.type === "touchend" && e.changedTouches && e.changedTouches.length === 1){
-    console.log("flick detection started"); // 追加
+  if(isTouch && flickStart && e.touches && e.touches.length === 1){
     console.log("isTouch:", isTouch, "flickStart:", flickStart, "e.touches:", e.touches, "e.touches.length:", e.touches.length); // 追加
     const rect = cvs.getBoundingClientRect();
     const scaleX = cvs.width  / rect.width;
     const scaleY = cvs.height / rect.height;
-    const mx = (e.changedTouches[0].clientX-rect.left)*scaleX;
-    const my = (e.changedTouches[0].clientY-rect.top )*scaleY;
+    const mx = (e.touches[0].clientX-rect.left)*scaleX;
+    const my = (e.touches[0].clientY-rect.top )*scaleY;
     const dx = mx - flickStart.x;
     const dy = my - flickStart.y;
     const dist = Math.hypot(dx, dy);
@@ -882,10 +881,12 @@ function handlePointer(e){
     if(dist > R*1.1){
       let flickDir = null;
       const angle = Math.atan2(dy, dx);
+      console.log("angle:", angle); // 追加
       if(angle > -Math.PI*3/8 && angle < -Math.PI/8) flickDir = "up";
       else if(angle > Math.PI/8 && angle < Math.PI*3/8) flickDir = "down";
       else if(Math.abs(angle) < Math.PI/8) flickDir = "right";
       else flickDir = "left";
+      console.log("flickDir:", flickDir); // 追加
       let bestNote = null, bestDist = Infinity;
       for(const n of notes){
         if(!n.flick) continue;
@@ -896,7 +897,8 @@ function handlePointer(e){
           bestNote = n; bestDist = ndist;
         }
       }
-      if(bestNote && bestDist < R*2.0){
+      console.log("bestNote:", bestNote, "bestDist:", bestDist); // 追加
+      if(bestNote && bestDist < R*1.6){
         awardHit(
           bestNote.side === 'left' ? leftTarget : rightTarget,
           calcTapBase(), 'WONDERFUL', false, calcTapBase(), bestNote.chartIdx
@@ -1724,6 +1726,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
