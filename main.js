@@ -897,6 +897,7 @@ function handlePointer(e){
         if(n.flick !== flickDir) continue;
         const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
         const ndist = Math.hypot(pos.x - flickStart.x, pos.y - flickStart.y);
+        console.log("ndist:", ndist, "flickStart.x:", flickStart.x, "flickStart.y:", flickStart.y, "pos.x:", pos.x, "pos.y:", pos.y); // 追加
         if(ndist < bestDist){
           bestNote = n; bestDist = ndist;
         }
@@ -1731,6 +1732,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
