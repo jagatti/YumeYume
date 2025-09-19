@@ -445,6 +445,7 @@ function makePath(side){
 }
 // --- spawnNote拡張（flick情報も保持） ---
 function spawnNote(side, chartIdx){
+  console.log("spawnNote called", side, chartIdx); // 追加
   const nc = notesChart[chartIdx];
   notes.push({
     side,
@@ -1727,6 +1728,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
