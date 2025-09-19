@@ -894,7 +894,7 @@ function handlePointer(e){
       for(const n of notes){
         console.log("n.flick:", n.flick); // notesの中身のflickを表示
         if(!n.flick) continue;
-        if(n.flick !== flickDir) continue;
+        //if(n.flick !== flickDir) continue; // この行を削除
         const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
         const ndist = Math.hypot(pos.x - flickStart.x, pos.y - flickStart.y);
         console.log("ndist:", ndist, "flickStart.x:", flickStart.x, "flickStart.y:", flickStart.y, "pos.x:", pos.x, "pos.y:", pos.y); // 追加
@@ -912,8 +912,16 @@ function handlePointer(e){
       }
       flickStart = null;
     }
-  }
-}
+
+    function getFlickAngle(flickDir){
+      switch(flickDir){
+        case "up": return -Math.PI / 2;
+        case "down": return Math.PI / 2;
+        case "right": return 0;
+        case "left": return Math.PI;
+        default: return 0;
+      }
+    }
 
 // --- イベント登録 ---
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
@@ -1732,6 +1740,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
