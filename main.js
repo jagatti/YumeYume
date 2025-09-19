@@ -912,7 +912,7 @@ function handlePointer(e){
 
 // --- イベント登録 ---
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
-cvs.addEventListener('mousedown',handlePointer);
+//cvs.addEventListener('mousedown',handlePointer);
 
 cvs.addEventListener('touchstart', function(e){
   console.log("touchstart event");
@@ -1726,6 +1726,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
