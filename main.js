@@ -881,6 +881,7 @@ function handlePointer(e){
     const dy = my - flickStart.y;
     const dist = Math.hypot(dx, dy);
     console.log("dx:", dx, "dy:", dy, "dist:", dist); // 追加
+    
     if(dist > R*1.1){
       let flickDir = null;
       const angle = Math.atan2(dy, dx);
@@ -922,7 +923,8 @@ function handlePointer(e){
         default: return 0;
       }
     }
-
+  }
+  
 // --- イベント登録 ---
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
 //cvs.addEventListener('mousedown',handlePointer);
@@ -1740,6 +1742,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
