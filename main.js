@@ -890,6 +890,7 @@ function handlePointer(e){
       else flickDir = "left";
       console.log("flickDir:", flickDir); // 追加
       let bestNote = null, bestDist = Infinity;
+      console.log("flick note loop started"); // 追加
       for(const n of notes){
         console.log("n.flick:", n.flick); // notesの中身のflickを表示
         if(!n.flick) continue;
@@ -1729,6 +1730,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
