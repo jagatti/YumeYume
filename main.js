@@ -764,7 +764,6 @@ function tryUseSP(mx,my){
 function handlePointer(e){
   console.log("handlePointer called");
   console.log("notes:", notes); // 追加
-  
   if(gameState!=="playing") return;
   const isTouch = e.type.startsWith('touch');
   let fingers = 1;
@@ -869,13 +868,14 @@ function handlePointer(e){
     }
   }
   // --- ここからフリック判定を追加 ---
+  console.log("flick check", isTouch, flickStart, e.touches, e.touches.length); // 追加
   if(isTouch && flickStart && e.touches && e.touches.length === 1){
     console.log("isTouch:", isTouch, "flickStart:", flickStart, "e.touches:", e.touches, "e.touches.length:", e.touches.length); // 追加
     const rect = cvs.getBoundingClientRect();
     const scaleX = cvs.width  / rect.width;
     const scaleY = cvs.height / rect.height;
     const mx = (e.touches[0].clientX-rect.left)*scaleX;
-    const my = (e.touches[0].clientY-rect.top )*scaleY;
+    const my = (e.touches[0].clientY-rect.left)*scaleY;
     const dx = mx - flickStart.x;
     const dy = my - flickStart.y;
     const dist = Math.hypot(dx, dy);
@@ -890,7 +890,6 @@ function handlePointer(e){
       else flickDir = "left";
       console.log("flickDir:", flickDir); // 追加
       let bestNote = null, bestDist = Infinity;
-      console.log("flick note loop started"); // 追加
       for(const n of notes){
         console.log("n.flick:", n.flick); // notesの中身のflickを表示
         if(!n.flick) continue;
@@ -1730,6 +1729,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
