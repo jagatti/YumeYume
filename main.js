@@ -762,7 +762,7 @@ function tryUseSP(mx,my){
 // == タップ時の処理 ==
 // ペアも単発も「距離判定」で、2本指時は同時ペアの右→左の順で個別に判定・消去
 function handlePointer(e){
-  console.log("handlePointer called");
+  console.log("handlePointer called", e); // 追加
   console.log("notes:", notes); // 追加
   if(gameState!=="playing") return;
   const isTouch = e.type.startsWith('touch');
@@ -1730,6 +1730,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
