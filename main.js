@@ -430,32 +430,13 @@ function cubicBezier(p0,p1,p2,p3,t){const u=1-t;return {x:u*u*u*p0.x+3*u*u*t*p1.
 function makePath(side){const target= side==='left'? leftTarget : rightTarget;const startX = side==='left' ? (-R*2-10) : (cvs.width+R*2+10);const start={x:startX, y: target.y - Math.max(180, R*6)};const c1={x: side==='left' ? target.x - Math.max(200,R*6) : target.x + Math.max(200,R*6), y: target.y - Math.max(200,R*6)};const c2={x: side==='left' ? target.x - Math.max(60,R*2)  : target.x + Math.max(60,R*2),  y: target.y - Math.max(40,R*1.3)};const end={x: target.x, y: target.y};return {p0:start,p1:c1,p2:c2,p3:end};}
 // --- spawnNoteにchartIdxを持たせる ---
 function spawnNote(side, chartIdx){
-  const chartObj = notesChart[chartIdx];
-  if (chartObj.type === "long") {
-    notes.push({
-      type: "long",
-      side,
-      t: 0,
-      duration: noteDuration,
-      path: makePath(side),
-      chartIdx,
-      holdActive: false, // ホールド開始したか
-      holdJudge: false,  // 判定済みか
-      holdStartFrame: null,
-      holdSuccess: false,
-      endTime: chartObj.endTime
-    });
-  } else {
-    notes.push({
-      type: "tap",
-      side,
-      t: 0,
-      duration: noteDuration,
-      path: makePath(side),
-      chartIdx,
-      judged: false
-    });
-  }
+  notes.push({
+    side,
+    t:0,
+    duration:noteDuration,
+    path:makePath(side),
+    chartIdx: chartIdx // どの譜面ノーツか記憶
+  });
 }
 function addPopup(text,x,y,ms,type){const d=Math.max(1,Math.round(ms/16.67));popups.push({text,x,y,timer:d,duration:d,type});}
 function triggerSPVisual(){ spFlashTimer=10; spRingTimer=spRingSpeed; }
@@ -767,19 +748,21 @@ function handlePointer(e){
   if(gameState!=="playing") return;
   const isTouch = e.type.startsWith('touch');
   let fingers = 1;
-  let pointerPositions = [];
-
   if(isTouch){
     lastInputWasTouch=true;
     e.preventDefault();
     fingers = (e.touches && e.touches.length) ? e.touches.length : 1;
-    const rect = cvs.getBoundingClientRect();
-    const scaleX = cvs.width  / rect.width;
-    const scaleY = cvs.height / rect.height;
+  }
+  if(!isTouch && lastInputWasTouch){ lastInputWasTouch=false; return; }
+
+  // SP半円は従来通り
+  if(isTouch){
     for(const t of e.touches){
+      const rect = cvs.getBoundingClientRect();
+      const scaleX = cvs.width  / rect.width;
+      const scaleY = cvs.height / rect.height;
       const mx = (t.clientX-rect.left)*scaleX;
       const my = (t.clientY-rect.top )*scaleY;
-      pointerPositions.push({x: mx, y: my});
       if(isInSPSemicircle(mx,my)){
         if(spValue >= SP_MAX){ tryUseSP(mx,my); }
         return;
@@ -791,7 +774,6 @@ function handlePointer(e){
     const scaleY = cvs.height / rect.height;
     const mx = (e.clientX-rect.left)*scaleX;
     const my = (e.clientY-rect.top )*scaleY;
-    pointerPositions.push({x: mx, y: my});
     if(isInSPSemicircle(mx,my)){
       if(spValue >= SP_MAX){ tryUseSP(mx,my); }
       return;
@@ -828,8 +810,7 @@ function handlePointer(e){
     return;
   }
 
-  
-  // 1. 単発ノーツ（左右別）従来のまま
+  // 1本指時は単発ノーツのみ左右順に判定
   function isNotPairNote(n){
     return !notes.some(other =>
       other !== n &&
@@ -843,11 +824,8 @@ function handlePointer(e){
   for(const n of targetNotes){
     if(n.side !== 'left') continue;
     const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
-    // 全指で一番近い指
-    for(let p of pointerPositions){
-      const dist = Math.hypot(pos.x-p.x, pos.y-p.y);
-      if(dist < bestDistL){ bestDistL = dist; bestL = n; }
-    }
+    const dist = Math.hypot(pos.x-leftTarget.x, pos.y-leftTarget.y);
+    if(dist < bestDistL){ bestDistL = dist; bestL = n; }
   }
   if(bestL){
     const baseRaw = calcTapBase();
@@ -862,10 +840,8 @@ function handlePointer(e){
   for(const n of targetNotes){
     if(n.side !== 'right') continue;
     const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
-    for(let p of pointerPositions){
-      const dist = Math.hypot(pos.x-p.x, pos.y-p.y);
-      if(dist < bestDistR){ bestDistR = dist; bestR = n; }
-    }
+    const dist = Math.hypot(pos.x-rightTarget.x, pos.y-rightTarget.y);
+    if(dist < bestDistR){ bestDistR = dist; bestR = n; }
   }
   if(bestR){
     const baseRaw = calcTapBase();
@@ -873,25 +849,6 @@ function handlePointer(e){
     if(res.label !== 'MISS'){
       awardHit(rightTarget, res.points, res.label, res.reset, baseRaw, bestR.chartIdx);
       notes = notes.filter(n => n !== bestR);
-    }
-  }
-
-  // 2. ロングノーツ始点判定（どこタップでもOK、個別に判定）
-  for(const n of notes){
-    if(n.type === "long" && !n.holdActive && !n.holdJudge){
-      // 始点まで到達していたら全指で判定
-      if(n.t >= n.duration){
-        const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, 1);
-        for(let p of pointerPositions){
-          const dist = Math.hypot(pos.x-p.x, pos.y-p.y);
-          // 判定ゾーンに指が入ったらホールド開始
-          if(dist < R*1.2){
-            n.holdActive = true;
-            n.holdStartFrame = frame;
-            break;
-          }
-        }
-      }
     }
   }
 }
@@ -988,36 +945,15 @@ function update(){
   }
   if (gameState === "playing" && !bgm.paused) {
     const bgmNowSec = bgm.currentTime;
-    while (chartIndex < notesChart.length) {
-      const entry = notesChart[chartIndex];
-      const appearTime = entry.type === "long" ? entry.time : entry.time;
-      if (bgmNowSec >= appearTime) {
-        spawnNote(entry.side, chartIndex);
-        totalNotesSpawned++;
-        chartIndex++;
-      } else {
-        break;
-      }
+    while (chartIndex < notesChart.length && bgmNowSec >= notesChart[chartIndex].time) {
+      spawnNote(notesChart[chartIndex].side, chartIndex); 
+      totalNotesSpawned++;
+      chartIndex++;
     }
     if(acFailFlashTimer > 0) acFailFlashTimer--;
   }
-  // ノーツ進行
   for(const n of notes) n.t++;
-  // ロングノーツ判定処理
-  updateLongNotes();
-  // ノーツ消去
-  const keep = [];
-  for(const n of notes){
-    if(n.type === "tap") {
-      if(!n.judged && n.t<=n.duration+5) keep.push(n);
-      else if(!n.judged) applyMiss('MISS');
-    } else if(n.type === "long") {
-      const holdFrames = Math.round(((n.endTime||0)-(notesChart[n.chartIdx]?.time||0))*60);
-      if(!n.holdJudge && n.t<=n.duration+holdFrames+5) keep.push(n);
-      else if(!n.holdJudge) applyMiss('MISS');
-    }
-  }
-  notes = keep;
+  const keep=[];for(const n of notes){if(n.t<=n.duration+5) keep.push(n);else applyMiss('MISS');}notes=keep;
   if(gameState==="playing" && chartIndex>=notesChart.length && notes.length===0){
     if(waitingClearFrame === null){
       waitingClearFrame = frame;
@@ -1042,6 +978,7 @@ function update(){
       localStorage.setItem('bestScore', bestScore);
     }
   }
+
   if(spValue>=SP_MAX){ if(!spFullNotified){ triggerSPVisual(); spFullNotified=true; } }
   else spFullNotified=false;
   if(spCountdownTimer>0){ spCountdownTimer--; if(spCountdownTimer % 60 === 0){ spCountdownValue = Math.max(0, spCountdownValue-1); } }
@@ -1054,81 +991,7 @@ function update(){
   if(spBoostTimer>0) spBoostTimer--;
   hitRings=hitRings.filter(r=>{r.r+=4; r.alpha-=0.06; return r.alpha>0;});
   popups=popups.filter(p=>{p.timer--; return p.timer>0;});
-}
-
-// 4. タッチ位置管理
-let lastTouches = [];
-cvs.addEventListener('touchstart', e => { updateTouches(e); handlePointer(e); });
-cvs.addEventListener('touchmove', e => { updateTouches(e); });
-cvs.addEventListener('touchend', e => { updateTouches(e); });
-cvs.addEventListener('mousedown', e => { lastTouches = [{x: e.offsetX, y: e.offsetY}]; handlePointer(e); });
-cvs.addEventListener('mousemove', e => { if (e.buttons) lastTouches = [{x: e.offsetX, y: e.offsetY}]; });
-cvs.addEventListener('mouseup', e => { lastTouches = []; });
-function updateTouches(e){
-  if(e.touches){
-    const rect = cvs.getBoundingClientRect();
-    lastTouches = [];
-    for(let t of e.touches){
-      lastTouches.push({
-        x: (t.clientX-rect.left)*(cvs.width/rect.width),
-        y: (t.clientY-rect.top )*(cvs.height/rect.height)
-      });
-    }
-  } else {
-    lastTouches = e.buttons ? [{x: e.offsetX, y: e.offsetY}] : [];
   }
-}
-
-// 5. 判定関数
-function getNearestFinger(pos) {
-  let minDist = Infinity;
-  for(let i=0;i<lastTouches.length;i++){
-    const d = Math.hypot(pos.x-lastTouches[i].x, pos.y-lastTouches[i].y);
-    if(d < minDist){ minDist=d; }
-  }
-  return minDist;
-}
-
-// 6. ロングノーツ判定（毎フレームupdateで呼ぶ）
-function updateLongNotes(){
-  for(const n of notes){
-    if(n.type === "long" && !n.holdJudge){
-      // ノーツの現在位置
-      const progress = Math.min(1, n.t / n.duration);
-      const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, progress);
-      const dist = getNearestFinger(pos);
-      // 判定円到達後のホールド開始
-      if(n.t >= n.duration && !n.holdActive && dist < R*1.2){
-        n.holdActive = true;
-        n.holdStartFrame = frame;
-      }
-      // ホールド中
-      if(n.holdActive && !n.holdJudge){
-        // 指が離れたら失敗
-        if(dist > R*1.8){
-          n.holdJudge = true;
-          n.holdSuccess = false;
-          applyMiss('MISS');
-        }
-        // 指が最後まで離れなければ成功
-        const holdFrames = Math.round(((n.endTime||0)-(notesChart[n.chartIdx]?.time||0))*60);
-        if(frame - n.holdStartFrame >= holdFrames){
-          n.holdJudge = true;
-          n.holdSuccess = true;
-          awardHit(
-            n.side === "left" ? leftTarget : rightTarget,
-            calcTapBase(),
-            "WONDERFUL",
-            false,
-            calcTapBase(),
-            n.chartIdx
-          );
-        }
-      }
-    }
-  }
-}
-
   // --- ユーティリティ: 同時押しペア情報を取得 ---
 function getSimultaneousPairs() {
   // timeが一致し、sideが違う2ノーツのペアを列挙
@@ -1220,40 +1083,6 @@ function drawNotes(){
 
     const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
     const r = R;
-
-    // ロングノーツ
-    if(n.type === "long"){
-      // 始点（進行位置）
-      const progress = Math.min(1, n.t / n.duration);
-      const posStart = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, progress);
-      // 終点
-      const posEnd = n.side === "left" ? leftTarget : rightTarget;
-      // 帯
-      ctx.save();
-      ctx.strokeStyle = "rgba(0,255,128,0.36)";
-      ctx.lineWidth = R*0.7;
-      ctx.beginPath();
-      ctx.moveTo(posStart.x, posStart.y);
-      ctx.lineTo(posEnd.x, posEnd.y);
-      ctx.stroke();
-      ctx.restore();
-      // 両端円
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(posStart.x, posStart.y, R, 0, Math.PI*2);
-      ctx.fillStyle = "#ffd700";
-      ctx.globalAlpha = 0.82;
-      ctx.fill();
-      ctx.restore();
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(posEnd.x, posEnd.y, R, 0, Math.PI*2);
-      ctx.fillStyle = "#ffd700";
-      ctx.globalAlpha = 0.82;
-      ctx.fill();
-      ctx.restore();
-      continue;
-    }
 
     // --- グロー ---
     ctx.save();
