@@ -891,7 +891,11 @@ function handlePointer(e){
           bestNote = n; bestDist = ndist;
         }
       }
-      if(bestNote && bestDist < R*1.6){
+      if(bestNote && bestDist < R*2.0){
+         console.log("flickDir:", flickDir);
+         console.log("bestNote:", bestNote);
+         console.log("bestDist:", bestDist);
+        
         awardHit(
           bestNote.side === 'left' ? leftTarget : rightTarget,
           calcTapBase(), 'WONDERFUL', false, calcTapBase(), bestNote.chartIdx
@@ -1717,6 +1721,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
