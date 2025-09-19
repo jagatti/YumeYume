@@ -312,7 +312,7 @@ let skillHistory = [], appealBoostNotes = 0, skillActivationCount = 0, spUseCoun
 let judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
 let spScoreBuffNotes = 0, noteCounter = 0, totalSPUsed = 0, permanentScoreBuff = 0, acFailFlashTimer = 0, waitingClearFrame = null;
 let audioContext, tapBuffer = null;
-
+  
 // ノーツ到達までの秒数
 const noteTravelSec = noteDuration / 60;
   
@@ -428,14 +428,14 @@ resizeCanvas();
 
 function cubicBezier(p0,p1,p2,p3,t){const u=1-t;return {x:u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,y:u*u*u*p0.y+3*u*u*t*p1.y+3*u*t*t*p2.y+t*t*t*p3.y};}
 function makePath(side){const target= side==='left'? leftTarget : rightTarget;const startX = side==='left' ? (-R*2-10) : (cvs.width+R*2+10);const start={x:startX, y: target.y - Math.max(180, R*6)};const c1={x: side==='left' ? target.x - Math.max(200,R*6) : target.x + Math.max(200,R*6), y: target.y - Math.max(200,R*6)};const c2={x: side==='left' ? target.x - Math.max(60,R*2)  : target.x + Math.max(60,R*2),  y: target.y - Math.max(40,R*1.3)};const end={x: target.x, y: target.y};return {p0:start,p1:c1,p2:c2,p3:end};}
+// --- spawnNoteにchartIdxを持たせる ---
 function spawnNote(side, chartIdx){
-  const nc = notesChart[chartIdx];
   notes.push({
     side,
     t:0,
     duration:noteDuration,
     path:makePath(side),
-    chartIdx: chartIdx,
+    chartIdx: chartIdx // どの譜面ノーツか記憶
   });
 }
 function addPopup(text,x,y,ms,type){const d=Math.max(1,Math.round(ms/16.67));popups.push({text,x,y,timer:d,duration:d,type});}
@@ -518,6 +518,7 @@ window.addEventListener('touchstart', () => {
 window.addEventListener('mousedown', () => {
   loadTapSE();
 }, { once: true });
+
   
 // --- 基本スコアの計算を一律30000・上限50000に ---
 function calcTapBase(){
@@ -1149,7 +1150,7 @@ function drawNotes(){
     }
   }
 }
- 
+  
 // --- AC通知パネル ---
 function drawACMissionNotice(){
   let nowTime = bgm.currentTime || 0;
@@ -1595,5 +1596,6 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
