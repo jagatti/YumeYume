@@ -913,15 +913,6 @@ function handlePointer(e){
       }
       flickStart = null;
     }
-
-    function getFlickAngle(flickDir){
-      switch(flickDir){
-        case "up": return -Math.PI / 2;
-        case "down": return Math.PI / 2;
-        case "right": return 0;
-        case "left": return Math.PI;
-        default: return 0;
-      }
     }
   
 // --- イベント登録 ---
@@ -1741,4 +1732,5 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
