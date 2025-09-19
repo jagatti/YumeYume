@@ -889,7 +889,7 @@ function handlePointer(e){
       else if(angle > Math.PI/8 && angle < Math.PI*3/8) flickDir = "down";
       else if(Math.abs(angle) < Math.PI/8) flickDir = "right";
       else flickDir = "left";
-      console.log("flickDir:", flickDir); // 追加
+      console.log("flickDir", flickDir, "angle", angle, "dx", dx, "dy", dy); // 追加
       let bestNote = null, bestDist = Infinity;
       for(const n of notes){
         console.log("n.flick:", n.flick); // notesの中身のflickを表示
@@ -1732,6 +1732,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
