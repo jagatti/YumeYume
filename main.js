@@ -761,6 +761,8 @@ function tryUseSP(mx,my){
 // == タップ時の処理 ==
 // ペアも単発も「距離判定」で、2本指時は同時ペアの右→左の順で個別に判定・消去
 function handlePointer(e){
+  console.log("handlePointer called");
+  
   if(gameState!=="playing") return;
   const isTouch = e.type.startsWith('touch');
   let fingers = 1;
@@ -892,10 +894,6 @@ function handlePointer(e){
         }
       }
       if(bestNote && bestDist < R*2.0){
-         console.log("flickDir:", flickDir);
-         console.log("bestNote:", bestNote);
-         console.log("bestDist:", bestDist);
-        
         awardHit(
           bestNote.side === 'left' ? leftTarget : rightTarget,
           calcTapBase(), 'WONDERFUL', false, calcTapBase(), bestNote.chartIdx
@@ -1721,6 +1719,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
