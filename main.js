@@ -869,6 +869,7 @@ function handlePointer(e){
   // --- ここからフリック判定を追加 ---
   if(isTouch && flickStart && e.type === "touchend" && e.changedTouches && e.changedTouches.length === 1){
     console.log("flick detection started"); // 追加
+    console.log("isTouch:", isTouch, "flickStart:", flickStart, "e.touches:", e.touches, "e.touches.length:", e.touches.length); // 追加
     const rect = cvs.getBoundingClientRect();
     const scaleX = cvs.width  / rect.width;
     const scaleY = cvs.height / rect.height;
@@ -1723,6 +1724,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
