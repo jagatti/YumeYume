@@ -868,6 +868,7 @@ function handlePointer(e){
   }
   // --- ここからフリック判定を追加 ---
   if(isTouch && flickStart && e.type === "touchend" && e.changedTouches && e.changedTouches.length === 1){
+    console.log("flick detection started"); // 追加
     const rect = cvs.getBoundingClientRect();
     const scaleX = cvs.width  / rect.width;
     const scaleY = cvs.height / rect.height;
@@ -876,6 +877,7 @@ function handlePointer(e){
     const dx = mx - flickStart.x;
     const dy = my - flickStart.y;
     const dist = Math.hypot(dx, dy);
+    console.log("dx:", dx, "dy:", dy, "dist:", dist); // 追加
     if(dist > R*1.1){
       let flickDir = null;
       const angle = Math.atan2(dy, dx);
@@ -910,6 +912,7 @@ cvs.addEventListener('touchstart',handlePointer,{passive:false});
 cvs.addEventListener('mousedown',handlePointer);
 
 cvs.addEventListener('touchstart', function(e){
+  console.log("touchstart event");
   if(e.touches && e.touches.length === 1){
     const rect = cvs.getBoundingClientRect();
     const scaleX = cvs.width  / rect.width;
@@ -917,6 +920,7 @@ cvs.addEventListener('touchstart', function(e){
     const mx = (e.touches[0].clientX-rect.left)*scaleX;
     const my = (e.touches[0].clientY-rect.top )*scaleY;
     flickStart = {x: mx, y: my};
+    console.log("flickStart:", flickStart); // 追加
   }
 }, {passive:false});
 cvs.addEventListener('touchend', function(e){
@@ -1719,6 +1723,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
