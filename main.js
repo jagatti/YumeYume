@@ -428,7 +428,16 @@ resizeCanvas();
 
 function cubicBezier(p0,p1,p2,p3,t){const u=1-t;return {x:u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,y:u*u*u*p0.y+3*u*u*t*p1.y+3*u*t*t*p2.y+t*t*t*p3.y};}
 function makePath(side){const target= side==='left'? leftTarget : rightTarget;const startX = side==='left' ? (-R*2-10) : (cvs.width+R*2+10);const start={x:startX, y: target.y - Math.max(180, R*6)};const c1={x: side==='left' ? target.x - Math.max(200,R*6) : target.x + Math.max(200,R*6), y: target.y - Math.max(200,R*6)};const c2={x: side==='left' ? target.x - Math.max(60,R*2)  : target.x + Math.max(60,R*2),  y: target.y - Math.max(40,R*1.3)};const end={x: target.x, y: target.y};return {p0:start,p1:c1,p2:c2,p3:end};}
-
+function spawnNote(side, chartIdx){
+  const nc = notesChart[chartIdx];
+  notes.push({
+    side,
+    t:0,
+    duration:noteDuration,
+    path:makePath(side),
+    chartIdx: chartIdx,
+  });
+}
 function addPopup(text,x,y,ms,type){const d=Math.max(1,Math.round(ms/16.67));popups.push({text,x,y,timer:d,duration:d,type});}
 function triggerSPVisual(){ spFlashTimer=10; spRingTimer=spRingSpeed; }
   
@@ -1586,4 +1595,5 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
