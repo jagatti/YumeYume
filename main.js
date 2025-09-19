@@ -889,6 +889,7 @@ function handlePointer(e){
       console.log("flickDir:", flickDir); // 追加
       let bestNote = null, bestDist = Infinity;
       for(const n of notes){
+        console.log("n.flick:", n.flick); // notesの中身のflick
         if(!n.flick) continue;
         if(n.flick !== flickDir) continue;
         const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
@@ -1726,6 +1727,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
