@@ -923,7 +923,6 @@ function handlePointer(e){
         default: return 0;
       }
     }
-  }
   
 // --- イベント登録 ---
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
@@ -1742,31 +1741,4 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
