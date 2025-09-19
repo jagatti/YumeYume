@@ -929,10 +929,10 @@ cvs.addEventListener('touchstart', function(e){
     console.log("flickStart:", flickStart); // 追加
   }
 }, {passive:false});
-cvs.addEventListener('touchend', function(e){
-  console.log("touchend event", flickStart); // 追加
-  flickStart = null;
-}, {passive:false});
+//cvs.addEventListener('touchend', function(e){
+  //console.log("touchend event", flickStart); // 追加
+  //flickStart = null;
+//}, {passive:false});
 
 startBtn.onclick = async function() {
   await loadTapSE();
@@ -1730,6 +1730,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
 
 
 
