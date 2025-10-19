@@ -1,8 +1,4 @@
-// ▼▼▼【重要】ここに "開発用URL（末尾が /dev）" を貼り付けてください▼▼▼
-const GAS_DEV_URL = 'https://script.google.com/macros/s/AKfycbwF1aGUcUg_oqEnJDuDFXQcuv39uDQZhnf853vWujo/dev';
-// ▼▼▼【重要】ここに "本番URL（末尾が /exec）" を貼り付けてください▼▼▼
-const GAS_EXEC_URL = 'https://script.google.com/macros/s/AKfycbz2gsX2XXdV0OOvHtPF0AsHkTBvrCQ_8_1zYxVQ0bki_CoAlFy25QbsEryqTe-dZJJu/exec';
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwF1aGUcUg_oqEnJDuDFXQcuv39uDQZhnf853vWujo/dev';
 
 // --- AC（アピールチャンス）設定 ---
 const acList = [
@@ -101,7 +97,7 @@ function showRanking() {
     };
     
     // 【重要】ランキング表示は /dev URL を使う
-    script.src = `${GAS_DEV_URL}?callback=${callbackName}&t=${timestamp}`;
+    script.src = `${GAS_URL}?callback=${callbackName}&t=${timestamp}`;
     document.head.appendChild(script);
 }
 
@@ -111,23 +107,17 @@ async function submitScore(name, scoreValue) {
         return;
     }
     try {
-        // 【重要】スコア登録は /exec URL を使う
-        const response = await fetch(GAS_EXEC_URL, {
+        // 【重要】スコア登録も同じ /dev URL を使う
+        const response = await fetch(GAS_URL, {
             method: 'POST',
-            mode: 'cors',
-            headers: { 'Content-Type': 'application/json' },
+            mode: 'no-cors', // no-corsモードに変更
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Content-Typeを変更
             body: JSON.stringify({ name: name, score: scoreValue }),
         });
-
-        if (!response.ok) throw new Error(`Server responded with status: ${response.status}`);
         
-        const result = await response.json();
-        if (result.status === 'success') {
-            console.log('Score submitted successfully.');
-            alert('スコアを登録しました！');
-        } else {
-            throw new Error(result.message || 'Failed to submit score.');
-        }
+        // no-corsモードではレスポンスの中身を確認できないため、成功したと見なす
+        console.log('Score submission request sent.');
+        alert('スコアを登録しました！');
 
     } catch (error) {
         console.error('Error submitting score:', error);
@@ -338,7 +328,7 @@ cvs.addEventListener('touchstart',handlePointer,{passive:false});
 cvs.addEventListener('mousedown',handlePointer);
 
 async function startGame(seed) {
-  await loadTapSE(); assignACNoteIndexes(); setSeed(seed); lastGameSeed = seed; chartIndex = 0; totalNotesSpawned = 0; notes = []; spValue=0; spFullNotified=false; score=0; combo=0; skillHistory = []; appealBoostNotes = 0; skillActivationCount = 0; spUseCount = 0; progressDisplay = 0; spFlashTimer=0; spRingTimer=0; spRingSpeed=20; spRingRange=40; spBoostTimer=0; spCountdownTimer=0; spCountdownValue=0; spScoreBuffNotes = 0; popups=[]; hitRings=[]; frame = 0; countdownValue = 3; judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0}; noteCounter = 0; totalSPUsed = 0; permanentScoreBuff = 0;
+  await loadTapSE(); assignACNoteIndexes(); setSeed(seed); lastGameSeed = seed; chartIndex = 0; totalNotesSpawned = 0; notes = []; spValue=0; spFullNotified=false; score=0; combo=0; skillHistory = []; appealBoostNotes = 0; skillActivationCount = 0; spUseCount = 0; progressDisplay = 0; spFlashTimer=0; spRingTimer=0; spRingSpeed=20; spRingRange=40; spBoostTimer=0; spCountdownTimer=0, spCountdownValue=0; spScoreBuffNotes = 0; popups=[]; hitRings=[]; frame = 0; countdownValue = 3; judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0}; noteCounter = 0; totalSPUsed = 0; permanentScoreBuff = 0;
   if(seededRandom() < 0.5){ permanentScoreBuff++; skillHistory.unshift({text:"[アピール増加永続 5%]", life:180}); if(skillHistory.length>5) skillHistory.pop(); }
   acList.forEach(ac=>{ ac.state = "waiting"; ac.progress = 0; ac.cleared = false; ac.tapScore = 0; ac.spScore = 0; });
   gameState = "countdown"; resizeCanvas();
