@@ -50,6 +50,24 @@ const ctx = cvs.getContext('2d');
 const rotateMsg = document.getElementById('rotateMsg');
 const startBtn = document.getElementById('startBtn');
 const retryBtn = document.getElementById('retryBtn');
+// 「乱数再現」ボタンを動的に生成
+const reseedBtn = document.createElement('button');
+reseedBtn.id = 'reseedBtn';
+reseedBtn.textContent = '乱数再現';
+reseedBtn.style.position = 'absolute';
+reseedBtn.style.bottom = '10px';
+reseedBtn.style.left = '50%';
+reseedBtn.style.transform = 'translateX(-50%)';
+reseedBtn.style.padding = '10px 20px';
+reseedBtn.style.fontSize = '16px';
+reseedBtn.style.backgroundColor = 'green';
+reseedBtn.style.color = 'white';
+reseedBtn.style.border = 'none';
+reseedBtn.style.borderRadius = '5px';
+reseedBtn.style.cursor = 'pointer';
+reseedBtn.style.display = 'none'; // 最初は非表示
+document.body.appendChild(reseedBtn);
+
 const bgm = document.getElementById('bgm');
 const bgimg = document.getElementById('bgimg');
 bgm.volume = 0.1;
@@ -301,6 +319,18 @@ const notesChart = [
   {"time": 86.39, "side": "left"}
 ];
   
+// --- 乱数生成器 ---
+let _seed = 0;
+function setSeed(s) {
+  _seed = s;
+}
+function seededRandom() {
+  _seed = (_seed * 9301 + 49297) % 233280;
+  return _seed / 233280;
+}
+let lastGameSeed = 0; // 直前のゲームのシードを保存
+
+
 // --- グローバル変数 ---
 let chartIndex = 0, R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
 let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=55;
@@ -405,14 +435,20 @@ function resizeCanvas(){
     cvs.style.display='none';
     startBtn.style.display='none';
     retryBtn.style.display='none';
+    reseedBtn.style.display='none';
     return;
   }
   rotateMsg.style.display='none';
   cvs.style.display='block';
   if(gameState==="init") startBtn.style.display='block';
   else startBtn.style.display='none';
-  if(gameState==="result") retryBtn.style.display='block';
-  else retryBtn.style.display='none';
+  if(gameState==="result") {
+    retryBtn.style.display='block';
+    reseedBtn.style.display='block'; // リザルトで表示
+  } else {
+    retryBtn.style.display='none';
+    reseedBtn.style.display='none'; // それ以外で非表示
+  }
   cvs.width = window.innerWidth;
   cvs.height= window.innerHeight;
   const minDim=Math.min(cvs.width, cvs.height);
@@ -422,12 +458,27 @@ function resizeCanvas(){
   leftTarget  ={x: Math.round(cvs.width/2 - laneGap), y: targetY, r: R};
   rightTarget ={x: Math.round(cvs.width/2 + laneGap), y: targetY, r: R};
   spRadius = Math.max(64, Math.round(minDim*0.12));
+
+  // リトライボタンと乱数再現ボタンの位置調整
+  if (gameState === "result") {
+    const buttonWidth = 100; // 仮
+    const gap = 20;
+    const totalWidth = buttonWidth * 2 + gap;
+    const startX = (cvs.width - totalWidth) / 2;
+    retryBtn.style.left = `${startX}px`;
+    retryBtn.style.right = 'auto';
+    retryBtn.style.transform = 'translateY(-50%)';
+    reseedBtn.style.left = `${startX + buttonWidth + gap}px`;
+    reseedBtn.style.right = 'auto';
+    reseedBtn.style.transform = 'none';
+    reseedBtn.style.bottom = retryBtn.style.bottom;
+  }
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 function cubicBezier(p0,p1,p2,p3,t){const u=1-t;return {x:u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,y:u*u*u*p0.y+3*u*u*t*p1.y+3*u*t*t*p2.y+t*t*t*p3.y};}
-function makePath(side){const target= side==='left'? leftTarget : rightTarget;const startX = side==='left' ? (-R*2-10) : (cvs.width+R*2+10);const start={x:startX, y: target.y - Math.max(180, R*6)};const c1={x: side==='left' ? target.x - Math.max(200,R*6) : target.x + Math.max(200,R*6), y: target.y - Math.max(200,R*6)};const c2={x: side==='left' ? target.x - Math.max(60,R*2)  : target.x + Math.max(60,R*2),  y: target.y - Math.max(40,R*1.3)};const end={x: target.x, y: target.y};return {p0:start,p1:c1,p2:c2,p3:end};}
+function makePath(side){const target= side==='left'? leftTarget : rightTarget;const startX = side==='left' ? (-R*2-10) : (cvs.width+R*2+10);const start={x:startX, y: target.y - Math.max(180, R*6)};const end=target;const cp1={x:start.x*0.2+end.x*0.8, y:start.y*0.8+end.y*0.2}; const cp2={x:start.x*0.05+end.x*0.95, y:start.y*0.3+end.y*0.7}; return {p0:start,p1:cp1,p2:cp2,p3:end};}
 // --- spawnNoteにchartIdxを持たせる ---
 function spawnNote(side, chartIdx){
   notes.push({
@@ -459,7 +510,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
         spValue = Math.min(SP_MAX, spValue + ac.rewardSP);
         skillHistory.unshift({text: `ACクリア報酬 ${ac.rewardScore}`, life:180});
         if(skillHistory.length>5) skillHistory.pop();
-        if(Math.random() < 0.3){
+        if(seededRandom() < 0.3){
           permanentScoreBuff++;
           skillHistory.unshift({text:"[アピール増加永続 5%]", life:180});
           if(skillHistory.length>5) skillHistory.pop();
@@ -586,7 +637,7 @@ function calcTapScoreAndLabel(dist, baseRaw){
   else if(dist<=28){label='BAD';mult=0.9;}
   else {return {points:0,label:'MISS',reset:true};}
   let points=Math.floor(baseRaw*mult);
-  if(Math.random()<0.3){ points=Math.floor(points*1.5); label='CRITICAL'; }
+  if(seededRandom()<0.3){ points=Math.floor(points*1.5); label='CRITICAL'; }
   if(spBoostTimer>0) points=Math.floor(points*1.1);
   points=Math.min(50000, points);
   const reset = (label==='NICE' || label==='BAD');
@@ -620,9 +671,9 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
   addPopup(label, midX, midY - 30, 500, 'label');
   addPopup(String(pointsWithCombo), midX, midY, 500, 'score');
   if(judgeCount[label] !== undefined) judgeCount[label]++;
-  if(Math.random() < 0.33){
+  if(seededRandom() < 0.33){
   skillActivationCount++;
-  const skillType = Math.floor(Math.random()*3);
+  const skillType = Math.floor(seededRandom()*3);
   if(skillType===0){
     // --- ボルテージ獲得(バフ適用版) ---
     let voltage = baseRaw;
@@ -652,7 +703,7 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
   for(const ac of acList){
     if(ac.state === "waiting" && chartIdx === ac.startIdx){
       ac.state = "active";
-      if(Math.random() < 0.3){
+      if(seededRandom() < 0.3){
         permanentScoreBuff++;
         skillHistory.unshift({text:"[アピール増加永続 5%]", life:180});
         if(skillHistory.length>5) skillHistory.pop();
@@ -727,13 +778,13 @@ function tryUseSP(mx,my){
   addPopup(String(spScore), cvs.width/2, cvs.height/2, 1800, 'sp');
   addPopup('', 0, 0, 180, 'flash');
   for(let i=0;i<6;i++){
-    if(Math.random()<0.5){
+    if(seededRandom()<0.5){
       spValue = Math.min(SP_MAX, spValue + 600);
       skillHistory.unshift({text:`[SPゲージ獲得]`, life:180});
       if(skillHistory.length>5) skillHistory.pop();
     }
   }
-  if(Math.random() < 0.5){
+  if(seededRandom() < 0.5){
     spScoreBuffNotes = 15;
     skillHistory.unshift({text: "[アピール増加 10%]", life:180});
     if(skillHistory.length>5) skillHistory.pop();
@@ -857,52 +908,62 @@ function handlePointer(e){
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
 cvs.addEventListener('mousedown',handlePointer);
 
-startBtn.onclick = async function() {
+// ゲームを初期化して開始する共通関数
+async function startGame(seed) {
   await loadTapSE();
   assignACNoteIndexes();
+  
+  setSeed(seed);
+  lastGameSeed = seed; // 今回のシードを保存
+
+  chartIndex = 0;
+  totalNotesSpawned = 0;
+  notes = [];
+  spValue=0; spFullNotified=false;
+  score=0; combo=0;
+  skillHistory = [];
+  appealBoostNotes = 0;
+  skillActivationCount = 0;
+  spUseCount = 0;
+  progressDisplay = 0;
+  spFlashTimer=0; spRingTimer=0; spRingSpeed=20; spRingRange=40;
+  spBoostTimer=0;
+  spCountdownTimer=0;
+  spCountdownValue=0;
+  spScoreBuffNotes = 0;
+  popups=[]; hitRings=[];
+  frame = 0;
+  countdownValue = 3;
+  judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
+  noteCounter = 0;
+  totalSPUsed = 0;
+
+  // --- 永続バフ初期化&50%で発動処理 ---
+  permanentScoreBuff = 0;
+  if(seededRandom() < 0.5){
+    permanentScoreBuff++;
+    skillHistory.unshift({text:"[アピール増加永続 5%]", life:180});
+    if(skillHistory.length>5) skillHistory.pop();
+  }
+
+  // AC状態リセット
+  acList.forEach(ac=>{
+    ac.state = "waiting";
+    ac.progress = 0;
+    ac.cleared = false;
+    ac.tapScore = 0;
+    ac.spScore = 0;
+  });
+  gameState = "countdown";
+  resizeCanvas();
+  startBtn.style.display = "none";
+  retryBtn.style.display = "none";
+  reseedBtn.style.display = "none";
+}
+
+startBtn.onclick = function() {
   if(gameState === "init"){
-    chartIndex = 0;
-    totalNotesSpawned = 0;
-    notes = [];
-    spValue=0; spFullNotified=false;
-    score=0; combo=0;
-    skillHistory = [];
-    appealBoostNotes = 0;
-    skillActivationCount = 0;
-    spUseCount = 0;
-    progressDisplay = 0;
-    spFlashTimer=0; spRingTimer=0; spRingSpeed=20; spRingRange=40;
-    spBoostTimer=0;
-    spCountdownTimer=0;
-    spCountdownValue=0;
-    spScoreBuffNotes = 0;
-    popups=[]; hitRings=[];
-    frame = 0;
-    countdownValue = 3;
-    judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
-    noteCounter = 0;
-    totalSPUsed = 0;
-
-    // --- 永続バフ初期化&50%で発動処理 ---
-    permanentScoreBuff = 0;
-    if(Math.random() < 0.5){
-      permanentScoreBuff++;
-      skillHistory.unshift({text:"[アピール増加永続 5%]", life:180});
-      if(skillHistory.length>5) skillHistory.pop();
-    }
-
-    // AC状態リセット
-    acList.forEach(ac=>{
-      ac.state = "waiting";
-      ac.progress = 0;
-      ac.cleared = false;
-      ac.tapScore = 0;
-      ac.spScore = 0;
-    });
-    gameState = "countdown";
-    resizeCanvas();
-    startBtn.style.display = "none";
-    retryBtn.style.display = "none";
+    startGame(Date.now()); // 新しいゲームは現在時刻をシードにする
   }
 };
   
@@ -911,6 +972,7 @@ retryBtn.onclick = ()=>{
   gameState = "init";
   startBtn.style.display = "block";
   retryBtn.style.display = "none";
+  reseedBtn.style.display = "none";
   resizeCanvas();
   try{ bgm.pause(); }catch(e){}
   bgm.currentTime = 0;
@@ -923,6 +985,12 @@ retryBtn.onclick = ()=>{
     ac.spScore = 0;
   });
 };
+
+// --- 乱数再現ボタン挙動 ---
+reseedBtn.onclick = function() {
+  startGame(lastGameSeed); // 保存したシードでゲーム開始
+};
+
 
 // ノーツ出現時にchartIdxを渡すよう修正
 function update(){
@@ -1546,6 +1614,7 @@ function render(){
   }
   if(gameState==="result"){
     retryBtn.style.display = "block";
+    reseedBtn.style.display = "block"; // 乱数再現ボタン表示
     const t = Math.min(1, (frame - (resultStartFrame||frame)) / 60);
     const scale = 0.8 + 0.2*Math.sin(t*Math.PI/2);
     const alpha = 0.5 + 0.5*t;
@@ -1592,10 +1661,8 @@ function render(){
     return;
   } else {
     retryBtn.style.display = "none";
+    reseedBtn.style.display = "none";
   }
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
-
-
-
