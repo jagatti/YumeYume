@@ -94,7 +94,7 @@ const seVolumeValue = document.getElementById('seVolumeValue');
 // --- 設定のデフォルト値と読み込み ---
 let gameSettings = {
     timingOffset: 0,  // ms
-    noteSpeed: 8.0,
+    noteSpeed: 4.5,
     bgmVolume: 0.1,
     seVolume: 1.0,
     showBg: true
@@ -120,6 +120,7 @@ function loadSettings() {
     // ゲームロジックに反映
     bgm.volume = gameSettings.bgmVolume;
     updateNoteDuration();
+    updateSEVolume();
 }
 
 function saveSettings() {
@@ -433,7 +434,7 @@ let audioContext, tapBuffer = null, gainNode;
 // ノーツ速度計算
 function updateNoteDuration() {
     // スピードが速いほどDurationは短くなる
-    noteDuration = 120 / gameSettings.noteSpeed;
+    noteDuration = 240 / gameSettings.noteSpeed;
     noteTravelSec = noteDuration / 60;
 }
 
@@ -1103,7 +1104,7 @@ function update(){
   }
   if (gameState === "playing" && !bgm.paused) {
     const bgmNowSec = getBgmCurrentTime();
-    while (chartIndex < notesChart.length && bgmNowSec >= notesChart[chartIndex].time) {
+    while (chartIndex < notesChart.length && bgmNowSec >= notesChart[chartIndex].time - noteTravelSec) {
       spawnNote(notesChart[chartIndex].side, chartIndex); 
       totalNotesSpawned++;
       chartIndex++;
@@ -1754,7 +1755,7 @@ function render(){
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 
 // --- 初期化処理 ---
-(function start(){
+(function init(){
     loadSettings();
     resizeCanvas();
     loop();
