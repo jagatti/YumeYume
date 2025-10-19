@@ -55,7 +55,8 @@ const reseedBtn = document.createElement('button');
 reseedBtn.id = 'reseedBtn';
 reseedBtn.textContent = '乱数再現';
 reseedBtn.style.position = 'absolute';
-reseedBtn.style.bottom = '10px';
+// リトライボタンの下に配置
+reseedBtn.style.bottom = 'calc(50vh - 25px - 45px)'; // retryBtnのbottom(50vh - 25px)から更に45px下
 reseedBtn.style.left = '50%';
 reseedBtn.style.transform = 'translateX(-50%)';
 reseedBtn.style.padding = '10px 20px';
@@ -458,21 +459,6 @@ function resizeCanvas(){
   leftTarget  ={x: Math.round(cvs.width/2 - laneGap), y: targetY, r: R};
   rightTarget ={x: Math.round(cvs.width/2 + laneGap), y: targetY, r: R};
   spRadius = Math.max(64, Math.round(minDim*0.12));
-
-  // リトライボタンと乱数再現ボタンの位置調整
-  if (gameState === "result") {
-    const buttonWidth = 100; // 仮
-    const gap = 20;
-    const totalWidth = buttonWidth * 2 + gap;
-    const startX = (cvs.width - totalWidth) / 2;
-    retryBtn.style.left = `${startX}px`;
-    retryBtn.style.right = 'auto';
-    retryBtn.style.transform = 'translateY(-50%)';
-    reseedBtn.style.left = `${startX + buttonWidth + gap}px`;
-    reseedBtn.style.right = 'auto';
-    reseedBtn.style.transform = 'none';
-    reseedBtn.style.bottom = retryBtn.style.bottom;
-  }
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
