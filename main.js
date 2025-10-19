@@ -50,6 +50,10 @@ const ctx = cvs.getContext('2d');
 const rotateMsg = document.getElementById('rotateMsg');
 const startBtn = document.getElementById('startBtn');
 const retryBtn = document.getElementById('retryBtn');
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsModal = document.getElementById('settingsModal');
+const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+
 let reseedBtn = document.getElementById('reseedBtn');
 if (!reseedBtn) {
     reseedBtn = document.createElement('button');
@@ -74,7 +78,86 @@ reseedBtn.style.display = 'none'; // 最初は非表示
 
 const bgm = document.getElementById('bgm');
 const bgimg = document.getElementById('bgimg');
-bgm.volume = 0.1;
+
+// --- 設定項目 ---
+const timingOffsetInput = document.getElementById('timingOffset');
+const noteSpeedInput = document.getElementById('noteSpeed');
+const bgmVolumeInput = document.getElementById('bgmVolume');
+const seVolumeInput = document.getElementById('seVolume');
+const bgToggleInput = document.getElementById('bgToggle');
+const timingOffsetValue = document.getElementById('timingOffsetValue');
+const noteSpeedValue = document.getElementById('noteSpeedValue');
+const bgmVolumeValue = document.getElementById('bgmVolumeValue');
+const seVolumeValue = document.getElementById('seVolumeValue');
+
+
+// --- 設定のデフォルト値と読み込み ---
+let gameSettings = {
+    timingOffset: 0,  // ms
+    noteSpeed: 8.0,
+    bgmVolume: 0.1,
+    seVolume: 1.0,
+    showBg: true
+};
+
+function loadSettings() {
+    const savedSettings = localStorage.getItem('yumeYumeSettings');
+    if (savedSettings) {
+        gameSettings = JSON.parse(savedSettings);
+    }
+    // UIに設定を反映
+    timingOffsetInput.value = gameSettings.timingOffset;
+    noteSpeedInput.value = gameSettings.noteSpeed;
+    bgmVolumeInput.value = gameSettings.bgmVolume * 100;
+    seVolumeInput.value = gameSettings.seVolume * 100;
+    bgToggleInput.checked = gameSettings.showBg;
+    
+    timingOffsetValue.textContent = `${gameSettings.timingOffset} ms`;
+    noteSpeedValue.textContent = gameSettings.noteSpeed.toFixed(1);
+    bgmVolumeValue.textContent = Math.round(gameSettings.bgmVolume * 100);
+    seVolumeValue.textContent = Math.round(gameSettings.seVolume * 100);
+
+    // ゲームロジックに反映
+    bgm.volume = gameSettings.bgmVolume;
+    updateNoteDuration();
+}
+
+function saveSettings() {
+    localStorage.setItem('yumeYumeSettings', JSON.stringify(gameSettings));
+}
+
+// --- 設定UIイベントリスナー ---
+settingsBtn.onclick = () => { settingsModal.style.display = 'flex'; };
+closeSettingsBtn.onclick = () => { settingsModal.style.display = 'none'; };
+
+timingOffsetInput.oninput = () => {
+    gameSettings.timingOffset = parseInt(timingOffsetInput.value);
+    timingOffsetValue.textContent = `${gameSettings.timingOffset} ms`;
+    saveSettings();
+};
+noteSpeedInput.oninput = () => {
+    gameSettings.noteSpeed = parseFloat(noteSpeedInput.value);
+    noteSpeedValue.textContent = gameSettings.noteSpeed.toFixed(1);
+    updateNoteDuration();
+    saveSettings();
+};
+bgmVolumeInput.oninput = () => {
+    gameSettings.bgmVolume = parseInt(bgmVolumeInput.value) / 100;
+    bgmVolumeValue.textContent = bgmVolumeInput.value;
+    bgm.volume = gameSettings.bgmVolume;
+    saveSettings();
+};
+seVolumeInput.oninput = () => {
+    gameSettings.seVolume = parseInt(seVolumeInput.value) / 100;
+    seVolumeValue.textContent = seVolumeInput.value;
+    updateSEVolume();
+    saveSettings();
+};
+bgToggleInput.onchange = () => {
+    gameSettings.showBg = bgToggleInput.checked;
+    saveSettings();
+};
+
 
 // --- 譜面データを直接埋め込む ---
 const notesChart = [
@@ -336,7 +419,8 @@ let lastGameSeed = 0; // 直前のゲームのシードを保存
 
 // --- グローバル変数 ---
 let chartIndex = 0, R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
-let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=55;
+let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0;
+let noteDuration=55, noteTravelSec = noteDuration / 60; // ノーツ速度関連
 let bestScore = Number(localStorage.getItem('bestScore')) || 0;
 let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=0, spCountdownTimer=0, spCountdownValue=0;
 let popups=[], hitRings=[], lastInputWasTouch=false;
@@ -344,15 +428,22 @@ let gameState = "init", countdownValue = 3, totalNotesSpawned = 0, clearStartFra
 let skillHistory = [], appealBoostNotes = 0, skillActivationCount = 0, spUseCount = 0, progressDisplay = 0;
 let judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
 let spScoreBuffNotes = 0, noteCounter = 0, totalSPUsed = 0, permanentScoreBuff = 0, acFailFlashTimer = 0, waitingClearFrame = null;
-let audioContext, tapBuffer = null;
-  
-// ノーツ到達までの秒数
-const noteTravelSec = noteDuration / 60;
-  
-// --- 効果音ロード ---
+let audioContext, tapBuffer = null, gainNode;
+
+// ノーツ速度計算
+function updateNoteDuration() {
+    // スピードが速いほどDurationは短くなる
+    noteDuration = 120 / gameSettings.noteSpeed;
+    noteTravelSec = noteDuration / 60;
+}
+
+// --- 効果音ロードと音量調整 ---
 async function loadTapSE() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    gainNode = audioContext.createGain();
+    gainNode.connect(audioContext.destination);
+    updateSEVolume(); // 初期音量を設定
   }
   await audioContext.resume();
   if (!tapBuffer) {
@@ -360,6 +451,16 @@ async function loadTapSE() {
     const arrayBuffer = await response.arrayBuffer();
     tapBuffer = await audioContext.decodeAudioData(arrayBuffer);
   }
+}
+
+function updateSEVolume() {
+    if(gainNode) {
+        gainNode.gain.value = gameSettings.seVolume;
+    }
+}
+
+function getBgmCurrentTime() {
+    return bgm.currentTime + (gameSettings.timingOffset / 1000);
 }
 
 //
@@ -401,10 +502,10 @@ function getComboBonus(combo) {
 
 // 効果音再生
 function playTapSE() {
-  if (!tapBuffer) return;
+  if (!tapBuffer || !gainNode) return;
   const source = audioContext.createBufferSource();
   source.buffer = tapBuffer;
-  source.connect(audioContext.destination);
+  source.connect(gainNode);
   source.start(0);
 }
   
@@ -433,25 +534,33 @@ function isACClearedNowByTime(nowTime) {
 // --- レイアウト・ターゲット位置 ---
 function resizeCanvas(){
   const landscape = window.innerWidth >= window.innerHeight;
-  if(!landscape){
-    rotateMsg.style.display='flex';
-    cvs.style.display='none';
-    startBtn.style.display='none';
-    retryBtn.style.display='none';
-    reseedBtn.style.display='none';
-    return;
-  }
-  rotateMsg.style.display='none';
-  cvs.style.display='block';
-  if(gameState==="init") startBtn.style.display='block';
-  else startBtn.style.display='none';
-  if(gameState==="result") {
-    retryBtn.style.display='block';
-    reseedBtn.style.display='block'; // リザルトで表示
+  rotateMsg.style.display = landscape ? 'none' : 'flex';
+  cvs.style.display = landscape ? 'block' : 'none';
+
+  if (landscape) {
+    if (gameState === "init") {
+        startBtn.style.display = 'block';
+        settingsBtn.style.display = 'block';
+        retryBtn.style.display = 'none';
+        reseedBtn.style.display = 'none';
+    } else if (gameState === "result") {
+        startBtn.style.display = 'none';
+        settingsBtn.style.display = 'none';
+        retryBtn.style.display = 'block';
+        reseedBtn.style.display = 'block';
+    } else {
+        startBtn.style.display = 'none';
+        settingsBtn.style.display = 'none';
+        retryBtn.style.display = 'none';
+        reseedBtn.style.display = 'none';
+    }
   } else {
-    retryBtn.style.display='none';
-    reseedBtn.style.display='none'; // それ以外で非表示
+    startBtn.style.display = 'none';
+    settingsBtn.style.display = 'none';
+    retryBtn.style.display = 'none';
+    reseedBtn.style.display = 'none';
   }
+
   cvs.width = window.innerWidth;
   cvs.height= window.innerHeight;
   const minDim=Math.min(cvs.width, cvs.height);
@@ -463,7 +572,7 @@ function resizeCanvas(){
   spRadius = Math.max(64, Math.round(minDim*0.12));
 }
 window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+
 
 function cubicBezier(p0,p1,p2,p3,t){const u=1-t;return {x:u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,y:u*u*u*p0.y+3*u*u*t*p1.y+3*u*t*t*p2.y+t*t*t*p3.y};}
 function makePath(side){const target= side==='left'? leftTarget : rightTarget;const startX = side==='left' ? (-R*2-10) : (cvs.width+R*2+10);const start={x:startX, y: target.y - Math.max(180, R*6)};const c1={x: side==='left' ? target.x - Math.max(200,R*6) : target.x + Math.max(200,R*6), y: target.y - Math.max(200,R*6)};const c2={x: side==='left' ? target.x - Math.max(60,R*2)  : target.x + Math.max(60,R*2),  y: target.y - Math.max(40,R*1.3)};const end={x: target.x, y: target.y};return {p0:start,p1:c1,p2:c2,p3:end};}
@@ -635,7 +744,7 @@ function calcTapScoreAndLabel(dist, baseRaw){
 // --- スコア加算処理 ---
 function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
   playTapSE();
-  let nowTime = bgm.currentTime || 0;
+  let nowTime = getBgmCurrentTime();
   let acBuff = 1.0;
   if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) acBuff = 1.1;
   let spBuff = 1.0;
@@ -669,7 +778,7 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
     if (spBoostTimer > 0) voltage = Math.floor(voltage * 1.1);
     const comboBonus = getComboBonus(combo + 1);
     voltage = Math.floor(voltage * comboBonus);
-    let nowTime = bgm.currentTime || 0;
+    let nowTime = getBgmCurrentTime();
     if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) voltage = Math.floor(voltage * 1.1);
     if (spScoreBuffNotes > 0) voltage = Math.floor(voltage * 1.1);
     let permanentBuff = 1 + permanentScoreBuff * 0.05;
@@ -743,7 +852,7 @@ function judgeNotesGlobal(mx, my){
 function tryUseSP(mx,my){
   if(spValue<SP_MAX) return false;
   if(!isInSPSemicircle(mx,my)) return false;
-  let nowTime = bgm.currentTime || 0;
+  let nowTime = getBgmCurrentTime();
   spUseCount++;
   let spBase = 180000;
   if (appealBoostNotes > 0) {
@@ -944,9 +1053,6 @@ async function startGame(seed) {
   });
   gameState = "countdown";
   resizeCanvas();
-  startBtn.style.display = "none";
-  retryBtn.style.display = "none";
-  reseedBtn.style.display = "none";
 }
 
 startBtn.onclick = function() {
@@ -958,9 +1064,6 @@ startBtn.onclick = function() {
 // --- リトライボタン挙動 ---
 retryBtn.onclick = ()=>{
   gameState = "init";
-  startBtn.style.display = "block";
-  retryBtn.style.display = "none";
-  reseedBtn.style.display = "none";
   resizeCanvas();
   try{ bgm.pause(); }catch(e){}
   bgm.currentTime = 0;
@@ -991,7 +1094,6 @@ function update(){
           gameState="playing";
           frame = 0;
           bgm.currentTime = 0;
-          bgm.volume = 0.10;
           bgm.play().catch(()=>{});
         },1000);
       }
@@ -1000,7 +1102,7 @@ function update(){
     return;
   }
   if (gameState === "playing" && !bgm.paused) {
-    const bgmNowSec = bgm.currentTime;
+    const bgmNowSec = getBgmCurrentTime();
     while (chartIndex < notesChart.length && bgmNowSec >= notesChart[chartIndex].time) {
       spawnNote(notesChart[chartIndex].side, chartIndex); 
       totalNotesSpawned++;
@@ -1020,7 +1122,7 @@ function update(){
       waitingClearFrame = null;
       let fadeOut = setInterval(() => {
         if (bgm.volume > 0.02) { bgm.volume -= 0.02; }
-        else { bgm.pause(); bgm.currentTime = 0; clearInterval(fadeOut); bgm.volume = 0.10; }
+        else { bgm.pause(); bgm.currentTime = 0; clearInterval(fadeOut); bgm.volume = gameSettings.bgmVolume; }
       }, 50);
     }
   } else {
@@ -1033,6 +1135,7 @@ function update(){
       bestScore = score;
       localStorage.setItem('bestScore', bestScore);
     }
+    resizeCanvas();
   }
 
   if(spValue>=SP_MAX){ if(!spFullNotified){ triggerSPVisual(); spFullNotified=true; } }
@@ -1209,7 +1312,7 @@ function drawNotes(){
   
 // --- AC通知パネル ---
 function drawACMissionNotice(){
-  let nowTime = bgm.currentTime || 0;
+  let nowTime = getBgmCurrentTime();
   const ac = acList.find(ac => (ac.state === "active" || ac.state === "cleared") &&
     nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec);
   if(!ac) return;
@@ -1298,7 +1401,7 @@ function drawProgressBarWithAC(){
   // 3. 水色進捗
   let progress = 0;
   if (bgm.duration && bgm.duration > 0) {
-    progress = Math.min(1, bgm.currentTime / bgm.duration);
+    progress = Math.min(1, getBgmCurrentTime() / bgm.duration);
   }
   ctx.fillStyle = '#00e5ff';
   ctx.fillRect(x, y, barWidth * progress, barHeight);
@@ -1558,8 +1661,8 @@ function drawJudgeCountsResult() {
 
 function render(){
    ctx.clearRect(0,0,cvs.width,cvs.height);
-  // 背景画像（30%不透明度）をcanvas全体に描画
-  if(bgimg.complete && bgimg.naturalWidth > 0) {
+  // 背景画像
+  if(gameSettings.showBg && bgimg.complete && bgimg.naturalWidth > 0) {
     ctx.save();
     ctx.globalAlpha = 0.3;
     ctx.drawImage(bgimg, 0, 0, cvs.width, cvs.height);
@@ -1570,6 +1673,8 @@ function render(){
     ctx.fillRect(0,0,cvs.width,cvs.height);
   }
   
+  if (gameState === "init") { return; }
+
   drawProgressBarWithAC();
   drawTargets();
   drawNotes();
@@ -1583,7 +1688,6 @@ function render(){
   drawACMissionNotice();
   drawACFailFlash();
   
-  if(gameState==="init"){ return; }
   if(gameState==="countdown"){
     const txt = countdownValue>0 ? countdownValue : 1;
     ctx.textAlign='center';
@@ -1601,8 +1705,6 @@ function render(){
     return;
   }
   if(gameState==="result"){
-    retryBtn.style.display = "block";
-    reseedBtn.style.display = "block"; // 乱数再現ボタン表示
     const t = Math.min(1, (frame - (resultStartFrame||frame)) / 60);
     const scale = 0.8 + 0.2*Math.sin(t*Math.PI/2);
     const alpha = 0.5 + 0.5*t;
@@ -1647,11 +1749,13 @@ function render(){
     ctx.restore();
     drawJudgeCountsResult();
     return;
-  } else {
-    retryBtn.style.display = "none";
-    reseedBtn.style.display = "none";
   }
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
-(function start(){ loop(); })();
 
+// --- 初期化処理 ---
+(function start(){
+    loadSettings();
+    resizeCanvas();
+    loop();
+})();
