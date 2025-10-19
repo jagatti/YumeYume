@@ -1,4 +1,8 @@
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbz2gsX2XXdV0OOvHtPF0AsHkTBvrCQ_8_1zYxVQ0bki_CoAlFy25QbsEryqTe-dZJJu/exec';
+// ▼▼▼【重要】ここに "開発用URL（末尾が /dev）" を貼り付けてください▼▼▼
+const GAS_DEV_URL = 'https://script.google.com/macros/s/AKfycbwF1aGUcUg_oqEnJDuDFXQcuv39uDQZhnf853vWujo/dev';
+// ▼▼▼【重要】ここに "本番URL（末尾が /exec）" を貼り付けてください▼▼▼
+const GAS_EXEC_URL = 'https://script.google.com/macros/s/AKfycbz2gsX2XXdV0OOvHtPF0AsHkTBvrCQ_8_1zYxVQ0bki_CoAlFy25QbsEryqTe-dZJJu/exec';
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
 // --- AC（アピールチャンス）設定 ---
 const acList = [
@@ -61,19 +65,14 @@ function showRanking() {
     rankingBody.innerHTML = '<tr><td colspan="3">読み込み中...</td></tr>';
     rankingModal.style.display = 'flex';
 
-    // scriptタグを毎回ユニークにするためのタイムスタンプ
     const timestamp = new Date().getTime();
-    // コールバック関数名もユニークにする
     const callbackName = 'jsonp_callback_' + timestamp;
 
     const script = document.createElement('script');
 
-    // グローバルスコープにコールバック関数を定義
     window[callbackName] = (data) => {
         try {
-            if (data.status === 'error') {
-                throw new Error(data.message || 'ランキングデータの形式が不正です。');
-            }
+            if (data.status === 'error') throw new Error(data.message);
             
             rankingBody.innerHTML = '';
             if (!Array.isArray(data) || data.length === 0) {
@@ -82,37 +81,27 @@ function showRanking() {
             }
 
             data.slice(0, 100).forEach((entry, index) => {
-                const row = `<tr>
-                    <td>${index + 1}</td>
-                    <td>${escapeHtml(entry.name)}</td>
-                    <td>${escapeHtml(entry.score)}</td>
-                </tr>`;
+                const row = `<tr><td>${index + 1}</td><td>${escapeHtml(entry.name)}</td><td>${escapeHtml(entry.score)}</td></tr>`;
                 rankingBody.innerHTML += row;
             });
         } catch (error) {
             rankingBody.innerHTML = `<tr><td colspan="3">ランキングの表示に失敗しました。</td></tr>`;
             console.error('Error processing ranking data:', error);
         } finally {
-            // 後片付け
             delete window[callbackName];
-            if (script.parentNode) {
-                script.parentNode.removeChild(script);
-            }
+            if (script.parentNode) script.parentNode.removeChild(script);
         }
     };
 
-    // 読み込み失敗時の処理
     script.onerror = () => {
         rankingBody.innerHTML = `<tr><td colspan="3">ランキングの取得に失敗しました。サーバーに接続できません。</td></tr>`;
         console.error('Error fetching ranking via JSONP.');
         delete window[callbackName];
-        if (script.parentNode) {
-            script.parentNode.removeChild(script);
-        }
+        if (script.parentNode) script.parentNode.removeChild(script);
     };
     
-    // scriptタグのsrcを設定し、DOMに追加してリクエストを開始
-    script.src = `${GAS_URL}?callback=${callbackName}&t=${timestamp}`;
+    // 【重要】ランキング表示は /dev URL を使う
+    script.src = `${GAS_DEV_URL}?callback=${callbackName}&t=${timestamp}`;
     document.head.appendChild(script);
 }
 
@@ -122,7 +111,8 @@ async function submitScore(name, scoreValue) {
         return;
     }
     try {
-        const response = await fetch(GAS_URL, {
+        // 【重要】スコア登録は /exec URL を使う
+        const response = await fetch(GAS_EXEC_URL, {
             method: 'POST',
             mode: 'cors',
             headers: { 'Content-Type': 'application/json' },
@@ -146,6 +136,7 @@ async function submitScore(name, scoreValue) {
 }
 
 function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
     return str.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
