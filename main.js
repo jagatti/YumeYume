@@ -103,14 +103,14 @@ async function showRanking() {
     }
 }
 
-async function submitScore(name, score) {
+async function submitScore(name, scoreValue) {
     try {
         const response = await fetch(GAS_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ name, score }),
+            body: JSON.stringify({ name: name, score: scoreValue }),
         });
 
         if (!response.ok) {
@@ -143,11 +143,16 @@ submitScoreBtn.addEventListener('click', async () => {
     const playerName = playerNameInput.value.trim();
     if (playerName) {
         submitScoreBtn.disabled = true;
+        skipSubmitBtn.disabled = true;
         submitScoreBtn.textContent = '登録中...';
-        await submitScore(playerName, score);
+        await submitScore(playerName, score); // `score` はグローバル変数の現在のスコア
         scoreSubmitModal.style.display = 'none';
         submitScoreBtn.disabled = false;
+        skipSubmitBtn.disabled = false;
         submitScoreBtn.textContent = '登録';
+        // 登録後にリザルト画面のボタンを表示
+        retryBtn.style.display = "block";
+        reseedBtn.style.display = "block";
     } else {
         alert('名前を入力してください。');
     }
@@ -155,6 +160,9 @@ submitScoreBtn.addEventListener('click', async () => {
 
 skipSubmitBtn.addEventListener('click', () => {
     scoreSubmitModal.style.display = 'none';
+    // スキップ後もリザルト画面のボタンを表示
+    retryBtn.style.display = "block";
+    reseedBtn.style.display = "block";
 });
 
 
@@ -202,7 +210,8 @@ function resizeCanvas(){
     } else if (gameState === "result") {
         startBtn.style.display = 'none';
         rankingBtn.style.display = 'none';
-        retryBtn.style.display = 'none'; // スコア登録が終わるまで非表示
+        // スコア登録が終わるまでボタンは非表示
+        retryBtn.style.display = 'none';
         reseedBtn.style.display = 'none';
     } else {
         startBtn.style.display = 'none';
@@ -339,7 +348,7 @@ function update(){
     if(acFailFlashTimer > 0) acFailFlashTimer--; return;
   }
   if (gameState === "playing" && !bgm.paused) {
-    const bgmNowSec = bgm.currentTime;
+    const bgmNowSec = bgm.currentTime; // ★★★ 修正点 ★★★
     while (chartIndex < notesChart.length && bgmNowSec >= notesChart[chartIndex].time - noteTravelSec) { spawnNote(notesChart[chartIndex].side, chartIndex); totalNotesSpawned++; chartIndex++; }
     if(acFailFlashTimer > 0) acFailFlashTimer--;
   }
@@ -423,7 +432,9 @@ function render(){
     ctx.textAlign='center'; ctx.font=`bold ${Math.round(cvs.height*0.14)}px system-ui`; ctx.lineWidth=10; ctx.strokeStyle='#fff'; ctx.strokeText('CLEAR', cvs.width/2, cvs.height/2); ctx.fillStyle='#ffa500'; ctx.fillText('CLEAR', cvs.width/2, cvs.height/2); return;
   }
   if(gameState==="result"){
-    retryBtn.style.display = "block"; reseedBtn.style.display = "block";
+    // スコア登録が終わるまではボタンは表示しない
+    // retryBtn.style.display = "block"; 
+    // reseedBtn.style.display = "block";
     const t = Math.min(1, (frame - (resultStartFrame||frame)) / 60); const scale = 0.8 + 0.2*Math.sin(t*Math.PI/2);
     ctx.save(); ctx.translate(cvs.width/2, cvs.height/2); ctx.scale(scale, scale); ctx.textAlign='center';
     ctx.font=`bold ${Math.round(cvs.height*0.10)}px system-ui`; ctx.lineWidth=8; ctx.strokeStyle='#000'; ctx.strokeText('RESULT', 0, -90); ctx.fillStyle='#ffa500'; ctx.fillText('RESULT', 0, -90);
@@ -437,5 +448,3 @@ function render(){
 
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function init(){ resizeCanvas(); loop(); })();
-
-
