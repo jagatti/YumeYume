@@ -50,17 +50,16 @@ const ctx = cvs.getContext('2d');
 const rotateMsg = document.getElementById('rotateMsg');
 const startBtn = document.getElementById('startBtn');
 const retryBtn = document.getElementById('retryBtn');
-// 「乱数再現」ボタンを動的に生成
-const reseedBtn = document.createElement('button');
-reseedBtn.id = 'reseedBtn';
+let reseedBtn = document.getElementById('reseedBtn');
+if (!reseedBtn) {
+    reseedBtn = document.createElement('button');
+    reseedBtn.id = 'reseedBtn';
+    document.body.appendChild(reseedBtn);
+}
 reseedBtn.textContent = '乱数再現';
 reseedBtn.style.position = 'absolute';
 // リトライボタンの下に配置
-const reseedBtn = document.createElement('button');
-reseedBtn.id = 'reseedBtn';
-reseedBtn.textContent = '乱数再現';
-reseedBtn.style.position = 'absolute';
-reseedBtn.style.bottom = '10px';
+reseedBtn.style.bottom = 'calc(50vh - 25px - 45px)'; // retryBtnのbottom(50vh - 25px)から更に45px下
 reseedBtn.style.left = '50%';
 reseedBtn.style.transform = 'translateX(-50%)';
 reseedBtn.style.padding = '10px 20px';
@@ -71,7 +70,6 @@ reseedBtn.style.border = 'none';
 reseedBtn.style.borderRadius = '5px';
 reseedBtn.style.cursor = 'pointer';
 reseedBtn.style.display = 'none'; // 最初は非表示
-document.body.appendChild(reseedBtn);
 
 const bgm = document.getElementById('bgm');
 const bgimg = document.getElementById('bgimg');
