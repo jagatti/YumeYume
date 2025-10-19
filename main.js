@@ -1,4 +1,6 @@
+// ▼▼▼【重要】ここに "開発用URL（末尾が /dev）" のみを貼り付けてください▼▼▼
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwF1aGUcUg_oqEnJDuDFXQcuv39uDQZhnf853vWujo/dev';
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
 // --- AC（アピールチャンス）設定 ---
 const acList = [
@@ -110,18 +112,29 @@ async function submitScore(name, scoreValue) {
         // 【重要】スコア登録も同じ /dev URL を使う
         const response = await fetch(GAS_URL, {
             method: 'POST',
-            mode: 'no-cors', // no-corsモードに変更
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Content-Typeを変更
+            mode: 'cors', // modeを 'cors' に戻す
+            headers: {
+              'Content-Type': 'application/json', // ヘッダーも 'application/json' に戻す
+            },
             body: JSON.stringify({ name: name, score: scoreValue }),
         });
+
+        if (!response.ok) {
+            throw new Error(`サーバーエラー: ${response.status}`);
+        }
         
-        // no-corsモードではレスポンスの中身を確認できないため、成功したと見なす
-        console.log('Score submission request sent.');
-        alert('スコアを登録しました！');
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            console.log('Score submitted successfully.');
+            alert('スコアを登録しました！');
+        } else {
+            throw new Error(result.message || 'スコア登録に失敗しました。');
+        }
 
     } catch (error) {
         console.error('Error submitting score:', error);
-        alert('スコアの登録に失敗しました。');
+        alert(`スコアの登録に失敗しました: ${error.message}`);
     }
 }
 
