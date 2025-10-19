@@ -8,6 +8,8 @@
         body { margin: 0; background-color: #0f172a; color: #fff; overflow: hidden; font-family: system-ui, sans-serif; }
         canvas { display: block; }
         #rotateMsg { display: none; justify-content: center; align-items: center; width: 100vw; height: 100vh; text-align: center; }
+        
+        /* ボタン共通スタイル */
         button {
             position: absolute;
             left: 50%;
@@ -20,66 +22,75 @@
             color: white;
             border-radius: 5px;
         }
+
+        /* 各ボタンの位置 */
         #startBtn { bottom: calc(50vh + 30px); }
-        #settingsBtn { bottom: calc(50vh - 30px); }
+        #rankingBtn { bottom: calc(50vh - 30px); }
         #retryBtn {
             bottom: 50%;
             transform: translate(-50%, 50%);
             display: none;
         }
 
-        /* 設定モーダル */
-        #settingsModal {
+        /* モーダル共通スタイル */
+        .modal {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
+            background-color: rgba(0, 0, 0, 0.85);
             display: none; /* Initially hidden */
             justify-content: center;
             align-items: center;
             flex-direction: column;
             z-index: 100;
         }
-        .settings-container {
+        .modal-container {
             background-color: #1e293b;
             padding: 20px;
             border-radius: 10px;
             border: 2px solid #fff;
-            width: 80%;
-            max-width: 500px;
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
         }
-        .setting-item {
-            display: grid;
-            grid-template-columns: 120px 1fr 60px; /* ラベル | スライダー | 値 */
-            align-items: center;
-            gap: 15px; /* 各要素間の隙間 */
-            margin-bottom: 15px;
+        .modal-container h2 {
+            margin-top: 0;
         }
-        .setting-item label {
+
+        /* ランキングモーダル */
+        #rankingTableContainer {
+            max-height: 60vh;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        #rankingTable {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        #rankingTable th, #rankingTable td {
+            border: 1px solid #4b5563;
+            padding: 8px;
+        }
+        #rankingTable th {
+            background-color: #334155;
+        }
+        #rankingTable td:nth-child(1) { width: 15%; }
+        #rankingTable td:nth-child(2) { text-align: left; }
+        #rankingTable td:nth-child(3) { width: 30%; text-align: right; }
+
+        /* スコア登録モーダル */
+        #scoreSubmitModal input {
+            padding: 8px;
             font-size: 16px;
-            text-align: left; /* ラベルを左揃えに */
+            margin-bottom: 15px;
+            width: 80%;
         }
-        .setting-item input[type="range"] {
-            width: 100%; /* スライダーが中央のエリアを埋めるように */
-        }
-        .setting-item span {
-            text-align: right; /* 値を右揃えに */
-        }
-        /* チェックボックス用の特別スタイル */
-        .setting-item.checkbox-item {
-            grid-template-columns: 1fr auto; /* ラベル | チェックボックス */
-        }
-        .setting-item input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            justify-self: end; /* チェックボックスを右端に配置 */
-        }
-        #closeSettingsBtn {
+        #scoreSubmitModal .button-group button {
             position: static;
             transform: none;
-            margin-top: 20px;
+            margin: 0 10px;
         }
     </style>
 </head>
@@ -91,37 +102,41 @@
     <canvas id="game"></canvas>
     
     <button id="startBtn">START</button>
-    <button id="settingsBtn">ライブ設定</button>
+    <button id="rankingBtn">ランキング表示</button>
     <button id="retryBtn">リトライ</button>
 
-    <div id="settingsModal">
-        <div class="settings-container">
-            <h2>ライブ設定</h2>
-            <div class="setting-item">
-                <label for="timingOffset">タイミング調整</label>
-                <input type="range" id="timingOffset" min="-100" max="100" value="0">
-                <span id="timingOffsetValue">0 ms</span>
+    <!-- ランキング表示モーダル -->
+    <div id="rankingModal" class="modal">
+        <div class="modal-container">
+            <h2>オンラインランキング</h2>
+            <div id="rankingTableContainer">
+                <table id="rankingTable">
+                    <thead>
+                        <tr>
+                            <th>順位</th>
+                            <th>名前</th>
+                            <th>スコア</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rankingBody">
+                        <!-- ランキングデータはJSで挿入されます -->
+                    </tbody>
+                </table>
             </div>
-            <div class="setting-item">
-                <label for="noteSpeed">ノーツ速度</label>
-                <input type="range" id="noteSpeed" min="1" max="15" value="8">
-                <span id="noteSpeedValue">8.0</span>
+            <button id="closeRankingBtn">閉じる</button>
+        </div>
+    </div>
+
+    <!-- スコア登録モーダル -->
+    <div id="scoreSubmitModal" class="modal">
+        <div class="modal-container">
+            <h2>ランキング登録</h2>
+            <p>名前を入力してスコアを登録！</p>
+            <input type="text" id="playerNameInput" placeholder="プレイヤー名" maxlength="15">
+            <div class="button-group">
+                <button id="submitScoreBtn">登録</button>
+                <button id="skipSubmitBtn">スキップ</button>
             </div>
-            <div class="setting-item">
-                <label for="bgmVolume">BGM音量</label>
-                <input type="range" id="bgmVolume" min="0" max="100" value="10">
-                <span id="bgmVolumeValue">10</span>
-            </div>
-            <div class="setting-item">
-                <label for="seVolume">SE音量</label>
-                <input type="range" id="seVolume" min="0" max="100" value="100">
-                <span id="seVolumeValue">100</span>
-            </div>
-            <div class="setting-item checkbox-item">
-                <label for="bgToggle">背景を表示</label>
-                <input type="checkbox" id="bgToggle" checked>
-            </div>
-            <button id="closeSettingsBtn">閉じる</button>
         </div>
     </div>
     
@@ -131,4 +146,3 @@
     <script src="main.js"></script>
 </body>
 </html>
-
