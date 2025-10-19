@@ -1,20 +1,123 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>自作リズムゲーム</title>
-<link rel="icon" type="image/png" href="favicon.png">
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>YumeYume</title>
+    <style>
+        body { margin: 0; background-color: #0f172a; color: #fff; overflow: hidden; font-family: system-ui, sans-serif; }
+        canvas { display: block; }
+        #rotateMsg { display: none; justify-content: center; align-items: center; width: 100vw; height: 100vh; text-align: center; }
+        button {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            border: 2px solid white;
+            background-color: rgba(0,0,0,0.5);
+            color: white;
+            border-radius: 5px;
+        }
+        #startBtn { bottom: calc(50vh + 30px); }
+        #settingsBtn { bottom: calc(50vh - 30px); }
+        #retryBtn {
+            bottom: 50%;
+            transform: translate(-50%, 50%);
+            display: none;
+        }
+
+        /* 設定モーダル */
+        #settingsModal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none; /* Initially hidden */
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 100;
+        }
+        .settings-container {
+            background-color: #1e293b;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #fff;
+            width: 80%;
+            max-width: 500px;
+        }
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .setting-item label {
+            font-size: 16px;
+        }
+        .setting-item input[type="range"] {
+            width: 50%;
+        }
+        .setting-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+        }
+        #closeSettingsBtn {
+            position: static;
+            transform: none;
+            margin-top: 20px;
+        }
+    </style>
 </head>
-  
 <body>
-<div id="rotateMsg">横画面にしてください</div>
-<img id="bgimg" src="bg.jpg" style="display:none;">
-<canvas id="game"></canvas>
-<button id="startBtn">S.T.A.R.T!!</button>
-<button id="retryBtn">リトライ</button>
-<audio id="bgm" src="YumeYume.wav" preload="auto" loop></audio>
-<script src="main.js"></script>
+    <div id="rotateMsg">
+        <h1>画面を横にしてください</h1>
+    </div>
+
+    <canvas id="game"></canvas>
+    
+    <button id="startBtn">START</button>
+    <button id="settingsBtn">ライブ設定</button>
+    <button id="retryBtn">リトライ</button>
+
+    <div id="settingsModal">
+        <div class="settings-container">
+            <h2>ライブ設定</h2>
+            <div class="setting-item">
+                <label for="timingOffset">タイミング調整</label>
+                <input type="range" id="timingOffset" min="-100" max="100" value="0">
+                <span id="timingOffsetValue">0 ms</span>
+            </div>
+            <div class="setting-item">
+                <label for="noteSpeed">ノーツ速度</label>
+                <input type="range" id="noteSpeed" min="1" max="15" value="8">
+                <span id="noteSpeedValue">8.0</span>
+            </div>
+            <div class="setting-item">
+                <label for="bgmVolume">BGM音量</label>
+                <input type="range" id="bgmVolume" min="0" max="100" value="10">
+                <span id="bgmVolumeValue">10</span>
+            </div>
+            <div class="setting-item">
+                <label for="seVolume">SE音量</label>
+                <input type="range" id="seVolume" min="0" max="100" value="100">
+                <span id="seVolumeValue">100</span>
+            </div>
+            <div class="setting-item">
+                <label for="bgToggle">背景を表示</label>
+                <input type="checkbox" id="bgToggle" checked>
+            </div>
+            <button id="closeSettingsBtn">閉じる</button>
+        </div>
+    </div>
+    
+    <audio id="bgm" src="bgm.mp3" preload="auto"></audio>
+    <img id="bgimg" src="bg.jpg" style="display:none;">
+
+    <script src="main.js"></script>
 </body>
 </html>
