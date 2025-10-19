@@ -107,15 +107,26 @@ async function submitScore(name, score) {
     try {
         const response = await fetch(GAS_URL, {
             method: 'POST',
-            mode: 'no-cors', // CORSエラーを回避するため
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ name, score }),
         });
-        console.log('Score submitted.');
+
+        if (!response.ok) {
+            throw new Error(`Server responded with status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (result.status === 'success') {
+            console.log('Score submitted successfully.');
+        } else {
+            throw new Error(result.message || 'Failed to submit score.');
+        }
+
     } catch (error) {
         console.error('Error submitting score:', error);
+        alert('スコアの登録に失敗しました。');
     }
 }
 
@@ -426,3 +437,4 @@ function render(){
 
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function init(){ resizeCanvas(); loop(); })();
+
