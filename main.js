@@ -1,12 +1,11 @@
-// ▼▼▼【重要】ここに "開発用URL（末尾が /dev）" のみを貼り付けてください▼▼▼
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwF1aGUcUg_oqEnJDuDFXQcuv39uDQZhnf853vWujo/dev';
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+const GAS_EXEC_URL = 'https://script.google.com/macros/library/d/1Js5wenN4M2MpNbDUTieuBQ_nQGMQku3FrOAdwYghbxYUt2_dJ0DPth6d/10';
 
 // --- AC（アピールチャンス）設定 ---
 const acList = [
   { startTime: 12.99, endTime: 24.31, type: "score", target: 1000000, rewardScore: 500000, rewardSP: 3600, state: "waiting", progress: 0, cleared: false, desc: "スコアを100万獲得する", tapScore: 0, spScore: 0 },
   { startTime: 39.78, endTime: 59.22, type: "sp", target: 3, rewardScore: 500000, rewardSP: 3600, state: "waiting", progress: 0, cleared: false, desc: "SPを3回発動する", tapScore: 0, spScore: 0 },
-  { startTime: 69.22, endTime: 72.61, type: "score", target: 750000, rewardScore: 1000000, rewardSP: 3600, state: "waiting", progress: 0, cleared: false, desc: "スコアを75万獲得する", tapScore: 0, spScore: 0 }
+  { startTime: 69.22, endTime: 72.61, type: "score", target: 750000, rewardScore: 1000000, rewardSP: 3600, state: "waiting", progress: 0, cleared: false, desc: "スコを75万獲得する", tapScore: 0, spScore: 0 }
 ];
 
 // --- グローバル変数とDOM要素 ---
@@ -98,42 +97,56 @@ function showRanking() {
         if (script.parentNode) script.parentNode.removeChild(script);
     };
     
-    script.src = `${GAS_URL}?callback=${callbackName}&t=${timestamp}`;
+    // ランキング取得はこれまで通りJSONP
+    script.src = `${GAS_EXEC_URL}?callback=${callbackName}&t=${timestamp}`;
     document.head.appendChild(script);
 }
 
-// ★★★★★【最終修正】事前確認を発生させない「単純なリクエスト」に変更 ★★★★★
-async function submitScore(name, scoreValue) {
+// ★★★★★【最終修正】CORSを回避するフォーム送信方式 ★★★★★
+function submitScore(name, scoreValue) {
     if (scoreValue <= 0) {
         alert("スコアが0のため、登録できません。");
         return;
     }
-    try {
-        const response = await fetch(GAS_URL, {
-            method: 'POST',
-            // mode: 'no-cors', // no-corsは不要
-            headers: {
-              // 'Content-Type': 'application/json' ではなく 'text/plain' を使う
-              'Content-Type': 'text/plain;charset=utf-8',
-            },
-            // bodyもJSON文字列をそのまま送る
-            body: JSON.stringify({ name: name, score: scoreValue }),
-        });
 
-        // レスポンスはJSONとして正しく受け取れる
-        const result = await response.json();
-        
-        if (result.status === 'success') {
-            console.log('Score submitted successfully:', result.message);
-            alert(result.message);
-        } else {
-            throw new Error(result.message || 'スコア登録に失敗しました。');
-        }
+    // 1. 非表示のiframeを作成
+    const iframe = document.createElement('iframe');
+    iframe.name = 'submit-iframe';
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
 
-    } catch (error) {
-        console.error('Error submitting score:', error);
-        alert(`スコアの登録に失敗しました: ${error.message}`);
-    }
+    // 2. データを送信するためのフォームを作成
+    const form = document.createElement('form');
+    form.action = GAS_EXEC_URL;
+    form.method = 'POST';
+    form.target = iframe.name; // フォームの送信先をiframeに設定
+
+    // 3. 送信するデータ（nameとscore）をinput要素として追加
+    const nameInput = document.createElement('input');
+    nameInput.type = 'hidden';
+    nameInput.name = 'name';
+    nameInput.value = name;
+    form.appendChild(nameInput);
+
+    const scoreInput = document.createElement('input');
+    scoreInput.type = 'hidden';
+    scoreInput.name = 'score';
+    scoreInput.value = scoreValue;
+    form.appendChild(scoreInput);
+
+    document.body.appendChild(form);
+
+    // 4. フォームを送信
+    form.submit();
+
+    // 5. 送信後、不要になった要素を削除
+    // GASからの応答を待つため、少し遅延させる
+    setTimeout(() => {
+        document.body.removeChild(form);
+        document.body.removeChild(iframe);
+        console.log('Score submission form sent.');
+        alert('スコアを登録しました！');
+    }, 2000); // 2秒後に実行
 }
 
 function escapeHtml(str) {
@@ -150,13 +163,17 @@ registerScoreBtn.addEventListener('click', () => {
     registerScoreBtn.style.display = 'none';
 });
 
-submitScoreBtn.addEventListener('click', async () => {
+// submitScoreBtnのイベントリスナーも非同期処理が不要になる
+submitScoreBtn.addEventListener('click', () => {
     const playerName = playerNameInput.value.trim();
     if (playerName) {
         submitScoreBtn.disabled = true;
         skipSubmitBtn.disabled = true;
         submitScoreBtn.textContent = '登録中...';
-        await submitScore(playerName, score);
+        
+        submitScore(playerName, score); // awaitは不要
+        
+        // フォーム送信は即座に完了するため、UIをすぐに戻す
         scoreSubmitModal.style.display = 'none';
         submitScoreBtn.disabled = false;
         skipSubmitBtn.disabled = false;
