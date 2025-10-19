@@ -13,15 +13,17 @@ const ctx = cvs.getContext('2d');
 const rotateMsg = document.getElementById('rotateMsg');
 const startBtn = document.getElementById('startBtn');
 const retryBtn = document.getElementById('retryBtn');
-const rankingBtn = document.getElementById('rankingBtn');
+const reseedBtn = document.getElementById('reseedBtn');
 const bgm = document.getElementById('bgm');
 const bgimg = document.getElementById('bgimg');
-bgm.volume = 0.1; // BGM音量を固定
+bgm.volume = 0.1;
 
 // ランキング関連
+const rankingBtn = document.getElementById('rankingBtn');
 const rankingModal = document.getElementById('rankingModal');
 const closeRankingBtn = document.getElementById('closeRankingBtn');
 const rankingBody = document.getElementById('rankingBody');
+const registerScoreBtn = document.getElementById('registerScoreBtn');
 
 // スコア登録関連
 const scoreSubmitModal = document.getElementById('scoreSubmitModal');
@@ -29,31 +31,10 @@ const playerNameInput = document.getElementById('playerNameInput');
 const submitScoreBtn = document.getElementById('submitScoreBtn');
 const skipSubmitBtn = document.getElementById('skipSubmitBtn');
 
-let reseedBtn = document.getElementById('reseedBtn');
-if (!reseedBtn) {
-    reseedBtn = document.createElement('button');
-    reseedBtn.id = 'reseedBtn';
-    document.body.appendChild(reseedBtn);
-}
-reseedBtn.textContent = '乱数再現';
-reseedBtn.style.position = 'absolute';
-reseedBtn.style.bottom = '20px';
-reseedBtn.style.right = '20px';
-reseedBtn.style.left = 'auto';
-reseedBtn.style.transform = 'none';
-reseedBtn.style.padding = '10px 20px';
-reseedBtn.style.fontSize = '16px';
-reseedBtn.style.backgroundColor = 'green';
-reseedBtn.style.color = 'white';
-reseedBtn.style.border = 'none';
-reseedBtn.style.borderRadius = '5px';
-reseedBtn.style.cursor = 'pointer';
-reseedBtn.style.display = 'none';
 
 // --- ゲーム変数 ---
 let chartIndex = 0, R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
-let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0;
-let noteDuration=55, noteTravelSec = noteDuration / 60;
+let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=55;
 let bestScore = Number(localStorage.getItem('bestScore')) || 0;
 let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=0, spCountdownTimer=0, spCountdownValue=0;
 let popups=[], hitRings=[], lastInputWasTouch=false;
@@ -63,16 +44,19 @@ let judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
 let spScoreBuffNotes = 0, noteCounter = 0, totalSPUsed = 0, permanentScoreBuff = 0, acFailFlashTimer = 0, waitingClearFrame = null;
 let audioContext, tapBuffer = null;
 
-// --- 乱数生成器 ---
-let _seed = 0;
-function setSeed(s) { _seed = s; }
-function seededRandom() { _seed = (_seed * 9301 + 49297) % 233280; return _seed / 233280; }
-let lastGameSeed = 0;
+// ノーツ到達までの秒数
+const noteTravelSec = noteDuration / 60;
 
 // --- 譜面データ ---
 const notesChart = [
   {"time": 0.54, "side": "left"}, {"time": 1.11, "side": "left"}, {"time": 1.48, "side": "right"}, {"time": 1.86, "side": "right"}, {"time": 2.61, "side": "right"}, {"time": 2.99, "side": "right"}, {"time": 3.18, "side": "left"}, {"time": 3.55, "side": "left"}, {"time": 4.12, "side": "left"}, {"time": 4.50, "side": "right"}, {"time": 4.69, "side": "left"}, {"time": 4.87, "side": "right"}, {"time": 4.87, "side": "left"}, {"time": 5.25, "side": "left"}, {"time": 5.63, "side": "left"}, {"time": 5.63, "side": "right"}, {"time": 6.57, "side": "left"}, {"time": 7.14, "side": "left"}, {"time": 7.52, "side": "right"}, {"time": 7.89, "side": "right"}, {"time": 8.65, "side": "left"}, {"time": 9.03, "side": "left"}, {"time": 9.22, "side": "right"}, {"time": 9.59, "side": "right"}, {"time": 10.16, "side": "left"}, {"time": 10.54, "side": "right"}, {"time": 10.91, "side": "left"}, {"time": 11.48, "side": "right"}, {"time": 12.23, "side": "right"}, {"time": 12.61, "side": "left"}, {"time": 12.99, "side": "right"}, {"time": 13.37, "side": "left"}, {"time": 13.74, "side": "right"}, {"time": 13.93, "side": "left"}, {"time": 14.87, "side": "left"}, {"time": 15.25, "side": "right"}, {"time": 15.44, "side": "right"}, {"time": 15.63, "side": "left"}, {"time": 16.01, "side": "right"}, {"time": 16.01, "side": "left"}, {"time": 16.39, "side": "left"}, {"time": 16.95, "side": "right"}, {"time": 17.33, "side": "left"}, {"time": 17.52, "side": "right"}, {"time": 17.89, "side": "right"}, {"time": 18.27, "side": "right"}, {"time": 18.27, "side": "left"}, {"time": 18.65, "side": "left"}, {"time": 19.03, "side": "right"}, {"time": 19.40, "side": "left"}, {"time": 19.78, "side": "right"}, {"time": 19.97, "side": "left"}, {"time": 20.91, "side": "left"}, {"time": 21.29, "side": "right"}, {"time": 21.48, "side": "right"}, {"time": 21.67, "side": "left"}, {"time": 22.05, "side": "right"}, {"time": 22.05, "side": "left"}, {"time": 22.43, "side": "left"}, {"time": 22.43, "side": "right"}, {"time": 22.99, "side": "right"}, {"time": 23.37, "side": "left"}, {"time": 23.55, "side": "right"}, {"time": 23.93, "side": "left"}, {"time": 24.12, "side": "left"}, {"time": 24.31, "side": "right"}, {"time": 24.69, "side": "left"}, {"time": 25.45, "side": "right"}, {"time": 25.82, "side": "right"}, {"time": 26.20, "side": "left"}, {"time": 26.76, "side": "left"}, {"time": 27.33, "side": "right"}, {"time": 27.71, "side": "right"}, {"time": 28.09, "side": "right"}, {"time": 28.28, "side": "right"}, {"time": 28.65, "side": "left"}, {"time": 28.84, "side": "right"}, {"time": 29.22, "side": "left"}, {"time": 29.78, "side": "left"}, {"time": 30.35, "side": "right"}, {"time": 30.73, "side": "right"}, {"time": 31.11, "side": "left"}, {"time": 31.29, "side": "right"}, {"time": 32.23, "side": "left"}, {"time": 32.61, "side": "right"}, {"time": 32.80, "side": "left"}, {"time": 33.18, "side": "right"}, {"time": 33.37, "side": "right"}, {"time": 33.74, "side": "right"}, {"time": 34.50, "side": "left"}, {"time": 34.87, "side": "left"}, {"time": 35.25, "side": "right"}, {"time": 36.01, "side": "left"}, {"time": 36.77, "side": "right"}, {"time": 36.77, "side": "left"}, {"time": 37.14, "side": "right"}, {"time": 37.33, "side": "left"}, {"time": 37.71, "side": "left"}, {"time": 38.08, "side": "right"}, {"time": 38.46, "side": "right"}, {"time": 38.65, "side": "right"}, {"time": 39.03, "side": "left"}, {"time": 39.41, "side": "right"}, {"time": 39.78, "side": "left"}, {"time": 40.16, "side": "right"}, {"time": 40.54, "side": "left"}, {"time": 40.91, "side": "right"}, {"time": 41.11, "side": "left"}, {"time": 41.48, "side": "left"}, {"time": 41.67, "side": "right"}, {"time": 42.05, "side": "left"}, {"time": 42.05, "side": "right"}, {"time": 42.80, "side": "left"}, {"time": 43.18, "side": "right"}, {"time": 43.55, "side": "left"}, {"time": 43.75, "side": "left"}, {"time": 44.12, "side": "left"}, {"time": 44.31, "side": "right"}, {"time": 44.69, "side": "right"}, {"time": 44.88, "side": "right"}, {"time": 45.07, "side": "left"}, {"time": 45.44, "side": "right"}, {"time": 45.63, "side": "left"}, {"time": 46.57, "side": "left"}, {"time": 46.96, "side": "right"}, {"time": 47.14, "side": "left"}, {"time": 47.52, "side": "right"}, {"time": 47.90, "side": "right"}, {"time": 48.27, "side": "left"}, {"time": 48.46, "side": "right"}, {"time": 48.84, "side": "left"}, {"time": 49.03, "side": "left"}, {"time": 49.22, "side": "right"}, {"time": 49.59, "side": "right"}, {"time": 49.76, "side": "left"}, {"time": 49.97, "side": "right"}, {"time": 50.35, "side": "left"}, {"time": 50.35, "side": "right"}, {"time": 50.92, "side": "right"}, {"time": 50.92, "side": "left"}, {"time": 51.29, "side": "left"}, {"time": 51.48, "side": "right"}, {"time": 51.86, "side": "left"}, {"time": 52.23, "side": "right"}, {"time": 52.61, "side": "left"}, {"time": 52.99, "side": "right"}, {"time": 53.18, "side": "left"}, {"time": 53.56, "side": "left"}, {"time": 53.75, "side": "right"}, {"time": 54.12, "side": "left"}, {"time": 54.12, "side": "right"}, {"time": 54.87, "side": "left"}, {"time": 55.25, "side": "right"}, {"time": 55.63, "side": "left"}, {"time": 55.82, "side": "left"}, {"time": 56.20, "side": "left"}, {"time": 56.39, "side": "right"}, {"time": 56.76, "side": "right"}, {"time": 57.14, "side": "left"}, {"time": 57.14, "side": "right"}, {"time": 57.90, "side": "right"}, {"time": 58.27, "side": "right"}, {"time": 58.65, "side": "left"}, {"time": 59.03, "side": "right"}, {"time": 59.22, "side": "left"}, {"time": 59.60, "side": "left"}, {"time": 59.78, "side": "right"}, {"time": 60.16, "side": "left"}, {"time": 60.54, "side": "right"}, {"time": 60.73, "side": "right"}, {"time": 60.92, "side": "right"}, {"time": 61.29, "side": "right"}, {"time": 61.67, "side": "left"}, {"time": 61.86, "side": "left"}, {"time": 62.05, "side": "right"}, {"time": 62.43, "side": "left"}, {"time": 62.80, "side": "right"}, {"time": 62.99, "side": "left"}, {"time": 63.37, "side": "left"}, {"time": 63.56, "side": "right"}, {"time": 63.94, "side": "right"}, {"time": 64.69, "side": "right"}, {"time": 65.07, "side": "right"}, {"time": 65.45, "side": "left"}, {"time": 65.82, "side": "right"}, {"time": 66.20, "side": "left"}, {"time": 66.39, "side": "right"}, {"time": 66.57, "side": "right"}, {"time": 66.95, "side": "left"}, {"time": 67.52, "side": "right"}, {"time": 67.90, "side": "left"}, {"time": 68.27, "side": "right"}, {"time": 69.22, "side": "left"}, {"time": 69.60, "side": "right"}, {"time": 69.97, "side": "left"}, {"time": 69.97, "side": "right"}, {"time": 70.54, "side": "right"}, {"time": 71.11, "side": "right"}, {"time": 71.11, "side": "left"}, {"time": 71.48, "side": "left"}, {"time": 71.86, "side": "right"}, {"time": 72.23, "side": "left"}, {"time": 72.43, "side": "left"}, {"time": 72.61, "side": "right"}, {"time": 72.99, "side": "left"}, {"time": 73.56, "side": "left"}, {"time": 74.12, "side": "right"}, {"time": 74.50, "side": "left"}, {"time": 74.87, "side": "right"}, {"time": 75.26, "side": "right"}, {"time": 76.01, "side": "right"}, {"time": 76.39, "side": "right"}, {"time": 76.76, "side": "left"}, {"time": 77.14, "side": "left"}, {"time": 77.33, "side": "right"}, {"time": 77.71, "side": "left"}, {"time": 77.90, "side": "left"}, {"time": 78.28, "side": "right"}, {"time": 78.65, "side": "right"}, {"time": 78.84, "side": "right"}, {"time": 79.03, "side": "left"}, {"time": 79.03, "side": "right"}, {"time": 79.56, "side": "left"}, {"time": 79.97, "side": "right"}, {"time": 80.35, "side": "right"}, {"time": 81.11, "side": "left"}, {"time": 81.48, "side": "left"}, {"time": 81.67, "side": "right"}, {"time": 82.05, "side": "right"}, {"time": 82.61, "side": "left"}, {"time": 82.61, "side": "right"}, {"time": 82.99, "side": "right"}, {"time": 83.37, "side": "left"}, {"time": 83.37, "side": "right"}, {"time": 83.93, "side": "right"}, {"time": 84.31, "side": "right"}, {"time": 84.88, "side": "left"}, {"time": 85.07, "side": "left"}, {"time": 85.44, "side": "right"}, {"time": 85.82, "side": "left"}, {"time": 86.20, "side": "right"}, {"time": 86.39, "side": "left"}
 ];
+
+// --- 乱数生成器 ---
+let _seed = 0;
+function setSeed(s) { _seed = s; }
+function seededRandom() { _seed = (_seed * 9301 + 49297) % 233280; return _seed / 233280; }
+let lastGameSeed = 0;
 
 // --- ランキング機能 ---
 async function showRanking() {
@@ -89,7 +73,7 @@ async function showRanking() {
             return;
         }
 
-        data.forEach((entry, index) => {
+        data.slice(0, 100).forEach((entry, index) => { // 上位100件のみ表示
             const row = `<tr>
                 <td>${index + 1}</td>
                 <td>${escapeHtml(entry.name)}</td>
@@ -104,22 +88,23 @@ async function showRanking() {
 }
 
 async function submitScore(name, scoreValue) {
+    if (scoreValue <= 0) {
+        alert("スコアが0のため、登録できません。");
+        return;
+    }
     try {
         const response = await fetch(GAS_URL, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: name, score: scoreValue }),
         });
 
-        if (!response.ok) {
-            throw new Error(`Server responded with status: ${response.status}`);
-        }
-
+        if (!response.ok) throw new Error(`Server responded with status: ${response.status}`);
+        
         const result = await response.json();
         if (result.status === 'success') {
             console.log('Score submitted successfully.');
+            alert('スコアを登録しました！');
         } else {
             throw new Error(result.message || 'Failed to submit score.');
         }
@@ -134,10 +119,14 @@ function escapeHtml(str) {
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-
 // --- イベントリスナー ---
 rankingBtn.addEventListener('click', showRanking);
 closeRankingBtn.addEventListener('click', () => { rankingModal.style.display = 'none'; });
+
+registerScoreBtn.addEventListener('click', () => {
+    scoreSubmitModal.style.display = 'flex';
+    registerScoreBtn.style.display = 'none'; // 登録ボタンは一旦隠す
+});
 
 submitScoreBtn.addEventListener('click', async () => {
     const playerName = playerNameInput.value.trim();
@@ -150,9 +139,6 @@ submitScoreBtn.addEventListener('click', async () => {
         submitScoreBtn.disabled = false;
         skipSubmitBtn.disabled = false;
         submitScoreBtn.textContent = '登録';
-        // 登録後にリザルト画面のボタンを表示
-        retryBtn.style.display = "block";
-        reseedBtn.style.display = "block";
     } else {
         alert('名前を入力してください。');
     }
@@ -160,17 +146,11 @@ submitScoreBtn.addEventListener('click', async () => {
 
 skipSubmitBtn.addEventListener('click', () => {
     scoreSubmitModal.style.display = 'none';
-    // スキップ後もリザルト画面のボタンを表示
-    retryBtn.style.display = "block";
-    reseedBtn.style.display = "block";
 });
-
 
 // --- 効果音ロード ---
 async function loadTapSE() {
-  if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  }
+  if (!audioContext) { audioContext = new (window.AudioContext || window.webkitAudioContext)(); }
   await audioContext.resume();
   if (!tapBuffer) {
     const response = await fetch('tap.wav');
@@ -191,39 +171,40 @@ function playTapSE() {
 // --- AC（アピールチャンス）関連 ---
 acList.forEach(ac => { ac.tapScore = 0; ac.spScore = 0; });
 
+function assignACNoteIndexes() {
+  for (const ac of acList) {
+    ac.startIdx = notesChart.findIndex(n => n.time >= ac.startTime);
+    let lastIdx = -1;
+    for (let i = 0; i < notesChart.length; i++) { if (notesChart[i].time <= ac.endTime) lastIdx = i; }
+    ac.endIdx = lastIdx;
+  }
+}
 function getActiveACByTime(nowTime) { return acList.find(ac => (ac.state === "active" || (ac.state === "cleared" && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec)) && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec); }
 function isACActiveByTime(nowTime) { return !!getActiveACByTime(nowTime); }
 function isACClearedNowByTime(nowTime) { return !!acList.find(ac => ac.state === "cleared" && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec); }
 
-// --- レイアウト・ターゲット位置 ---
+// --- レイアウト・ボタン表示管理 ---
 function resizeCanvas(){
   const landscape = window.innerWidth >= window.innerHeight;
   rotateMsg.style.display = landscape ? 'none' : 'flex';
   cvs.style.display = landscape ? 'block' : 'none';
 
+  // 全ボタンを一旦非表示
+  startBtn.style.display='none';
+  rankingBtn.style.display='none';
+  retryBtn.style.display='none';
+  reseedBtn.style.display='none';
+  registerScoreBtn.style.display='none';
+
   if (landscape) {
     if (gameState === "init") {
         startBtn.style.display = 'block';
         rankingBtn.style.display = 'block';
-        retryBtn.style.display = 'none';
-        reseedBtn.style.display = 'none';
     } else if (gameState === "result") {
-        startBtn.style.display = 'none';
-        rankingBtn.style.display = 'none';
-        // スコア登録が終わるまでボタンは非表示
-        retryBtn.style.display = 'none';
-        reseedBtn.style.display = 'none';
-    } else {
-        startBtn.style.display = 'none';
-        rankingBtn.style.display = 'none';
-        retryBtn.style.display = 'none';
-        reseedBtn.style.display = 'none';
+        retryBtn.style.display = 'block';
+        reseedBtn.style.display = 'block';
+        registerScoreBtn.style.display = 'block';
     }
-  } else {
-      startBtn.style.display = 'none';
-      rankingBtn.style.display = 'none';
-      retryBtn.style.display = 'none';
-      reseedBtn.style.display = 'none';
   }
 
   cvs.width = window.innerWidth;
@@ -238,12 +219,17 @@ function resizeCanvas(){
 }
 window.addEventListener('resize', resizeCanvas);
 
+
 // --- ゲームロジック (コア部分) ---
 function cubicBezier(p0,p1,p2,p3,t){const u=1-t;return {x:u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,y:u*u*u*p0.y+3*u*u*t*p1.y+3*u*t*t*p2.y+t*t*t*p3.y};}
 function makePath(side){const target= side==='left'? leftTarget : rightTarget;const startX = side==='left' ? (-R*2-10) : (cvs.width+R*2+10);const start={x:startX, y: target.y - Math.max(180, R*6)};const c1={x: side==='left' ? target.x - Math.max(200,R*6) : target.x + Math.max(200,R*6), y: target.y - Math.max(200,R*6)};const c2={x: side==='left' ? target.x - Math.max(60,R*2)  : target.x + Math.max(60,R*2),  y: target.y - Math.max(40,R*1.3)};const end={x: target.x, y: target.y};return {p0:start,p1:c1,p2:c2,p3:end};}
 function spawnNote(side, chartIdx){ notes.push({ side, t:0, duration:noteDuration, path:makePath(side), chartIdx: chartIdx }); }
 function addPopup(text,x,y,ms,type){const d=Math.max(1,Math.round(ms/16.67));popups.push({text,x,y,timer:d,duration:d,type});}
 function triggerSPVisual(){ spFlashTimer=10; spRingTimer=spRingSpeed; }
+
+function getComboBonus(combo) {
+  if (combo >= 71) return 1.04; if (combo >= 51) return 1.03; if (combo >= 31) return 1.02; if (combo >= 11) return 1.01; return 1.0;
+}
 
 function updateACOnTap(pointsWithCombo, nowTime) {
   noteCounter++;
@@ -288,13 +274,13 @@ function calcTapScoreAndLabel(dist, baseRaw){
 }
 
 function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
-  playTapSE(); let nowTime = bgm.currentTime; let acBuff = 1.0; if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) acBuff = 1.1; let spBuff = 1.0; if (spScoreBuffNotes > 0) { spBuff = 1.1; spScoreBuffNotes--; }
+  playTapSE(); let nowTime = bgm.currentTime || 0; let acBuff = 1.0; if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) acBuff = 1.1; let spBuff = 1.0; if (spScoreBuffNotes > 0) { spBuff = 1.1; spScoreBuffNotes--; }
   let permanentBuff = 1 + permanentScoreBuff * 0.05; const comboBonus = getComboBonus(combo+1); let pointsWithCombo = Math.floor(points * comboBonus * acBuff * spBuff * permanentBuff); if(pointsWithCombo > 50000) pointsWithCombo = 50000;
   score += pointsWithCombo; if(resetCombo){if(spValue<SP_MAX) spValue=Math.max(0, spValue-300);combo=0;} else combo++; spValue=Math.min(SP_MAX, spValue+200); hitRings.push({x:target.x,y:target.y,r:target.r,alpha:1});
   const midX = (leftTarget.x + rightTarget.x) / 2; const midY = (leftTarget.y + rightTarget.y) / 2 - R*2; addPopup(label, midX, midY - 30, 500, 'label'); addPopup(String(pointsWithCombo), midX, midY, 500, 'score'); if(judgeCount[label] !== undefined) judgeCount[label]++;
   if(seededRandom() < 0.33){
     skillActivationCount++; const skillType = Math.floor(seededRandom()*3);
-    if(skillType===0){ let voltage = baseRaw; if (appealBoostNotes > 0) voltage = Math.ceil(voltage * 1.12); if (spBoostTimer > 0) voltage = Math.floor(voltage * 1.1); const comboBonus = getComboBonus(combo + 1); voltage = Math.floor(voltage * comboBonus); let nowTime = bgm.currentTime; if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) voltage = Math.floor(voltage * 1.1); if (spScoreBuffNotes > 0) voltage = Math.floor(voltage * 1.1); let permanentBuff = 1 + permanentScoreBuff * 0.05; voltage = Math.floor(voltage * permanentBuff); if (voltage > 50000) voltage = 50000; score += voltage; skillHistory.unshift({text:`[追加スコア獲得 ${voltage}]`, life:180}); }
+    if(skillType===0){ let voltage = baseRaw; if (appealBoostNotes > 0) voltage = Math.ceil(voltage * 1.12); if (spBoostTimer > 0) voltage = Math.floor(voltage * 1.1); const comboBonus = getComboBonus(combo + 1); voltage = Math.floor(voltage * comboBonus); let nowTime = bgm.currentTime || 0; if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) voltage = Math.floor(voltage * 1.1); if (spScoreBuffNotes > 0) voltage = Math.floor(voltage * 1.1); let permanentBuff = 1 + permanentScoreBuff * 0.05; voltage = Math.floor(voltage * permanentBuff); if (voltage > 50000) voltage = 50000; score += voltage; skillHistory.unshift({text:`[追加スコア獲得 ${voltage}]`, life:180}); }
     else if(skillType===1){ spValue = Math.min(SP_MAX, spValue+540); skillHistory.unshift({text:`[SPゲージ獲得 9%]`, life:180}); }
     else{ appealBoostNotes = 5; skillHistory.unshift({text:`[アピール増加 12%]`, life:180}); }
     if(skillHistory.length>5) skillHistory.pop();
@@ -307,7 +293,7 @@ function applyMiss(label='MISS'){ if(spValue<SP_MAX) spValue=Math.max(0, spValue
 function isInSPSemicircle(mx,my){ const cx=cvs.width/2, cy=cvs.height-10, r=spRadius; const dx=mx-cx, dy=my-cy, dist=Math.hypot(dx,dy); return (dist<=r) && (my<=cy); }
 
 function tryUseSP(mx,my){
-  if(spValue<SP_MAX) return false; if(!isInSPSemicircle(mx,my)) return false; let nowTime = bgm.currentTime; spUseCount++; let spBase = 180000; if (appealBoostNotes > 0) { spBase = Math.ceil(spBase * 1.12); appealBoostNotes--; }
+  if(spValue<SP_MAX) return false; if(!isInSPSemicircle(mx,my)) return false; let nowTime = bgm.currentTime || 0; spUseCount++; let spBase = 180000; if (appealBoostNotes > 0) { spBase = Math.ceil(spBase * 1.12); appealBoostNotes--; }
   let permanentBuff = 1 + permanentScoreBuff * 0.05; const comboBonus = getComboBonus(combo); let spScore = spBase; if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) spScore = Math.floor(spScore * 1.1); if(spBoostTimer>0) spScore = Math.floor(spScore * 1.1);
   spScore = Math.floor(spScore * comboBonus * permanentBuff); if (spScore > 250000) spScore = 250000; score += spScore; spValue = 0; spRingSpeed = 10; spRingRange = 80; triggerSPVisual(); spBoostTimer = 240; spCountdownTimer = 240; spCountdownValue = 3;
   addPopup(String(spScore), cvs.width/2, cvs.height/2, 1800, 'sp'); addPopup('', 0, 0, 180, 'flash');
@@ -332,7 +318,7 @@ cvs.addEventListener('touchstart',handlePointer,{passive:false});
 cvs.addEventListener('mousedown',handlePointer);
 
 async function startGame(seed) {
-  await loadTapSE(); setSeed(seed); lastGameSeed = seed; chartIndex = 0; totalNotesSpawned = 0; notes = []; spValue=0; spFullNotified=false; score=0; combo=0; skillHistory = []; appealBoostNotes = 0; skillActivationCount = 0; spUseCount = 0; progressDisplay = 0; spFlashTimer=0; spRingTimer=0; spRingSpeed=20; spRingRange=40; spBoostTimer=0; spCountdownTimer=0; spCountdownValue=0; spScoreBuffNotes = 0; popups=[]; hitRings=[]; frame = 0; countdownValue = 3; judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0}; noteCounter = 0; totalSPUsed = 0; permanentScoreBuff = 0;
+  await loadTapSE(); assignACNoteIndexes(); setSeed(seed); lastGameSeed = seed; chartIndex = 0; totalNotesSpawned = 0; notes = []; spValue=0; spFullNotified=false; score=0; combo=0; skillHistory = []; appealBoostNotes = 0; skillActivationCount = 0; spUseCount = 0; progressDisplay = 0; spFlashTimer=0; spRingTimer=0; spRingSpeed=20; spRingRange=40; spBoostTimer=0; spCountdownTimer=0; spCountdownValue=0; spScoreBuffNotes = 0; popups=[]; hitRings=[]; frame = 0; countdownValue = 3; judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0}; noteCounter = 0; totalSPUsed = 0; permanentScoreBuff = 0;
   if(seededRandom() < 0.5){ permanentScoreBuff++; skillHistory.unshift({text:"[アピール増加永続 5%]", life:180}); if(skillHistory.length>5) skillHistory.pop(); }
   acList.forEach(ac=>{ ac.state = "waiting"; ac.progress = 0; ac.cleared = false; ac.tapScore = 0; ac.spScore = 0; });
   gameState = "countdown"; resizeCanvas();
@@ -344,24 +330,28 @@ reseedBtn.onclick = function() { startGame(lastGameSeed); };
 function update(){
   frame++;
   if(gameState==="countdown"){
-    if(frame % 60 === 0 && countdownValue>0){ countdownValue--; if(countdownValue===0){ setTimeout(()=>{ gameState="playing"; frame = 0; bgm.currentTime = 0; bgm.play().catch(()=>{}); },1000); } }
+    if(frame % 60 === 0 && countdownValue>0){ countdownValue--; if(countdownValue===0){ setTimeout(()=>{ gameState="playing"; frame = 0; bgm.currentTime = 0; bgm.volume = 0.10; bgm.play().catch(()=>{}); },1000); } }
     if(acFailFlashTimer > 0) acFailFlashTimer--; return;
   }
   if (gameState === "playing" && !bgm.paused) {
-    const bgmNowSec = bgm.currentTime; // ★★★ 修正点 ★★★
-    while (chartIndex < notesChart.length && bgmNowSec >= notesChart[chartIndex].time - noteTravelSec) { spawnNote(notesChart[chartIndex].side, chartIndex); totalNotesSpawned++; chartIndex++; }
+    const bgmNowSec = bgm.currentTime;
+    while (chartIndex < notesChart.length && bgmNowSec >= notesChart[chartIndex].time - noteTravelSec) {
+      spawnNote(notesChart[chartIndex].side, chartIndex); 
+      totalNotesSpawned++;
+      chartIndex++;
+    }
     if(acFailFlashTimer > 0) acFailFlashTimer--;
   }
   for(const n of notes) n.t++;
   const keep=[];for(const n of notes){if(n.t<=n.duration+5) keep.push(n);else applyMiss('MISS');}notes=keep;
   if(gameState==="playing" && chartIndex>=notesChart.length && notes.length===0){
     if(waitingClearFrame === null){ waitingClearFrame = frame; }
-    if(frame - waitingClearFrame >= 120){ gameState="clear"; clearStartFrame=frame; waitingClearFrame = null; let fadeOut = setInterval(() => { if (bgm.volume > 0.02) { bgm.volume -= 0.02; } else { bgm.pause(); bgm.currentTime = 0; clearInterval(fadeOut); bgm.volume = 0.1; } }, 50); }
+    if(frame - waitingClearFrame >= 120){ gameState="clear"; clearStartFrame=frame; waitingClearFrame = null; let fadeOut = setInterval(() => { if (bgm.volume > 0.02) { bgm.volume -= 0.02; } else { bgm.pause(); bgm.currentTime = 0; clearInterval(fadeOut); bgm.volume = 0.10; } }, 50); }
   } else { waitingClearFrame = null; }
   if(gameState==="clear" && frame-clearStartFrame>120){
     gameState="result"; resultStartFrame=frame;
     if(score > bestScore) { bestScore = score; localStorage.setItem('bestScore', bestScore); }
-    scoreSubmitModal.style.display = 'flex'; // スコア登録画面を表示
+    resizeCanvas(); // ボタン表示を更新
   }
   if(spValue>=SP_MAX){ if(!spFullNotified){ triggerSPVisual(); spFullNotified=true; } } else spFullNotified=false;
   if(spCountdownTimer>0){ spCountdownTimer--; if(spCountdownTimer % 60 === 0){ spCountdownValue = Math.max(0, spCountdownValue-1); } }
@@ -371,7 +361,6 @@ function update(){
   popups=popups.filter(p=>{p.timer--; return p.timer>0;});
 }
 
-// --- 描画処理 ---
 function drawNotes(){
   const pairs = getSimultaneousPairsInNotes(); ctx.save(); ctx.strokeStyle = "#fff"; ctx.lineWidth = R * 0.19; ctx.globalAlpha = 0.8;
   for (const [n1, n2] of pairs) { const pos1 = cubicBezier(n1.path.p0, n1.path.p1, n1.path.p2, n1.path.p3, Math.min(1, n1.t/n1.duration)); const pos2 = cubicBezier(n2.path.p0, n2.path.p1, n2.path.p2, n2.path.p3, Math.min(1, n2.t/n2.duration)); ctx.beginPath(); ctx.moveTo(pos1.x, pos1.y); ctx.lineTo(pos2.x, pos2.y); ctx.stroke(); }
@@ -388,7 +377,7 @@ function drawNotes(){
   }
 }
 function drawACMissionNotice(){
-  let nowTime = bgm.currentTime; const ac = acList.find(ac => (ac.state === "active" || ac.state === "cleared") && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec); if(!ac) return;
+  let nowTime = bgm.currentTime || 0; const ac = acList.find(ac => (ac.state === "active" || ac.state === "cleared") && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec); if(!ac) return;
   const barMarginLeft = 20; const barMarginRight = 200; const barWidth = Math.max(140, cvs.width - barMarginLeft - barMarginRight); const w = Math.max(cvs.width * 0.6, 400); const h = Math.max(30, Math.round(cvs.height*0.035)); const x = (cvs.width-w)/2; const y = Math.max( barWidth*0.02+50, cvs.height*0.12 );
   ctx.save(); ctx.textAlign = "center"; ctx.font = `bold ${Math.round(h*0.4)}px system-ui`; ctx.lineWidth = 3; ctx.strokeStyle = ac.cleared ? "#FFD700" : "#ff69b4"; ctx.fillStyle = ac.cleared ? "#FFD700" : "#ff69b4"; ctx.globalAlpha = 0.82; ctx.beginPath(); ctx.roundRect(x, y, w, h, 13); ctx.fill(); ctx.globalAlpha = 1; ctx.stroke(); ctx.fillStyle = "#fff"; ctx.globalAlpha = 1;
   let text = ac.type === "score" ? `AC: ${ac.desc}（${ac.progress|0}/${ac.target}）` : `AC: ${ac.desc}（${ac.progress|0}/${ac.target}）`; if(ac.cleared) text = "ACクリア！ " + text; ctx.fillText(text, x+w/2, y+h/2+2); ctx.restore();
@@ -417,24 +406,22 @@ function drawSPBoostFrame() { if (typeof spBoostTimer === 'undefined' || spBoost
 function drawJudgeCountsResult() { const baseX = 30; const baseY = cvs.height - 28; const lineH = Math.max(14, Math.round(cvs.height * 0.03)); const labels = ["CRITICAL", "WONDERFUL", "GREAT", "NICE", "BAD", "MISS"]; ctx.save(); ctx.textBaseline = 'top'; ctx.font = `bold ${lineH}px system-ui`; let maxLabelWidth = 0, maxCountWidth = 0; for(const l of labels) { const w1 = ctx.measureText(l).width; const w2 = ctx.measureText(judgeCount[l].toString()).width; if(w1>maxLabelWidth) maxLabelWidth = w1; if(w2>maxCountWidth) maxCountWidth = w2; } const gap = 16; for(let i=0;i<labels.length;i++){ const l = labels[i]; const y = baseY - lineH * (labels.length - i); ctx.textAlign = 'left'; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.82; ctx.fillText(l, baseX, y); ctx.textAlign = 'right'; ctx.fillStyle = "#ffd700"; ctx.globalAlpha = 0.94; ctx.fillText(judgeCount[l], baseX + maxLabelWidth + gap + maxCountWidth, y); } ctx.globalAlpha = 1.0; ctx.restore(); }
 
 function render(){
-  ctx.clearRect(0,0,cvs.width,cvs.height);
+   ctx.clearRect(0,0,cvs.width,cvs.height);
   if(bgimg.complete && bgimg.naturalWidth > 0) { ctx.save(); ctx.globalAlpha = 0.3; ctx.drawImage(bgimg, 0, 0, cvs.width, cvs.height); ctx.globalAlpha = 1; ctx.restore(); } else { ctx.fillStyle = "#0f172a"; ctx.fillRect(0,0,cvs.width,cvs.height); }
   
-  if (gameState === "init") { return; }
+  if(gameState==="init"){ return; }
 
   drawProgressBarWithAC(); drawTargets(); drawNotes(); drawHitRings(); drawSPGauge(); drawPopups(); drawUI(); drawOverlays(); drawSPBoostFrame(); drawSkillHistory(); drawACMissionNotice(); drawACFailFlash();
   
   if(gameState==="countdown"){
-    const txt = countdownValue>0 ? countdownValue : 1; ctx.textAlign='center'; ctx.font=`bold ${Math.round(cvs.height*0.22)}px system-ui`; ctx.lineWidth=10; ctx.strokeStyle='#000'; ctx.strokeText(txt, cvs.width/2, cvs.height/2); ctx.fillStyle='#fff'; ctx.fillText(txt, cvs.width/2, cvs.height/2); return;
+    const txt = countdownValue>0 ? countdownValue : 1;
+    ctx.textAlign='center'; ctx.font=`bold ${Math.round(cvs.height*0.22)}px system-ui`; ctx.lineWidth=10; ctx.strokeStyle='#000'; ctx.strokeText(txt, cvs.width/2, cvs.height/2); ctx.fillStyle='#fff'; ctx.fillText(txt, cvs.width/2, cvs.height/2); return;
   }
   drawSPCountdown();
   if(gameState==="clear"){
     ctx.textAlign='center'; ctx.font=`bold ${Math.round(cvs.height*0.14)}px system-ui`; ctx.lineWidth=10; ctx.strokeStyle='#fff'; ctx.strokeText('CLEAR', cvs.width/2, cvs.height/2); ctx.fillStyle='#ffa500'; ctx.fillText('CLEAR', cvs.width/2, cvs.height/2); return;
   }
   if(gameState==="result"){
-    // スコア登録が終わるまではボタンは表示しない
-    // retryBtn.style.display = "block"; 
-    // reseedBtn.style.display = "block";
     const t = Math.min(1, (frame - (resultStartFrame||frame)) / 60); const scale = 0.8 + 0.2*Math.sin(t*Math.PI/2);
     ctx.save(); ctx.translate(cvs.width/2, cvs.height/2); ctx.scale(scale, scale); ctx.textAlign='center';
     ctx.font=`bold ${Math.round(cvs.height*0.10)}px system-ui`; ctx.lineWidth=8; ctx.strokeStyle='#000'; ctx.strokeText('RESULT', 0, -90); ctx.fillStyle='#ffa500'; ctx.fillText('RESULT', 0, -90);
@@ -442,9 +429,8 @@ function render(){
     ctx.font=`bold ${scoreFontSize}px system-ui`; ctx.lineWidth=10; ctx.strokeStyle='#000'; ctx.strokeText(`SCORE: ${score}`, 0, 0); ctx.fillStyle='#39ff14'; ctx.fillText(`SCORE: ${score}`, 0, 0);
     ctx.font=`bold ${scoreFontSize*0.8}px system-ui`; ctx.lineWidth=8; ctx.strokeStyle="#000"; ctx.strokeText(`BEST SCORE: ${bestScore}`, 0, 28); ctx.fillStyle="#ffd700"; ctx.fillText(`BEST SCORE: ${bestScore}`, 0, 28);
     ctx.font=`bold ${Math.round(cvs.height*0.04)}px system-ui`; ctx.lineWidth=6; ctx.strokeStyle='#000'; ctx.strokeText(`特技発動回数: ${skillActivationCount}`, 0, 60); ctx.strokeText(`SP使用回数: ${spUseCount}`, 0, 80); ctx.fillStyle='#e5faff'; ctx.fillText(`特技発動回数: ${skillActivationCount}`, 0, 60); ctx.fillText(`SP使用回数: ${spUseCount}`, 0, 80);
-    ctx.restore(); drawJudgeCountsResult(); return;
+    ctx.restore(); drawJudgeCountsResult();
   }
 }
-
 function loop(){ update(); render(); requestAnimationFrame(loop); }
-(function init(){ resizeCanvas(); loop(); })();
+(function start(){ resizeCanvas(); loop(); })();
