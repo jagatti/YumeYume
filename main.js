@@ -98,36 +98,34 @@ function showRanking() {
         if (script.parentNode) script.parentNode.removeChild(script);
     };
     
-    // 【重要】ランキング表示は /dev URL を使う
     script.src = `${GAS_URL}?callback=${callbackName}&t=${timestamp}`;
     document.head.appendChild(script);
 }
 
+// ★★★★★【最終修正】事前確認を発生させない「単純なリクエスト」に変更 ★★★★★
 async function submitScore(name, scoreValue) {
     if (scoreValue <= 0) {
         alert("スコアが0のため、登録できません。");
         return;
     }
     try {
-        // 【重要】スコア登録も同じ /dev URL を使う
         const response = await fetch(GAS_URL, {
             method: 'POST',
-            mode: 'cors', // modeを 'cors' に戻す
+            // mode: 'no-cors', // no-corsは不要
             headers: {
-              'Content-Type': 'application/json', // ヘッダーも 'application/json' に戻す
+              // 'Content-Type': 'application/json' ではなく 'text/plain' を使う
+              'Content-Type': 'text/plain;charset=utf-8',
             },
+            // bodyもJSON文字列をそのまま送る
             body: JSON.stringify({ name: name, score: scoreValue }),
         });
 
-        if (!response.ok) {
-            throw new Error(`サーバーエラー: ${response.status}`);
-        }
-        
+        // レスポンスはJSONとして正しく受け取れる
         const result = await response.json();
         
         if (result.status === 'success') {
-            console.log('Score submitted successfully.');
-            alert('スコアを登録しました！');
+            console.log('Score submitted successfully:', result.message);
+            alert(result.message);
         } else {
             throw new Error(result.message || 'スコア登録に失敗しました。');
         }
