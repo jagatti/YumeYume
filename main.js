@@ -58,10 +58,11 @@ if (!reseedBtn) {
 }
 reseedBtn.textContent = '乱数再現';
 reseedBtn.style.position = 'absolute';
-// リトライボタンの下に配置
-reseedBtn.style.bottom = 'calc(50vh - 25px - 45px)'; // retryBtnのbottom(50vh - 25px)から更に45px下
-reseedBtn.style.left = '50%';
-reseedBtn.style.transform = 'translateX(-50%)';
+// 画面右下に配置
+reseedBtn.style.bottom = '20px';
+reseedBtn.style.right = '20px';
+reseedBtn.style.left = 'auto';
+reseedBtn.style.transform = 'none';
 reseedBtn.style.padding = '10px 20px';
 reseedBtn.style.fontSize = '16px';
 reseedBtn.style.backgroundColor = 'green';
@@ -74,7 +75,6 @@ reseedBtn.style.display = 'none'; // 最初は非表示
 const bgm = document.getElementById('bgm');
 const bgimg = document.getElementById('bgimg');
 bgm.volume = 0.1;
-
 
 // --- 譜面データを直接埋め込む ---
 const notesChart = [
@@ -1654,3 +1654,4 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ loop(); })();
+
