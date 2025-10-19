@@ -1,4 +1,4 @@
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzOyvSNt964-TsBnwui_EkpknM16xrUt4R_1dq4ux6pdWlzz1rpJ8WlUMTTShJChdAk/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbz84g1w8xKfuXDcGMV-i5lV3AgLyOBb-0OgnnnfDlTNGG8rg4vRFSKs3n7ZoyFmPjTA/exec';
 
 // --- AC（アピールチャンス）設定 ---
 const acList = [
@@ -434,6 +434,7 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ resizeCanvas(); loop(); })();
+
 
 
 
