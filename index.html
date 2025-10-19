@@ -51,20 +51,30 @@
             max-width: 500px;
         }
         .setting-item {
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 120px 1fr 60px; /* ラベル | スライダー | 値 */
             align-items: center;
+            gap: 15px; /* 各要素間の隙間 */
             margin-bottom: 15px;
         }
         .setting-item label {
             font-size: 16px;
+            text-align: left; /* ラベルを左揃えに */
         }
         .setting-item input[type="range"] {
-            width: 50%;
+            width: 100%; /* スライダーが中央のエリアを埋めるように */
+        }
+        .setting-item span {
+            text-align: right; /* 値を右揃えに */
+        }
+        /* チェックボックス用の特別スタイル */
+        .setting-item.checkbox-item {
+            grid-template-columns: 1fr auto; /* ラベル | チェックボックス */
         }
         .setting-item input[type="checkbox"] {
             width: 20px;
             height: 20px;
+            justify-self: end; /* チェックボックスを右端に配置 */
         }
         #closeSettingsBtn {
             position: static;
@@ -107,7 +117,7 @@
                 <input type="range" id="seVolume" min="0" max="100" value="100">
                 <span id="seVolumeValue">100</span>
             </div>
-            <div class="setting-item">
+            <div class="setting-item checkbox-item">
                 <label for="bgToggle">背景を表示</label>
                 <input type="checkbox" id="bgToggle" checked>
             </div>
@@ -115,10 +125,9 @@
         </div>
     </div>
     
-    <audio id="bgm" src="YumeYume.wav" preload="auto"></audio>
+    <audio id="bgm" src=YumeYume.wav" preload="auto"></audio>
     <img id="bgimg" src="bg.jpg" style="display:none;">
 
     <script src="main.js"></script>
 </body>
 </html>
-
