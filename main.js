@@ -31,7 +31,6 @@ const playerNameInput = document.getElementById('playerNameInput');
 const submitScoreBtn = document.getElementById('submitScoreBtn');
 const skipSubmitBtn = document.getElementById('skipSubmitBtn');
 
-
 // --- ゲーム変数 ---
 let chartIndex = 0, R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
 let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=55;
@@ -44,7 +43,6 @@ let judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
 let spScoreBuffNotes = 0, noteCounter = 0, totalSPUsed = 0, permanentScoreBuff = 0, acFailFlashTimer = 0, waitingClearFrame = null;
 let audioContext, tapBuffer = null;
 
-// ノーツ到達までの秒数
 const noteTravelSec = noteDuration / 60;
 
 // --- 譜面データ ---
@@ -58,14 +56,16 @@ function setSeed(s) { _seed = s; }
 function seededRandom() { _seed = (_seed * 9301 + 49297) % 233280; return _seed / 233280; }
 let lastGameSeed = 0;
 
-// --- ランキング機能 ---
-async function showRanking() {
+// --- ランキング機能 (JSONP対応) ---
+function showRanking() {
     rankingBody.innerHTML = '<tr><td colspan="3">読み込み中...</td></tr>';
     rankingModal.style.display = 'flex';
-    try {
-        const response = await fetch(GAS_URL);
-        if (!response.ok) throw new Error('Network response was not ok.');
-        const data = await response.json();
+
+    // JSONPのためのコールバック関数をグローバルに定義
+    window.displayRankingData = (data) => {
+        if (data.status === 'error') {
+            throw new Error(data.message);
+        }
         
         rankingBody.innerHTML = ''; // テーブルをクリア
         if (data.length === 0) {
@@ -81,10 +81,24 @@ async function showRanking() {
             </tr>`;
             rankingBody.innerHTML += row;
         });
-    } catch (error) {
+        
+        // 後片付け
+        delete window.displayRankingData;
+    };
+
+    // scriptタグを動的に生成してJSONPリクエストを実行
+    const script = document.createElement('script');
+    script.src = `${GAS_URL}?callback=displayRankingData`;
+    
+    script.onerror = () => {
         rankingBody.innerHTML = `<tr><td colspan="3">ランキングの取得に失敗しました。</td></tr>`;
-        console.error('Error fetching ranking:', error);
-    }
+        console.error('Error fetching ranking via JSONP.');
+        delete window.displayRankingData;
+    };
+    
+    document.body.appendChild(script);
+    // scriptタグを削除して後片付け
+    document.body.removeChild(script);
 }
 
 async function submitScore(name, scoreValue) {
@@ -95,6 +109,7 @@ async function submitScore(name, scoreValue) {
     try {
         const response = await fetch(GAS_URL, {
             method: 'POST',
+            mode: 'cors', // mode: 'cors' を明示 (デフォルト)
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: name, score: scoreValue }),
         });
@@ -116,7 +131,7 @@ async function submitScore(name, scoreValue) {
 }
 
 function escapeHtml(str) {
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    return str.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
 // --- イベントリスナー ---
@@ -125,7 +140,7 @@ closeRankingBtn.addEventListener('click', () => { rankingModal.style.display = '
 
 registerScoreBtn.addEventListener('click', () => {
     scoreSubmitModal.style.display = 'flex';
-    registerScoreBtn.style.display = 'none'; // 登録ボタンは一旦隠す
+    registerScoreBtn.style.display = 'none';
 });
 
 submitScoreBtn.addEventListener('click', async () => {
@@ -134,7 +149,7 @@ submitScoreBtn.addEventListener('click', async () => {
         submitScoreBtn.disabled = true;
         skipSubmitBtn.disabled = true;
         submitScoreBtn.textContent = '登録中...';
-        await submitScore(playerName, score); // `score` はグローバル変数の現在のスコア
+        await submitScore(playerName, score);
         scoreSubmitModal.style.display = 'none';
         submitScoreBtn.disabled = false;
         skipSubmitBtn.disabled = false;
@@ -189,7 +204,6 @@ function resizeCanvas(){
   rotateMsg.style.display = landscape ? 'none' : 'flex';
   cvs.style.display = landscape ? 'block' : 'none';
 
-  // 全ボタンを一旦非表示
   startBtn.style.display='none';
   rankingBtn.style.display='none';
   retryBtn.style.display='none';
@@ -351,7 +365,7 @@ function update(){
   if(gameState==="clear" && frame-clearStartFrame>120){
     gameState="result"; resultStartFrame=frame;
     if(score > bestScore) { bestScore = score; localStorage.setItem('bestScore', bestScore); }
-    resizeCanvas(); // ボタン表示を更新
+    resizeCanvas();
   }
   if(spValue>=SP_MAX){ if(!spFullNotified){ triggerSPVisual(); spFullNotified=true; } } else spFullNotified=false;
   if(spCountdownTimer>0){ spCountdownTimer--; if(spCountdownTimer % 60 === 0){ spCountdownValue = Math.max(0, spCountdownValue-1); } }
@@ -434,11 +448,3 @@ function render(){
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
 (function start(){ resizeCanvas(); loop(); })();
-
-
-
-
-
-
-
-
