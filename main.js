@@ -61,44 +61,59 @@ function showRanking() {
     rankingBody.innerHTML = '<tr><td colspan="3">読み込み中...</td></tr>';
     rankingModal.style.display = 'flex';
 
-    // JSONPのためのコールバック関数をグローバルに定義
-    window.displayRankingData = (data) => {
-        if (data.status === 'error') {
-            throw new Error(data.message);
-        }
-        
-        rankingBody.innerHTML = ''; // テーブルをクリア
-        if (data.length === 0) {
-            rankingBody.innerHTML = '<tr><td colspan="3">まだ誰もプレイしていません。</td></tr>';
-            return;
-        }
+    // scriptタグを毎回ユニークにするためのタイムスタンプ
+    const timestamp = new Date().getTime();
+    // コールバック関数名もユニークにする
+    const callbackName = 'jsonp_callback_' + timestamp;
 
-        data.slice(0, 100).forEach((entry, index) => { // 上位100件のみ表示
-            const row = `<tr>
-                <td>${index + 1}</td>
-                <td>${escapeHtml(entry.name)}</td>
-                <td>${entry.score}</td>
-            </tr>`;
-            rankingBody.innerHTML += row;
-        });
-        
-        // 後片付け
-        delete window.displayRankingData;
-    };
-
-    // scriptタグを動的に生成してJSONPリクエストを実行
     const script = document.createElement('script');
-    script.src = `${GAS_URL}?callback=displayRankingData`;
-    
+
+    // グローバルスコープにコールバック関数を定義
+    window[callbackName] = (data) => {
+        try {
+            if (data.status === 'error') {
+                throw new Error(data.message || 'ランキングデータの形式が不正です。');
+            }
+            
+            rankingBody.innerHTML = '';
+            if (!Array.isArray(data) || data.length === 0) {
+                rankingBody.innerHTML = '<tr><td colspan="3">まだ誰もプレイしていません。</td></tr>';
+                return;
+            }
+
+            data.slice(0, 100).forEach((entry, index) => {
+                const row = `<tr>
+                    <td>${index + 1}</td>
+                    <td>${escapeHtml(entry.name)}</td>
+                    <td>${escapeHtml(entry.score)}</td>
+                </tr>`;
+                rankingBody.innerHTML += row;
+            });
+        } catch (error) {
+            rankingBody.innerHTML = `<tr><td colspan="3">ランキングの表示に失敗しました。</td></tr>`;
+            console.error('Error processing ranking data:', error);
+        } finally {
+            // 後片付け
+            delete window[callbackName];
+            if (script.parentNode) {
+                script.parentNode.removeChild(script);
+            }
+        }
+    };
+
+    // 読み込み失敗時の処理
     script.onerror = () => {
-        rankingBody.innerHTML = `<tr><td colspan="3">ランキングの取得に失敗しました。</td></tr>`;
+        rankingBody.innerHTML = `<tr><td colspan="3">ランキングの取得に失敗しました。サーバーに接続できません。</td></tr>`;
         console.error('Error fetching ranking via JSONP.');
-        delete window.displayRankingData;
+        delete window[callbackName];
+        if (script.parentNode) {
+            script.parentNode.removeChild(script);
+        }
     };
     
-    document.body.appendChild(script);
-    // scriptタグを削除して後片付け
-    document.body.removeChild(script);
+    // scriptタグのsrcを設定し、DOMに追加してリクエストを開始
+    script.src = `${GAS_URL}?callback=${callbackName}&t=${timestamp}`;
+    document.head.appendChild(script);
 }
 
 async function submitScore(name, scoreValue) {
@@ -109,7 +124,7 @@ async function submitScore(name, scoreValue) {
     try {
         const response = await fetch(GAS_URL, {
             method: 'POST',
-            mode: 'cors', // mode: 'cors' を明示 (デフォルト)
+            mode: 'cors',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: name, score: scoreValue }),
         });
