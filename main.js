@@ -337,6 +337,11 @@ let lastGameSeed = 0; // 直前のゲームのシードを保存
 // --- グローバル変数 ---
 let chartIndex = 0, R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
 let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=55;
+// --- Long/Flick note constants ---
+const GAME_FPS = 60; // Assumed frame rate
+const FLICK_THRESHOLD = 15; // Minimum pixels to trigger flick detection
+const FLICK_JUDGE_RANGE = 30; // Maximum distance from target for flick judgment
+const LONG_NOTE_SCORE_MULT = 1.2; // Score multiplier for completed long notes
 let bestScore = Number(localStorage.getItem('bestScore')) || 0;
 let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=0, spCountdownTimer=0, spCountdownValue=0;
 let popups=[], hitRings=[], lastInputWasTouch=false;
@@ -488,7 +493,7 @@ function spawnNote(noteInfo, chartIdx){
   // Long note specific properties
   if (type === 'long' && noteInfo.endTime !== undefined) {
     const longDurationSec = noteInfo.endTime - noteInfo.time;
-    note.longDuration = Math.round(longDurationSec * 60); // Convert to frames (60fps)
+    note.longDuration = Math.round(longDurationSec * GAME_FPS); // Convert to frames
     note.endTime = noteInfo.endTime;
   }
   
@@ -977,7 +982,7 @@ function handleTouchMove(e){
     const distance = Math.hypot(dx, dy);
     
     // Threshold for flick detection
-    if(distance > 15){
+    if(distance > FLICK_THRESHOLD){
       checkFlickNotes(dx, dy);
     }
     
@@ -1025,7 +1030,7 @@ function checkFlickNotes(dx, dy){
       const dist = Math.hypot(pos.x - target.x, pos.y - target.y);
       
       // Within judgment range
-      if(dist < 30){
+      if(dist < FLICK_JUDGE_RANGE){
         const baseRaw = calcTapBase();
         const res = calcTapScoreAndLabel(dist, baseRaw);
         if(res.label !== 'MISS'){
@@ -1169,7 +1174,7 @@ function update(){
         // Successfully held until end
         const target = n.side === 'left' ? leftTarget : rightTarget;
         const baseRaw = calcTapBase();
-        const points = Math.floor(baseRaw * 1.2); // WONDERFUL score
+        const points = Math.floor(baseRaw * LONG_NOTE_SCORE_MULT); // WONDERFUL score
         const label = 'WONDERFUL';
         awardHit(target, points, label, false, baseRaw, n.chartIdx);
         notes.splice(i, 1);
