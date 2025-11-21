@@ -102,9 +102,9 @@ const notesChart = [
   {"time": 9.03, "side": "left"},
   {"time": 9.22, "side": "right"},
   {"time": 9.59, "side": "right"},
-  {"time": 10.16, "side": "left"},
+  {"time": 10.16, "side": "left", "type": "flick", "direction": "left"},
   {"time": 10.54, "side": "right"},
-  {"time": 10.91, "side": "left"},
+  {"time": 10.91, "side": "left", "type": "long", "endTime": 11.48},
   {"time": 11.48, "side": "right"},
   {"time": 12.23, "side": "right"},
   {"time": 12.61, "side": "left"},
@@ -1185,7 +1185,22 @@ function update(){
     }
   }
   
-  const keep=[];for(const n of notes){if(n.t<=n.duration+5 && !(n.type === 'long' && n.isHolding)) keep.push(n);else if(!(n.type === 'long' && n.isHolding)) applyMiss('MISS');}notes=keep;
+  const keep=[];
+  for(const n of notes){
+    // Keep holding long notes regardless of time
+    if(n.type === 'long' && n.isHolding){
+      keep.push(n);
+    }
+    // Keep other notes within time limit
+    else if(n.t <= n.duration + 5){
+      keep.push(n);
+    }
+    // Miss expired notes
+    else {
+      applyMiss('MISS');
+    }
+  }
+  notes=keep;
   if(gameState==="playing" && chartIndex>=notesChart.length && notes.length===0){
     if(waitingClearFrame === null){
       waitingClearFrame = frame;
@@ -1281,19 +1296,19 @@ function drawNotes(){
     if(n.type === 'long' && n.longDuration !== undefined){
       const target = n.side === 'left' ? leftTarget : rightTarget;
       
-      // Calculate start position
+      // Calculate start position (head of the note)
       let startPos;
       if(n.isHolding){
         // If holding, start is locked to target
         startPos = {x: target.x, y: target.y};
       } else {
-        // Otherwise, use current bezier position
+        // Otherwise, use current bezier position (head position)
         startPos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
       }
       
-      // Calculate end position based on remaining duration
-      const endT = Math.max(0, n.t - n.longDuration);
-      const endPos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, endT/n.duration));
+      // Calculate end position (tail of the note, which is longDuration frames behind)
+      const tailT = Math.max(0, n.t - n.longDuration);
+      const endPos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, tailT/n.duration));
       
       // Draw line
       ctx.strokeStyle = n.isHolding ? "rgba(255, 255, 100, 0.7)" : "rgba(100, 200, 255, 0.6)";
