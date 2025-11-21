@@ -84,8 +84,8 @@ const notesChart = [
   {"time": 1.86, "side": "right"},
   {"time": 2.61, "side": "right"},
   {"time": 2.99, "side": "right"},
-  {"time": 3.18, "side": "left"},
-  {"time": 3.55, "side": "left"},
+  {"time": 3.18, "side": "left", "type": "flick", "direction": "up"},
+  {"time": 3.55, "side": "left", "type": "long", "endTime": 4.50},
   {"time": 4.12, "side": "left"},
   {"time": 4.50, "side": "right"},
   {"time": 4.69, "side": "left"},
@@ -94,17 +94,17 @@ const notesChart = [
   {"time": 5.25, "side": "left"},
   {"time": 5.63, "side": "left"},
   {"time": 5.63, "side": "right"},//追加
-  {"time": 6.57, "side": "left"},
+  {"time": 6.57, "side": "left", "type": "flick", "direction": "right"},
   {"time": 7.14, "side": "left"},
-  {"time": 7.52, "side": "right"},
+  {"time": 7.52, "side": "right", "type": "long", "endTime": 8.27},
   {"time": 7.89, "side": "right"},
   {"time": 8.65, "side": "left"},
   {"time": 9.03, "side": "left"},
   {"time": 9.22, "side": "right"},
   {"time": 9.59, "side": "right"},
-  {"time": 10.16, "side": "left"},
+  {"time": 10.16, "side": "left", "type": "flick", "direction": "left"},
   {"time": 10.54, "side": "right"},
-  {"time": 10.91, "side": "left"},
+  {"time": 10.91, "side": "left", "type": "long", "endTime": 11.48},
   {"time": 11.48, "side": "right"},
   {"time": 12.23, "side": "right"},
   {"time": 12.61, "side": "left"},
@@ -337,6 +337,11 @@ let lastGameSeed = 0; // 直前のゲームのシードを保存
 // --- グローバル変数 ---
 let chartIndex = 0, R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
 let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=55;
+// --- Long/Flick note constants ---
+const GAME_FPS = 60; // Assumed frame rate
+const FLICK_THRESHOLD = 15; // Minimum pixels to trigger flick detection
+const FLICK_JUDGE_RANGE = 30; // Maximum distance from target for flick judgment
+const LONG_NOTE_SCORE_MULT = 1.2; // Score multiplier for completed long notes
 let bestScore = Number(localStorage.getItem('bestScore')) || 0;
 let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=0, spCountdownTimer=0, spCountdownValue=0;
 let popups=[], hitRings=[], lastInputWasTouch=false;
@@ -345,6 +350,10 @@ let skillHistory = [], appealBoostNotes = 0, skillActivationCount = 0, spUseCoun
 let judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
 let spScoreBuffNotes = 0, noteCounter = 0, totalSPUsed = 0, permanentScoreBuff = 0, acFailFlashTimer = 0, waitingClearFrame = null;
 let audioContext, tapBuffer = null;
+// --- Long/Flick note management ---
+let activeTouchCount = 0;
+let lastTouchPos = { x: 0, y: 0 };
+let prevTouchPos = { x: 0, y: 0 };
   
 // ノーツ到達までの秒数
 const noteTravelSec = noteDuration / 60;
@@ -467,15 +476,33 @@ resizeCanvas();
 
 function cubicBezier(p0,p1,p2,p3,t){const u=1-t;return {x:u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,y:u*u*u*p0.y+3*u*u*t*p1.y+3*u*t*t*p2.y+t*t*t*p3.y};}
 function makePath(side){const target= side==='left'? leftTarget : rightTarget;const startX = side==='left' ? (-R*2-10) : (cvs.width+R*2+10);const start={x:startX, y: target.y - Math.max(180, R*6)};const c1={x: side==='left' ? target.x - Math.max(200,R*6) : target.x + Math.max(200,R*6), y: target.y - Math.max(200,R*6)};const c2={x: side==='left' ? target.x - Math.max(60,R*2)  : target.x + Math.max(60,R*2),  y: target.y - Math.max(40,R*1.3)};const end={x: target.x, y: target.y};return {p0:start,p1:c1,p2:c2,p3:end};}
-// --- spawnNoteにchartIdxを持たせる ---
-function spawnNote(side, chartIdx){
-  notes.push({
+// --- spawnNote: 修正してノーツ情報オブジェクト全体を受け取る ---
+function spawnNote(noteInfo, chartIdx){
+  const side = noteInfo.side;
+  const type = noteInfo.type || 'tap';
+  const note = {
     side,
     t:0,
     duration:noteDuration,
     path:makePath(side),
-    chartIdx: chartIdx // どの譜面ノーツか記憶
-  });
+    chartIdx: chartIdx,
+    type: type,
+    isHolding: false
+  };
+  
+  // Long note specific properties
+  if (type === 'long' && noteInfo.endTime !== undefined) {
+    const longDurationSec = noteInfo.endTime - noteInfo.time;
+    note.longDuration = Math.round(longDurationSec * GAME_FPS); // Convert to frames
+    note.endTime = noteInfo.endTime;
+  }
+  
+  // Flick note specific properties
+  if (type === 'flick' && noteInfo.direction) {
+    note.direction = noteInfo.direction;
+  }
+  
+  notes.push(note);
 }
 function addPopup(text,x,y,ms,type){const d=Math.max(1,Math.round(ms/16.67));popups.push({text,x,y,timer:d,duration:d,type});}
 function triggerSPVisual(){ spFlashTimer=10; spRingTimer=spRingSpeed; }
@@ -791,6 +818,21 @@ function handlePointer(e){
     lastInputWasTouch=true;
     e.preventDefault();
     fingers = (e.touches && e.touches.length) ? e.touches.length : 1;
+    activeTouchCount = fingers;
+    
+    // Update touch position for flick detection
+    if(fingers > 0){
+      const rect = cvs.getBoundingClientRect();
+      const scaleX = cvs.width  / rect.width;
+      const scaleY = cvs.height / rect.height;
+      prevTouchPos = {...lastTouchPos};
+      lastTouchPos = {
+        x: (e.touches[0].clientX - rect.left) * scaleX,
+        y: (e.touches[0].clientY - rect.top) * scaleY
+      };
+    }
+  } else {
+    activeTouchCount = 1;
   }
   if(!isTouch && lastInputWasTouch){ lastInputWasTouch=false; return; }
 
@@ -834,15 +876,25 @@ function handlePointer(e){
       const baseRaw = calcTapBase();
       const resR = calcTapScoreAndLabel(distR, baseRaw);
       if(resR.label !== 'MISS'){
-        awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, right.chartIdx);
-        notes = notes.filter(n => n !== right);
+        if(right.type === 'long'){
+          right.isHolding = true;
+          awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, right.chartIdx);
+        } else if(right.type !== 'flick'){
+          awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, right.chartIdx);
+          notes = notes.filter(n => n !== right);
+        }
       }
       const posL = cubicBezier(left.path.p0, left.path.p1, left.path.p2, left.path.p3, Math.min(1, left.t/left.duration));
       const distL = Math.hypot(posL.x - leftTarget.x, posL.y - leftTarget.y);
       const resL = calcTapScoreAndLabel(distL, baseRaw);
       if(resL.label !== 'MISS'){
-        awardHit(leftTarget, resL.points, resL.label, resL.reset, baseRaw, left.chartIdx);
-        notes = notes.filter(n => n !== left);
+        if(left.type === 'long'){
+          left.isHolding = true;
+          awardHit(leftTarget, resL.points, resL.label, resL.reset, baseRaw, left.chartIdx);
+        } else if(left.type !== 'flick'){
+          awardHit(leftTarget, resL.points, resL.label, resL.reset, baseRaw, left.chartIdx);
+          notes = notes.filter(n => n !== left);
+        }
       }
       // どちらもMISSなら何もしない
     }
@@ -870,8 +922,17 @@ function handlePointer(e){
     const baseRaw = calcTapBase();
     const res = calcTapScoreAndLabel(bestDistL, baseRaw);
     if(res.label !== 'MISS'){
-      awardHit(leftTarget, res.points, res.label, res.reset, baseRaw, bestL.chartIdx);
-      notes = notes.filter(n => n !== bestL);
+      if(bestL.type === 'long'){
+        // Long note: don't remove, set isHolding
+        bestL.isHolding = true;
+        awardHit(leftTarget, res.points, res.label, res.reset, baseRaw, bestL.chartIdx);
+      } else if(bestL.type === 'flick'){
+        // Flick note: don't judge on tap, only on flick gesture
+      } else {
+        // Tap note: normal handling
+        awardHit(leftTarget, res.points, res.label, res.reset, baseRaw, bestL.chartIdx);
+        notes = notes.filter(n => n !== bestL);
+      }
     }
   }
 
@@ -886,8 +947,102 @@ function handlePointer(e){
     const baseRaw = calcTapBase();
     const res = calcTapScoreAndLabel(bestDistR, baseRaw);
     if(res.label !== 'MISS'){
-      awardHit(rightTarget, res.points, res.label, res.reset, baseRaw, bestR.chartIdx);
-      notes = notes.filter(n => n !== bestR);
+      if(bestR.type === 'long'){
+        // Long note: don't remove, set isHolding
+        bestR.isHolding = true;
+        awardHit(rightTarget, res.points, res.label, res.reset, baseRaw, bestR.chartIdx);
+      } else if(bestR.type === 'flick'){
+        // Flick note: don't judge on tap, only on flick gesture
+      } else {
+        // Tap note: normal handling
+        awardHit(rightTarget, res.points, res.label, res.reset, baseRaw, bestR.chartIdx);
+        notes = notes.filter(n => n !== bestR);
+      }
+    }
+  }
+}
+
+// --- Flick detection handlers ---
+function handleTouchMove(e){
+  if(gameState !== "playing") return;
+  e.preventDefault();
+  
+  if(e.touches && e.touches.length > 0){
+    const rect = cvs.getBoundingClientRect();
+    const scaleX = cvs.width  / rect.width;
+    const scaleY = cvs.height / rect.height;
+    const currentPos = {
+      x: (e.touches[0].clientX - rect.left) * scaleX,
+      y: (e.touches[0].clientY - rect.top) * scaleY
+    };
+    
+    // Calculate movement
+    const dx = currentPos.x - lastTouchPos.x;
+    const dy = currentPos.y - lastTouchPos.y;
+    const distance = Math.hypot(dx, dy);
+    
+    // Threshold for flick detection
+    if(distance > FLICK_THRESHOLD){
+      checkFlickNotes(dx, dy, currentPos.x);
+    }
+    
+    prevTouchPos = {...lastTouchPos};
+    lastTouchPos = currentPos;
+  }
+}
+
+function handleMouseMove(e){
+  if(gameState !== "playing") return;
+  if(lastInputWasTouch) return;
+  // Mouse flick detection not implemented (touch-only feature)
+}
+
+function handleTouchEnd(e){
+  if(gameState !== "playing") return;
+  e.preventDefault();
+  activeTouchCount = e.touches ? e.touches.length : 0;
+}
+
+function handleMouseUp(e){
+  if(gameState !== "playing") return;
+  if(lastInputWasTouch) return;
+  activeTouchCount = 0;
+}
+
+function checkFlickNotes(dx, dy, flickX){
+  // Determine flick direction
+  let detectedDir = null;
+  const absDx = Math.abs(dx);
+  const absDy = Math.abs(dy);
+  
+  if(absDx > absDy){
+    detectedDir = dx > 0 ? 'right' : 'left';
+  } else {
+    detectedDir = dy > 0 ? 'down' : 'up';
+  }
+  
+  // Determine which side the flick occurred on
+  const centerX = cvs.width / 2;
+  const flickSide = flickX < centerX ? 'left' : 'right';
+  
+  // Find flick notes near judgment line on the same side
+  for(let i = notes.length - 1; i >= 0; i--){
+    const n = notes[i];
+    if(n.type === 'flick' && n.direction === detectedDir && n.side === flickSide){
+      const target = n.side === 'left' ? leftTarget : rightTarget;
+      const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
+      const dist = Math.hypot(pos.x - target.x, pos.y - target.y);
+      
+      // Within judgment range
+      if(dist < FLICK_JUDGE_RANGE){
+        const baseRaw = calcTapBase();
+        const res = calcTapScoreAndLabel(dist, baseRaw);
+        if(res.label !== 'MISS'){
+          awardHit(target, res.points, res.label, res.reset, baseRaw, n.chartIdx);
+          notes.splice(i, 1);
+          break; // Only judge one flick at a time
+        }
+      }
     }
   }
 }
@@ -895,6 +1050,10 @@ function handlePointer(e){
 // --- イベント登録 ---
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
 cvs.addEventListener('mousedown',handlePointer);
+cvs.addEventListener('touchmove', handleTouchMove, {passive:false});
+cvs.addEventListener('mousemove', handleMouseMove);
+cvs.addEventListener('touchend', handleTouchEnd, {passive:false});
+cvs.addEventListener('mouseup', handleMouseUp);
 
 // ゲームを初期化して開始する共通関数
 async function startGame(seed) {
@@ -1002,14 +1161,55 @@ function update(){
   if (gameState === "playing" && !bgm.paused) {
     const bgmNowSec = bgm.currentTime;
     while (chartIndex < notesChart.length && bgmNowSec >= notesChart[chartIndex].time) {
-      spawnNote(notesChart[chartIndex].side, chartIndex); 
+      spawnNote(notesChart[chartIndex], chartIndex); 
       totalNotesSpawned++;
       chartIndex++;
     }
     if(acFailFlashTimer > 0) acFailFlashTimer--;
   }
   for(const n of notes) n.t++;
-  const keep=[];for(const n of notes){if(n.t<=n.duration+5) keep.push(n);else applyMiss('MISS');}notes=keep;
+  
+  // Check long notes
+  for(let i = notes.length - 1; i >= 0; i--){
+    const n = notes[i];
+    if(n.type === 'long' && n.isHolding){
+      // Check for completion
+      if(n.t >= n.duration + n.longDuration){
+        // Successfully held until end
+        const target = n.side === 'left' ? leftTarget : rightTarget;
+        const baseRaw = calcTapBase();
+        const points = Math.floor(baseRaw * LONG_NOTE_SCORE_MULT); // WONDERFUL score
+        const label = 'WONDERFUL';
+        awardHit(target, points, label, false, baseRaw, n.chartIdx);
+        notes.splice(i, 1);
+        continue;
+      }
+      
+      // Check for failure (finger released)
+      if(activeTouchCount === 0){
+        applyMiss('MISS');
+        notes.splice(i, 1);
+        continue;
+      }
+    }
+  }
+  
+  const keep=[];
+  for(const n of notes){
+    // Keep holding long notes regardless of time
+    if(n.type === 'long' && n.isHolding){
+      keep.push(n);
+    }
+    // Keep other notes within time limit
+    else if(n.t <= n.duration + 5){
+      keep.push(n);
+    }
+    // Miss expired notes
+    else {
+      applyMiss('MISS');
+    }
+  }
+  notes=keep;
   if(gameState==="playing" && chartIndex>=notesChart.length && notes.length===0){
     if(waitingClearFrame === null){
       waitingClearFrame = frame;
@@ -1098,6 +1298,39 @@ function judgeNotesAt(mx, my, alreadyHitIdx){
   
 // --- ノーツ描画: 同時押しペア間に白線描画 ---
 function drawNotes(){
+  // 0. Long notes trajectories
+  ctx.save();
+  for(let i=0;i<notes.length;i++){
+    const n = notes[i];
+    if(n.type === 'long' && n.longDuration !== undefined){
+      const target = n.side === 'left' ? leftTarget : rightTarget;
+      
+      // Calculate start position (head of the note)
+      let startPos;
+      if(n.isHolding){
+        // If holding, start is locked to target
+        startPos = {x: target.x, y: target.y};
+      } else {
+        // Otherwise, use current bezier position (head position)
+        startPos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
+      }
+      
+      // Calculate end position (tail of the note, which is longDuration frames behind)
+      const tailT = Math.max(0, n.t - n.longDuration);
+      const endPos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, tailT/n.duration));
+      
+      // Draw line
+      ctx.strokeStyle = n.isHolding ? "rgba(255, 255, 100, 0.7)" : "rgba(100, 200, 255, 0.6)";
+      ctx.lineWidth = R * 0.5;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(startPos.x, startPos.y);
+      ctx.lineTo(endPos.x, endPos.y);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+  
   // 1. 同時ペアの白い線
   const pairs = getSimultaneousPairs();
   ctx.save();
@@ -1182,6 +1415,28 @@ function drawNotes(){
     ctx.globalAlpha = 0.88;
     ctx.fill();
     ctx.restore();
+    
+    // --- フリック矢印 ---
+    if(n.type === 'flick' && n.direction){
+      ctx.save();
+      ctx.translate(pos.x, pos.y);
+      
+      // Rotate based on direction
+      if(n.direction === 'up') ctx.rotate(-Math.PI/2);
+      else if(n.direction === 'down') ctx.rotate(Math.PI/2);
+      else if(n.direction === 'left') ctx.rotate(Math.PI);
+      // right is default (0 rotation)
+      
+      ctx.fillStyle = '#fff';
+      ctx.globalAlpha = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(r * 0.4, 0);
+      ctx.lineTo(-r * 0.2, -r * 0.3);
+      ctx.lineTo(-r * 0.2, r * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
 
     // --- START/FINISHラベル ---
     for(const ac of acList){
