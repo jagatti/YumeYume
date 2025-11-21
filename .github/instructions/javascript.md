@@ -116,7 +116,7 @@ ctx.restore();
 ```javascript
 const note = {
   time: audioTime,
-  side: "left" or "right",
+  side: "left", // or "right"
   y: startY,
   hit: false
 };
