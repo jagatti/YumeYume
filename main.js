@@ -50,33 +50,18 @@ const ctx = cvs.getContext('2d');
 const rotateMsg = document.getElementById('rotateMsg');
 const startBtn = document.getElementById('startBtn');
 const retryBtn = document.getElementById('retryBtn');
-let reseedBtn = document.getElementById('reseedBtn');
-if (!reseedBtn) {
-    reseedBtn = document.createElement('button');
-    reseedBtn.id = 'reseedBtn';
-    document.body.appendChild(reseedBtn);
-}
-reseedBtn.textContent = '乱数再現';
-reseedBtn.style.position = 'absolute';
-// 画面右下に配置
-reseedBtn.style.bottom = '20px';
-reseedBtn.style.right = '20px';
-reseedBtn.style.left = 'auto';
-reseedBtn.style.transform = 'none';
-reseedBtn.style.padding = '10px 20px';
-reseedBtn.style.fontSize = '16px';
-reseedBtn.style.backgroundColor = 'green';
-reseedBtn.style.color = 'white';
-reseedBtn.style.border = 'none';
-reseedBtn.style.borderRadius = '5px';
-reseedBtn.style.cursor = 'pointer';
-reseedBtn.style.display = 'none'; // 最初は非表示
-
 const bgm = document.getElementById('bgm');
 const bgimg = document.getElementById('bgimg');
 bgm.volume = 0.1;
 
+
 // --- 譜面データを直接埋め込む ---
+// フリックノーツ仕様:
+// - type: "flick" でフリックノーツ指定
+// - direction: "up"/"down"/"left"/"right" で方向指定
+// - 同時刻に複数ノーツで同時押し対応（tap+flick, flick+flick）
+// - 紫色グロー＋白矢印で描画
+// - スワイプ方向と距離で判定（最小距離40px, 最大時間500ms）
 const notesChart = [
   {"time": 0.54, "side": "left"},
   {"time": 1.11, "side": "left"},
@@ -85,15 +70,15 @@ const notesChart = [
   {"time": 2.61, "side": "right"},
   {"time": 2.99, "side": "right"},
   {"time": 3.18, "side": "left"},
-  {"time": 3.55, "side": "left"},
+  {"time": 3.55, "side": "left", "type": "flick", "direction": "up"}, // フリックノーツサンプル
   {"time": 4.12, "side": "left"},
-  {"time": 4.50, "side": "right"},
+  {"time": 4.50, "side": "right", "type": "flick", "direction": "right"}, // 右フリック
   {"time": 4.69, "side": "left"},
   {"time": 4.87, "side": "right"},
   {"time": 4.87, "side": "left"},//追加
   {"time": 5.25, "side": "left"},
-  {"time": 5.63, "side": "left"},
-  {"time": 5.63, "side": "right"},//追加
+  {"time": 5.63, "side": "left", "type": "flick", "direction": "down"}, // 下フリック
+  {"time": 5.63, "side": "right", "type": "flick", "direction": "left"},//追加 - 同時フリック
   {"time": 6.57, "side": "left"},
   {"time": 7.14, "side": "left"},
   {"time": 7.52, "side": "right"},
@@ -117,13 +102,13 @@ const notesChart = [
   {"time": 15.44, "side": "right"},
   {"time": 15.63, "side": "left"},
   {"time": 16.01, "side": "right"},
-  {"time": 16.01, "side": "left"},//追加
+  {"time": 16.01, "side": "left", "type": "flick", "direction": "up"},//追加 - タップ+フリック同時
   {"time": 16.39, "side": "left"},
   {"time": 16.95, "side": "right"},
   {"time": 17.33, "side": "left"},
   {"time": 17.52, "side": "right"},
   {"time": 17.89, "side": "right"},
-  {"time": 18.27, "side": "right"},
+  {"time": 18.27, "side": "right", "type": "flick", "direction": "right"},
   {"time": 18.27, "side": "left"},//追加
   {"time": 18.65, "side": "left"},
   {"time": 19.03, "side": "right"},
@@ -135,9 +120,9 @@ const notesChart = [
   {"time": 21.48, "side": "right"},
   {"time": 21.67, "side": "left"},
   {"time": 22.05, "side": "right"},
-  {"time": 22.05, "side": "left"},//追加
+  {"time": 22.05, "side": "left", "type": "flick", "direction": "left"},//追加 - フリック+タップ
   {"time": 22.43, "side": "left"},
-  {"time": 22.43, "side": "right"},//追加
+  {"time": 22.43, "side": "right", "type": "flick", "direction": "up"},//追加 - 同時フリック
   {"time": 22.99, "side": "right"},
   {"time": 23.37, "side": "left"},
   {"time": 23.55, "side": "right"},
@@ -172,7 +157,7 @@ const notesChart = [
   {"time": 35.25, "side": "right"},
   {"time": 36.01, "side": "left"},
   {"time": 36.77, "side": "right"},
-  {"time": 36.77, "side": "left"},//追加
+  {"time": 36.77, "side": "left", "type": "flick", "direction": "up"},//追加 - フリック+タップ同時
   {"time": 37.14, "side": "right"},
   {"time": 37.33, "side": "left"},
   {"time": 37.71, "side": "left"},
@@ -188,8 +173,8 @@ const notesChart = [
   {"time": 41.11, "side": "left"},
   {"time": 41.48, "side": "left"},
   {"time": 41.67, "side": "right"},
-  {"time": 42.05, "side": "left"},
-  {"time": 42.05, "side": "right"},//追加
+  {"time": 42.05, "side": "left", "type": "flick", "direction": "left"},
+  {"time": 42.05, "side": "right", "type": "flick", "direction": "right"},//追加 - 両方向同時フリック
   {"time": 42.80, "side": "left"},
   {"time": 43.18, "side": "right"},
   {"time": 43.55, "side": "left"},
@@ -214,10 +199,10 @@ const notesChart = [
   {"time": 49.59, "side": "right"},
   {"time": 49.76, "side": "left"},
   {"time": 49.97, "side": "right"},
-  {"time": 50.35, "side": "left"},
-  {"time": 50.35, "side": "right"},//追加
+  {"time": 50.35, "side": "left", "type": "flick", "direction": "down"},
+  {"time": 50.35, "side": "right"},//追加 - フリック+タップ
   {"time": 50.92, "side": "right"},
-  {"time": 50.92, "side": "left"},//追加
+  {"time": 50.92, "side": "left", "type": "flick", "direction": "up"},//追加 - タップ+フリック
   {"time": 51.29, "side": "left"},
   {"time": 51.48, "side": "right"},
   {"time": 51.86, "side": "left"},
@@ -236,8 +221,8 @@ const notesChart = [
   {"time": 56.20, "side": "left"},
   {"time": 56.39, "side": "right"},
   {"time": 56.76, "side": "right"},
-  {"time": 57.14, "side": "left"},
-  {"time": 57.14, "side": "right"},//追加
+  {"time": 57.14, "side": "left", "type": "flick", "direction": "left"},
+  {"time": 57.14, "side": "right", "type": "flick", "direction": "right"},//追加 - 対称フリック同時
   {"time": 57.90, "side": "right"},
   {"time": 58.27, "side": "right"},
   {"time": 58.65, "side": "left"},
@@ -272,11 +257,11 @@ const notesChart = [
   {"time": 68.27, "side": "right"},
   {"time": 69.22, "side": "left"},
   {"time": 69.60, "side": "right"},
-  {"time": 69.97, "side": "left"},
-  {"time": 69.97, "side": "right"},//追加
+  {"time": 69.97, "side": "left", "type": "flick", "direction": "up"},
+  {"time": 69.97, "side": "right", "type": "flick", "direction": "down"},//追加 - 対向フリック
   {"time": 70.54, "side": "right"},
   {"time": 71.11, "side": "right"},
-  {"time": 71.11, "side": "left"},//追加
+  {"time": 71.11, "side": "left", "type": "flick", "direction": "left"},//追加 - タップ+フリック
   {"time": 71.48, "side": "left"},
   {"time": 71.86, "side": "right"},
   {"time": 72.23, "side": "left"},
@@ -298,8 +283,8 @@ const notesChart = [
   {"time": 78.28, "side": "right"},
   {"time": 78.65, "side": "right"},
   {"time": 78.84, "side": "right"},
-  {"time": 79.03, "side": "left"},
-  {"time": 79.03, "side": "right"},//追加
+  {"time": 79.03, "side": "left", "type": "flick", "direction": "down"},
+  {"time": 79.03, "side": "right"},//追加 - フリック+タップ
   {"time": 79.56, "side": "left"},
   {"time": 79.97, "side": "right"},
   {"time": 80.35, "side": "right"},
@@ -307,11 +292,11 @@ const notesChart = [
   {"time": 81.48, "side": "left"},
   {"time": 81.67, "side": "right"},
   {"time": 82.05, "side": "right"},
-  {"time": 82.61, "side": "left"},
-  {"time": 82.61, "side": "right"},//追加 
+  {"time": 82.61, "side": "left", "type": "flick", "direction": "up"},
+  {"time": 82.61, "side": "right", "type": "flick", "direction": "up"},//追加 - 同方向フリック同時
   {"time": 82.99, "side": "right"},
-  {"time": 83.37, "side": "left"},
-  {"time": 83.37, "side": "right"},//追加
+  {"time": 83.37, "side": "left", "type": "flick", "direction": "left"},
+  {"time": 83.37, "side": "right", "type": "flick", "direction": "right"},//追加 - 外向きフリック
   {"time": 83.93, "side": "right"},
   {"time": 84.31, "side": "right"},
   {"time": 84.88, "side": "left"},
@@ -322,18 +307,6 @@ const notesChart = [
   {"time": 86.39, "side": "left"}
 ];
   
-// --- 乱数生成器 ---
-let _seed = 0;
-function setSeed(s) {
-  _seed = s;
-}
-function seededRandom() {
-  _seed = (_seed * 9301 + 49297) % 233280;
-  return _seed / 233280;
-}
-let lastGameSeed = 0; // 直前のゲームのシードを保存
-
-
 // --- グローバル変数 ---
 let chartIndex = 0, R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
 let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=55;
@@ -345,6 +318,12 @@ let skillHistory = [], appealBoostNotes = 0, skillActivationCount = 0, spUseCoun
 let judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
 let spScoreBuffNotes = 0, noteCounter = 0, totalSPUsed = 0, permanentScoreBuff = 0, acFailFlashTimer = 0, waitingClearFrame = null;
 let audioContext, tapBuffer = null;
+
+// フリックノーツ用追加変数
+let flickStartPos = null; // フリック開始位置 {x, y, timestamp}
+let activeFlickInput = false; // フリック入力中フラグ
+const FLICK_MIN_DISTANCE = 40; // 最小フリック距離
+const FLICK_MAX_TIME = 500; // 最大フリック時間(ms)
   
 // ノーツ到達までの秒数
 const noteTravelSec = noteDuration / 60;
@@ -407,6 +386,163 @@ function playTapSE() {
   source.connect(audioContext.destination);
   source.start(0);
 }
+
+// フリック方向判定関数
+function getFlickDirection(startX, startY, endX, endY) {
+  const dx = endX - startX;
+  const dy = endY - startY;
+  const distance = Math.hypot(dx, dy);
+  
+  if (distance < FLICK_MIN_DISTANCE) return null;
+  
+  const angle = Math.atan2(dy, dx);
+  const degrees = angle * 180 / Math.PI;
+  
+  // 角度から方向を判定 (-45度～45度: right, 45度～135度: down, など)
+  if (degrees >= -45 && degrees <= 45) return "right";
+  if (degrees >= 45 && degrees <= 135) return "down"; 
+  if (degrees >= -135 && degrees <= -45) return "up";
+  return "left"; // -180～-135度、135度～180度
+}
+
+// 同時ノーツ（フリック対応版）の判定
+function judgeSimultaneousNotes(tapX, tapY, flickDirection = null) {
+  // 同時刻ノーツのペアを探す
+  const simultPairs = [];
+  const used = new Set();
+  
+  for (let i = 0; i < notes.length; i++) {
+    if (used.has(i)) continue;
+    const ni = notes[i];
+    for (let j = i + 1; j < notes.length; j++) {
+      if (used.has(j)) continue;
+      const nj = notes[j];
+      if (ni.chartIdx !== undefined && nj.chartIdx !== undefined) {
+        const ci = notesChart[ni.chartIdx];
+        const cj = notesChart[nj.chartIdx];
+        if (ci && cj && ci.time === cj.time && ci.side !== cj.side) {
+          simultPairs.push([ni, nj]);
+          used.add(i); used.add(j);
+          break;
+        }
+      }
+    }
+  }
+
+  // 同時ノーツペアがある場合の処理
+  for (const [n1, n2] of simultPairs) {
+    let leftNote = n1.side === 'left' ? n1 : n2;
+    let rightNote = n1.side === 'right' ? n1 : n2;
+    
+    const leftInfo = notesChart[leftNote.chartIdx];
+    const rightInfo = notesChart[rightNote.chartIdx];
+    
+    const leftPos = cubicBezier(leftNote.path.p0, leftNote.path.p1, leftNote.path.p2, leftNote.path.p3, Math.min(1, leftNote.t/leftNote.duration));
+    const rightPos = cubicBezier(rightNote.path.p0, rightNote.path.p1, rightNote.path.p2, rightNote.path.p3, Math.min(1, rightNote.t/rightNote.duration));
+    
+    const leftDist = Math.hypot(leftPos.x - leftTarget.x, leftPos.y - leftTarget.y);
+    const rightDist = Math.hypot(rightPos.x - rightTarget.x, rightPos.y - rightTarget.y);
+    
+    let leftSuccess = false, rightSuccess = false;
+    
+    // 左ノーツ判定
+    if (leftInfo?.type === "flick") {
+      if (flickDirection && isFlickDirectionMatch(flickDirection, leftInfo.direction) && leftDist <= 35) {
+        const baseRaw = calcTapBase();
+        const {points, label, reset} = calcTapScoreAndLabel(leftDist, baseRaw);
+        if (label !== 'MISS') {
+          awardHit(leftTarget, points, label, reset, baseRaw, leftNote.chartIdx);
+          leftSuccess = true;
+        }
+      }
+    } else {
+      // 通常タップノーツ
+      if (leftDist <= 35) {
+        const baseRaw = calcTapBase();
+        const {points, label, reset} = calcTapScoreAndLabel(leftDist, baseRaw);
+        if (label !== 'MISS') {
+          awardHit(leftTarget, points, label, reset, baseRaw, leftNote.chartIdx);
+          leftSuccess = true;
+        }
+      }
+    }
+    
+    // 右ノーツ判定
+    if (rightInfo?.type === "flick") {
+      if (flickDirection && isFlickDirectionMatch(flickDirection, rightInfo.direction) && rightDist <= 35) {
+        const baseRaw = calcTapBase();
+        const {points, label, reset} = calcTapScoreAndLabel(rightDist, baseRaw);
+        if (label !== 'MISS') {
+          awardHit(rightTarget, points, label, reset, baseRaw, rightNote.chartIdx);
+          rightSuccess = true;
+        }
+      }
+    } else {
+      // 通常タップノーツ
+      if (rightDist <= 35) {
+        const baseRaw = calcTapBase();
+        const {points, label, reset} = calcTapScoreAndLabel(rightDist, baseRaw);
+        if (label !== 'MISS') {
+          awardHit(rightTarget, points, label, reset, baseRaw, rightNote.chartIdx);
+          rightSuccess = true;
+        }
+      }
+    }
+    
+    // 成功したノーツを削除
+    if (leftSuccess) notes = notes.filter(n => n !== leftNote);
+    if (rightSuccess) notes = notes.filter(n => n !== rightNote);
+    
+    if (leftSuccess || rightSuccess) return true;
+  }
+  
+  return false;
+}
+function drawFlickArrow(ctx, x, y, direction, size) {
+  ctx.save();
+  
+  // 方向に応じて矢印の回転を設定
+  let rotation = 0;
+  switch(direction) {
+    case "up": rotation = -Math.PI/2; break;
+    case "down": rotation = Math.PI/2; break;
+    case "left": rotation = Math.PI; break;
+    case "right": rotation = 0; break;
+  }
+  
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  
+  const arrowSize = size * 0.8;
+  
+  // 白い矢印を描画
+  ctx.beginPath();
+  ctx.moveTo(arrowSize * 0.5, 0);
+  ctx.lineTo(-arrowSize * 0.3, -arrowSize * 0.3);
+  ctx.lineTo(-arrowSize * 0.15, 0);
+  ctx.lineTo(-arrowSize * 0.3, arrowSize * 0.3);
+  ctx.closePath();
+  
+  // 影付きの白矢印
+  ctx.fillStyle = "#ffffff";
+  ctx.shadowColor = "#ffffff";
+  ctx.shadowBlur = 8;
+  ctx.globalAlpha = 0.95;
+  ctx.fill();
+  
+  // 矢印の輪郭
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 1;
+  ctx.stroke();
+  
+  ctx.restore();
+}
+
+// フリックノーツとの方向一致チェック
+function isFlickDirectionMatch(flickDirection, noteDirection) {
+  return flickDirection === noteDirection;
+}
   
 // --- AC（アピールチャンス）関連（進捗保存のため追加） ---
   acList.forEach(ac => {
@@ -438,20 +574,14 @@ function resizeCanvas(){
     cvs.style.display='none';
     startBtn.style.display='none';
     retryBtn.style.display='none';
-    reseedBtn.style.display='none';
     return;
   }
   rotateMsg.style.display='none';
   cvs.style.display='block';
   if(gameState==="init") startBtn.style.display='block';
   else startBtn.style.display='none';
-  if(gameState==="result") {
-    retryBtn.style.display='block';
-    reseedBtn.style.display='block'; // リザルトで表示
-  } else {
-    retryBtn.style.display='none';
-    reseedBtn.style.display='none'; // それ以外で非表示
-  }
+  if(gameState==="result") retryBtn.style.display='block';
+  else retryBtn.style.display='none';
   cvs.width = window.innerWidth;
   cvs.height= window.innerHeight;
   const minDim=Math.min(cvs.width, cvs.height);
@@ -498,7 +628,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
         spValue = Math.min(SP_MAX, spValue + ac.rewardSP);
         skillHistory.unshift({text: `ACクリア報酬 ${ac.rewardScore}`, life:180});
         if(skillHistory.length>5) skillHistory.pop();
-        if(seededRandom() < 0.3){
+        if(Math.random() < 0.3){
           permanentScoreBuff++;
           skillHistory.unshift({text:"[アピール増加永続 5%]", life:180});
           if(skillHistory.length>5) skillHistory.pop();
@@ -625,7 +755,7 @@ function calcTapScoreAndLabel(dist, baseRaw){
   else if(dist<=28){label='BAD';mult=0.9;}
   else {return {points:0,label:'MISS',reset:true};}
   let points=Math.floor(baseRaw*mult);
-  if(seededRandom()<0.3){ points=Math.floor(points*1.5); label='CRITICAL'; }
+  if(Math.random()<0.3){ points=Math.floor(points*1.5); label='CRITICAL'; }
   if(spBoostTimer>0) points=Math.floor(points*1.1);
   points=Math.min(50000, points);
   const reset = (label==='NICE' || label==='BAD');
@@ -659,9 +789,9 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
   addPopup(label, midX, midY - 30, 500, 'label');
   addPopup(String(pointsWithCombo), midX, midY, 500, 'score');
   if(judgeCount[label] !== undefined) judgeCount[label]++;
-  if(seededRandom() < 0.33){
+  if(Math.random() < 0.33){
   skillActivationCount++;
-  const skillType = Math.floor(seededRandom()*3);
+  const skillType = Math.floor(Math.random()*3);
   if(skillType===0){
     // --- ボルテージ獲得(バフ適用版) ---
     let voltage = baseRaw;
@@ -691,7 +821,7 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
   for(const ac of acList){
     if(ac.state === "waiting" && chartIdx === ac.startIdx){
       ac.state = "active";
-      if(seededRandom() < 0.3){
+      if(Math.random() < 0.3){
         permanentScoreBuff++;
         skillHistory.unshift({text:"[アピール増加永続 5%]", life:180});
         if(skillHistory.length>5) skillHistory.pop();
@@ -766,13 +896,13 @@ function tryUseSP(mx,my){
   addPopup(String(spScore), cvs.width/2, cvs.height/2, 1800, 'sp');
   addPopup('', 0, 0, 180, 'flash');
   for(let i=0;i<6;i++){
-    if(seededRandom()<0.5){
+    if(Math.random()<0.5){
       spValue = Math.min(SP_MAX, spValue + 600);
       skillHistory.unshift({text:`[SPゲージ獲得]`, life:180});
       if(skillHistory.length>5) skillHistory.pop();
     }
   }
-  if(seededRandom() < 0.5){
+  if(Math.random() < 0.5){
     spScoreBuffNotes = 15;
     skillHistory.unshift({text: "[アピール増加 10%]", life:180});
     if(skillHistory.length>5) skillHistory.pop();
@@ -781,177 +911,235 @@ function tryUseSP(mx,my){
   return true;
 }
   
-// == タップ時の処理 ==
-// ペアも単発も「距離判定」で、2本指時は同時ペアの右→左の順で個別に判定・消去
+// フリックノーツ判定関数
+function judgeFlickNote(startX, startY, endX, endY) {
+  const flickDirection = getFlickDirection(startX, startY, endX, endY);
+  if (!flickDirection) return false;
+
+  let bestFlickNote = null;
+  let bestDistance = Infinity;
+  let bestTarget = null;
+
+  // フリックノーツのみを対象に判定
+  for (const note of notes) {
+    const noteInfo = notesChart[note.chartIdx];
+    if (!noteInfo || noteInfo.type !== "flick") continue;
+
+    const target = note.side === 'left' ? leftTarget : rightTarget;
+    const pos = cubicBezier(note.path.p0, note.path.p1, note.path.p2, note.path.p3, Math.min(1, note.t/note.duration));
+    
+    // フリック開始点からノーツまでの距離をチェック
+    const distanceToNote = Math.hypot(pos.x - startX, pos.y - startY);
+    
+    if (distanceToNote < bestDistance) {
+      bestDistance = distanceToNote;
+      bestFlickNote = note;
+      bestTarget = target;
+    }
+  }
+
+  if (bestFlickNote && bestDistance <= 35) { // タップ判定範囲内
+    const noteInfo = notesChart[bestFlickNote.chartIdx];
+    
+    // 方向が一致するかチェック
+    if (isFlickDirectionMatch(flickDirection, noteInfo.direction)) {
+      const baseRaw = calcTapBase();
+      const {points, label, reset} = calcTapScoreAndLabel(bestDistance, baseRaw);
+      
+      if (label !== 'MISS') {
+        awardHit(bestTarget, points, label, reset, baseRaw, bestFlickNote.chartIdx);
+        notes = notes.filter(n => n !== bestFlickNote);
+        return true;
+      }
+    } else {
+      // 方向が一致しない場合はMISS
+      applyMiss('MISS');
+      notes = notes.filter(n => n !== bestFlickNote);
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// == タップ時の処理 - フリックノーツ対応 ==
+// フリック検出のための新しいhandlePointer実装
 function handlePointer(e){
   if(gameState!=="playing") return;
   const isTouch = e.type.startsWith('touch');
-  let fingers = 1;
-  if(isTouch){
-    lastInputWasTouch=true;
-    e.preventDefault();
-    fingers = (e.touches && e.touches.length) ? e.touches.length : 1;
-  }
-  if(!isTouch && lastInputWasTouch){ lastInputWasTouch=false; return; }
+  
+  // touchstart / mousedown の処理
+  if (e.type === 'touchstart' || e.type === 'mousedown') {
+    if(isTouch){
+      lastInputWasTouch=true;
+      e.preventDefault();
+    }
+    if(!isTouch && lastInputWasTouch){ lastInputWasTouch=false; return; }
 
-  // SP半円は従来通り
-  if(isTouch){
-    for(const t of e.touches){
+    let startX, startY;
+    if (isTouch && e.touches && e.touches.length > 0) {
       const rect = cvs.getBoundingClientRect();
       const scaleX = cvs.width  / rect.width;
       const scaleY = cvs.height / rect.height;
-      const mx = (t.clientX-rect.left)*scaleX;
-      const my = (t.clientY-rect.top )*scaleY;
-      if(isInSPSemicircle(mx,my)){
-        if(spValue >= SP_MAX){ tryUseSP(mx,my); }
-        return;
-      }
+      startX = (e.touches[0].clientX-rect.left)*scaleX;
+      startY = (e.touches[0].clientY-rect.top )*scaleY;
+    } else if (!isTouch) {
+      const rect = cvs.getBoundingClientRect();
+      const scaleX = cvs.width  / rect.width;
+      const scaleY = cvs.height / rect.height;
+      startX = (e.clientX-rect.left)*scaleX;
+      startY = (e.clientY-rect.top )*scaleY;
     }
-  }else{
-    const rect = cvs.getBoundingClientRect();
-    const scaleX = cvs.width  / rect.width;
-    const scaleY = cvs.height / rect.height;
-    const mx = (e.clientX-rect.left)*scaleX;
-    const my = (e.clientY-rect.top )*scaleY;
-    if(isInSPSemicircle(mx,my)){
-      if(spValue >= SP_MAX){ tryUseSP(mx,my); }
+
+    // SP半円チェック
+    if(isInSPSemicircle(startX, startY)){
+      if(spValue >= SP_MAX){ tryUseSP(startX, startY); }
       return;
     }
-  }
 
-  // === コア判定 ===
-
-  // 2本指なら同時押しペアを右→左順で判定（どちらかだけでも消える）
-  if(fingers >= 2){
-    const pairs = getSimultaneousPairsInNotes(); // [[nL, nR], ...]
-    for (const [nL, nR] of pairs) {
-      let right = nL, left = nR;
-      if(notesChart[nL.chartIdx]?.side === "left" && notesChart[nR.chartIdx]?.side === "right"){
-        left = nL; right = nR;
-      }
-      const posR = cubicBezier(right.path.p0, right.path.p1, right.path.p2, right.path.p3, Math.min(1, right.t/right.duration));
-      const distR = Math.hypot(posR.x - rightTarget.x, posR.y - rightTarget.y);
-      const baseRaw = calcTapBase();
-      const resR = calcTapScoreAndLabel(distR, baseRaw);
-      if(resR.label !== 'MISS'){
-        awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, right.chartIdx);
-        notes = notes.filter(n => n !== right);
-      }
-      const posL = cubicBezier(left.path.p0, left.path.p1, left.path.p2, left.path.p3, Math.min(1, left.t/left.duration));
-      const distL = Math.hypot(posL.x - leftTarget.x, posL.y - leftTarget.y);
-      const resL = calcTapScoreAndLabel(distL, baseRaw);
-      if(resL.label !== 'MISS'){
-        awardHit(leftTarget, resL.points, resL.label, resL.reset, baseRaw, left.chartIdx);
-        notes = notes.filter(n => n !== left);
-      }
-      // どちらもMISSなら何もしない
-    }
+    // フリック開始位置を記録
+    flickStartPos = {x: startX, y: startY, timestamp: Date.now()};
+    activeFlickInput = true;
     return;
   }
-
-  // 1本指時は単発ノーツのみ左右順に判定
-  function isNotPairNote(n){
-    return !notes.some(other =>
-      other !== n &&
-      notesChart[n.chartIdx]?.time === notesChart[other.chartIdx]?.time &&
-      notesChart[n.chartIdx]?.side !== notesChart[other.chartIdx]?.side
-    );
-  }
-  let targetNotes = notes.filter(isNotPairNote);
-
-  let bestL = null, bestDistL = Infinity;
-  for(const n of targetNotes){
-    if(n.side !== 'left') continue;
-    const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
-    const dist = Math.hypot(pos.x-leftTarget.x, pos.y-leftTarget.y);
-    if(dist < bestDistL){ bestDistL = dist; bestL = n; }
-  }
-  if(bestL){
-    const baseRaw = calcTapBase();
-    const res = calcTapScoreAndLabel(bestDistL, baseRaw);
-    if(res.label !== 'MISS'){
-      awardHit(leftTarget, res.points, res.label, res.reset, baseRaw, bestL.chartIdx);
-      notes = notes.filter(n => n !== bestL);
+  
+  // touchend / mouseup の処理
+  if (e.type === 'touchend' || e.type === 'mouseup') {
+    if (!activeFlickInput || !flickStartPos) {
+      activeFlickInput = false;
+      flickStartPos = null;
+      return;
     }
-  }
 
-  let bestR = null, bestDistR = Infinity;
-  for(const n of targetNotes){
-    if(n.side !== 'right') continue;
-    const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
-    const dist = Math.hypot(pos.x-rightTarget.x, pos.y-rightTarget.y);
-    if(dist < bestDistR){ bestDistR = dist; bestR = n; }
-  }
-  if(bestR){
-    const baseRaw = calcTapBase();
-    const res = calcTapScoreAndLabel(bestDistR, baseRaw);
-    if(res.label !== 'MISS'){
-      awardHit(rightTarget, res.points, res.label, res.reset, baseRaw, bestR.chartIdx);
-      notes = notes.filter(n => n !== bestR);
+    let endX, endY;
+    if (isTouch && e.changedTouches && e.changedTouches.length > 0) {
+      const rect = cvs.getBoundingClientRect();
+      const scaleX = cvs.width  / rect.width;
+      const scaleY = cvs.height / rect.height;
+      endX = (e.changedTouches[0].clientX-rect.left)*scaleX;
+      endY = (e.changedTouches[0].clientY-rect.top )*scaleY;
+    } else if (!isTouch) {
+      const rect = cvs.getBoundingClientRect();
+      const scaleX = cvs.width  / rect.width;
+      const scaleY = cvs.height / rect.height;
+      endX = (e.clientX-rect.left)*scaleX;
+      endY = (e.clientY-rect.top )*scaleY;
+    } else {
+      activeFlickInput = false;
+      flickStartPos = null;
+      return;
     }
+
+    const flickTime = Date.now() - flickStartPos.timestamp;
+    const flickDirection = getFlickDirection(flickStartPos.x, flickStartPos.y, endX, endY);
+    
+    let handled = false;
+    
+    if (flickTime <= FLICK_MAX_TIME && flickDirection) {
+      // フリック操作として処理
+      // 1. 同時ノーツの判定を最初に試行
+      handled = judgeSimultaneousNotes(flickStartPos.x, flickStartPos.y, flickDirection);
+      
+      // 2. 同時ノーツがなければ単独フリックノーツを判定
+      if (!handled) {
+        handled = judgeFlickNote(flickStartPos.x, flickStartPos.y, endX, endY);
+      }
+    }
+    
+    // フリック処理が成功しなかった場合は通常のタップ処理
+    if (!handled) {
+      const tapX = flickStartPos.x;
+      const tapY = flickStartPos.y;
+      
+      // 1. 同時ノーツ（タップのみ）を試行
+      handled = judgeSimultaneousNotes(tapX, tapY, null);
+      
+      // 2. 単独タップノーツ（フリック以外）の判定
+      if (!handled) {
+        let bestNote = null, bestDist = Infinity, bestTarget = null;
+        for (const note of notes) {
+          const noteInfo = notesChart[note.chartIdx];
+          if (noteInfo && noteInfo.type === "flick") continue; // フリックノーツは除外
+          
+          const target = note.side === 'left' ? leftTarget : rightTarget;
+          const pos = cubicBezier(note.path.p0, note.path.p1, note.path.p2, note.path.p3, Math.min(1, note.t/note.duration));
+          const judgeDist = Math.hypot(pos.x - tapX, pos.y - tapY);
+          if (judgeDist < bestDist) { 
+            bestDist = judgeDist; 
+            bestNote = note; 
+            bestTarget = target; 
+          }
+        }
+        
+        if (bestNote) {
+          const baseRaw = calcTapBase();
+          const {points, label, reset} = calcTapScoreAndLabel(bestDist, baseRaw);
+          if (label !== 'MISS') {
+            awardHit(bestTarget, points, label, reset, baseRaw, bestNote.chartIdx);
+            notes = notes.filter(n => n !== bestNote);
+          }
+        }
+      }
+    }
+
+    activeFlickInput = false;
+    flickStartPos = null;
+    return;
   }
 }
 
 // --- イベント登録 ---
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
+cvs.addEventListener('touchend',handlePointer,{passive:false});
 cvs.addEventListener('mousedown',handlePointer);
+cvs.addEventListener('mouseup',handlePointer);
 
-// ゲームを初期化して開始する共通関数
-async function startGame(seed) {
+startBtn.onclick = async function() {
   await loadTapSE();
   assignACNoteIndexes();
-  
-  setSeed(seed);
-  lastGameSeed = seed; // 今回のシードを保存
-
-  chartIndex = 0;
-  totalNotesSpawned = 0;
-  notes = [];
-  spValue=0; spFullNotified=false;
-  score=0; combo=0;
-  skillHistory = [];
-  appealBoostNotes = 0;
-  skillActivationCount = 0;
-  spUseCount = 0;
-  progressDisplay = 0;
-  spFlashTimer=0; spRingTimer=0; spRingSpeed=20; spRingRange=40;
-  spBoostTimer=0;
-  spCountdownTimer=0;
-  spCountdownValue=0;
-  spScoreBuffNotes = 0;
-  popups=[]; hitRings=[];
-  frame = 0;
-  countdownValue = 3;
-  judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
-  noteCounter = 0;
-  totalSPUsed = 0;
-
-  // --- 永続バフ初期化&50%で発動処理 ---
-  permanentScoreBuff = 0;
-  if(seededRandom() < 0.5){
-    permanentScoreBuff++;
-    skillHistory.unshift({text:"[アピール増加永続 5%]", life:180});
-    if(skillHistory.length>5) skillHistory.pop();
-  }
-
-  // AC状態リセット
-  acList.forEach(ac=>{
-    ac.state = "waiting";
-    ac.progress = 0;
-    ac.cleared = false;
-    ac.tapScore = 0;
-    ac.spScore = 0;
-  });
-  gameState = "countdown";
-  resizeCanvas();
-  startBtn.style.display = "none";
-  retryBtn.style.display = "none";
-  reseedBtn.style.display = "none";
-}
-
-startBtn.onclick = function() {
   if(gameState === "init"){
-    startGame(Date.now()); // 新しいゲームは現在時刻をシードにする
+    chartIndex = 0;
+    totalNotesSpawned = 0;
+    notes = [];
+    spValue=0; spFullNotified=false;
+    score=0; combo=0;
+    skillHistory = [];
+    appealBoostNotes = 0;
+    skillActivationCount = 0;
+    spUseCount = 0;
+    progressDisplay = 0;
+    spFlashTimer=0; spRingTimer=0; spRingSpeed=20; spRingRange=40;
+    spBoostTimer=0;
+    spCountdownTimer=0;
+    spCountdownValue=0;
+    spScoreBuffNotes = 0;
+    popups=[]; hitRings=[];
+    frame = 0;
+    countdownValue = 3;
+    judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
+    noteCounter = 0;
+    totalSPUsed = 0;
+
+    // --- 永続バフ初期化&50%で発動処理 ---
+    permanentScoreBuff = 0;
+    if(Math.random() < 0.5){
+      permanentScoreBuff++;
+      skillHistory.unshift({text:"[アピール増加永続 5%]", life:180});
+      if(skillHistory.length>5) skillHistory.pop();
+    }
+
+    // AC状態リセット
+    acList.forEach(ac=>{
+      ac.state = "waiting";
+      ac.progress = 0;
+      ac.cleared = false;
+      ac.tapScore = 0;
+      ac.spScore = 0;
+    });
+    gameState = "countdown";
+    resizeCanvas();
+    startBtn.style.display = "none";
+    retryBtn.style.display = "none";
   }
 };
   
@@ -960,7 +1148,6 @@ retryBtn.onclick = ()=>{
   gameState = "init";
   startBtn.style.display = "block";
   retryBtn.style.display = "none";
-  reseedBtn.style.display = "none";
   resizeCanvas();
   try{ bgm.pause(); }catch(e){}
   bgm.currentTime = 0;
@@ -973,12 +1160,6 @@ retryBtn.onclick = ()=>{
     ac.spScore = 0;
   });
 };
-
-// --- 乱数再現ボタン挙動 ---
-reseedBtn.onclick = function() {
-  startGame(lastGameSeed); // 保存したシードでゲーム開始
-};
-
 
 // ノーツ出現時にchartIdxを渡すよう修正
 function update(){
@@ -1096,7 +1277,7 @@ function judgeNotesAt(mx, my, alreadyHitIdx){
   return false;
 }
   
-// --- ノーツ描画: 同時押しペア間に白線描画 ---
+// --- ノーツ描画: 同時押しペア間に白線描画 + フリックノーツ対応 ---
 function drawNotes(){
   // 1. 同時ペアの白い線
   const pairs = getSimultaneousPairs();
@@ -1114,13 +1295,16 @@ function drawNotes(){
   }
   ctx.restore();
 
-  // 2. 通常ノーツ描画
+  // 2. 通常ノーツ & フリックノーツ描画
   for(let i=0;i<notes.length;i++){
     const n = notes[i];
     const noteInfo = notesChart[n.chartIdx];
     if(!noteInfo) continue;
     const noteTime = noteInfo.time;
     const idx = n.chartIdx;
+
+    // フリックノーツかどうかを判定
+    const isFlickNote = noteInfo.type === "flick";
 
     // AC区間に入っているか（indexベースで判定）
     let isAcCleared = false;
@@ -1131,23 +1315,31 @@ function drawNotes(){
       }
     }
 
-    // 色設定
-    let mainColor = isAcCleared ? "#ffd700" : "#00eaff";
-    let glowColor = isAcCleared ? "rgba(255,220,60,0.7)" : "rgba(0,200,255,0.7)";
-    let rimColor  = isAcCleared ? "#ffe777" : "#7fffff";
-    let dotColor  = isAcCleared ? "#ffe066" : "#1cd9ee";
+    // 色設定 - フリックノーツは紫系
+    let mainColor, glowColor, rimColor, dotColor;
+    if (isFlickNote) {
+      mainColor = "#9966ff"; // 紫
+      glowColor = "rgba(153,102,255,0.8)"; // 紫グロー
+      rimColor = "#cc99ff";
+      dotColor = "#bb88ff";
+    } else {
+      mainColor = isAcCleared ? "#ffd700" : "#00eaff";
+      glowColor = isAcCleared ? "rgba(255,220,60,0.7)" : "rgba(0,200,255,0.7)";
+      rimColor = isAcCleared ? "#ffe777" : "#7fffff";
+      dotColor = isAcCleared ? "#ffe066" : "#1cd9ee";
+    }
 
     const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
     const r = R;
 
-    // --- グロー ---
+    // --- グロー（フリックノーツはより強く） ---
     ctx.save();
-    ctx.globalAlpha = 0.90;
+    ctx.globalAlpha = isFlickNote ? 1.0 : 0.90;
     ctx.beginPath();
-    ctx.arc(pos.x, pos.y, r * 1.15, 0, Math.PI * 2);
-    const glow = ctx.createRadialGradient(pos.x, pos.y, r * 0.6, pos.x, pos.y, r * 1.2);
+    ctx.arc(pos.x, pos.y, r * (isFlickNote ? 1.3 : 1.15), 0, Math.PI * 2);
+    const glow = ctx.createRadialGradient(pos.x, pos.y, r * 0.6, pos.x, pos.y, r * (isFlickNote ? 1.4 : 1.2));
     glow.addColorStop(0, glowColor);
-    glow.addColorStop(0.7, isAcCleared ? "rgba(255,220,60,0.15)" : "rgba(0,200,255,0.18)");
+    glow.addColorStop(0.7, isFlickNote ? "rgba(153,102,255,0.2)" : (isAcCleared ? "rgba(255,220,60,0.15)" : "rgba(0,200,255,0.18)"));
     glow.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = glow;
     ctx.fill();
@@ -1169,19 +1361,24 @@ function drawNotes(){
     ctx.arc(pos.x, pos.y, r * 0.72, 0, Math.PI * 2);
     ctx.fillStyle = mainColor;
     ctx.shadowColor = mainColor;
-    ctx.shadowBlur = r * 0.16;
-    ctx.globalAlpha = isAcCleared ? 0.72 : 0.6;
+    ctx.shadowBlur = r * (isFlickNote ? 0.25 : 0.16);
+    ctx.globalAlpha = isFlickNote ? 0.8 : (isAcCleared ? 0.72 : 0.6);
     ctx.fill();
     ctx.restore();
 
-    // --- 中心ドット ---
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, r * 0.22, 0, Math.PI * 2);
-    ctx.fillStyle = dotColor;
-    ctx.globalAlpha = 0.88;
-    ctx.fill();
-    ctx.restore();
+    // --- フリックノーツの矢印描画 ---
+    if (isFlickNote && noteInfo.direction) {
+      drawFlickArrow(ctx, pos.x, pos.y, noteInfo.direction, r);
+    } else {
+      // --- 通常ノーツの中心ドット ---
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, r * 0.22, 0, Math.PI * 2);
+      ctx.fillStyle = dotColor;
+      ctx.globalAlpha = 0.88;
+      ctx.fill();
+      ctx.restore();
+    }
 
     // --- START/FINISHラベル ---
     for(const ac of acList){
@@ -1602,7 +1799,6 @@ function render(){
   }
   if(gameState==="result"){
     retryBtn.style.display = "block";
-    reseedBtn.style.display = "block"; // 乱数再現ボタン表示
     const t = Math.min(1, (frame - (resultStartFrame||frame)) / 60);
     const scale = 0.8 + 0.2*Math.sin(t*Math.PI/2);
     const alpha = 0.5 + 0.5*t;
@@ -1649,7 +1845,6 @@ function render(){
     return;
   } else {
     retryBtn.style.display = "none";
-    reseedBtn.style.display = "none";
   }
 }
 function loop(){ update(); render(); requestAnimationFrame(loop); }
