@@ -983,7 +983,7 @@ function handleTouchMove(e){
     
     // Threshold for flick detection
     if(distance > FLICK_THRESHOLD){
-      checkFlickNotes(dx, dy);
+      checkFlickNotes(dx, dy, currentPos.x);
     }
     
     prevTouchPos = {...lastTouchPos};
@@ -994,7 +994,7 @@ function handleTouchMove(e){
 function handleMouseMove(e){
   if(gameState !== "playing") return;
   if(lastInputWasTouch) return;
-  // Mouse flick detection (optional, simplified)
+  // Mouse flick detection not implemented (touch-only feature)
 }
 
 function handleTouchEnd(e){
@@ -1009,7 +1009,7 @@ function handleMouseUp(e){
   activeTouchCount = 0;
 }
 
-function checkFlickNotes(dx, dy){
+function checkFlickNotes(dx, dy, flickX){
   // Determine flick direction
   let detectedDir = null;
   const absDx = Math.abs(dx);
@@ -1021,10 +1021,14 @@ function checkFlickNotes(dx, dy){
     detectedDir = dy > 0 ? 'down' : 'up';
   }
   
-  // Find flick notes near judgment line
+  // Determine which side the flick occurred on
+  const centerX = cvs.width / 2;
+  const flickSide = flickX < centerX ? 'left' : 'right';
+  
+  // Find flick notes near judgment line on the same side
   for(let i = notes.length - 1; i >= 0; i--){
     const n = notes[i];
-    if(n.type === 'flick' && n.direction === detectedDir){
+    if(n.type === 'flick' && n.direction === detectedDir && n.side === flickSide){
       const target = n.side === 'left' ? leftTarget : rightTarget;
       const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
       const dist = Math.hypot(pos.x - target.x, pos.y - target.y);
