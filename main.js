@@ -45,6 +45,7 @@ const acList = [
 ];
   
 // --- 必須グローバル変数 ---
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbz2gsX2XXdV0OOvHtPF0AsHkTBvrCQ_8_1zYxVQ0bki_CoAlFy25QbsEryqTe-dZJJu/exec";
 const cvs = document.getElementById('game');
 const ctx = cvs.getContext('2d');
 const rotateMsg = document.getElementById('rotateMsg');
@@ -75,6 +76,121 @@ reseedBtn.style.display = 'none'; // 最初は非表示
 const bgm = document.getElementById('bgm');
 const bgimg = document.getElementById('bgimg');
 bgm.volume = 0.1;
+
+function jsonp(url, timeoutMs = 8000) {
+  return new Promise((resolve, reject) => {
+    const cbName = "__jsonp_cb_" + Math.random().toString(36).slice(2);
+    const sep = url.includes("?") ? "&" : "?";
+    const full = `${url}${sep}callback=${encodeURIComponent(cbName)}`;
+
+    let done = false;
+    const script = document.createElement("script");
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      cleanup();
+      reject(new Error("timeout"));
+    }, timeoutMs);
+
+    function cleanup() {
+      clearTimeout(timer);
+      try { delete window[cbName]; } catch (_) { window[cbName] = undefined; }
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[cbName] = (data) => {
+      if (done) return;
+      done = true;
+      cleanup();
+      resolve(data);
+    };
+
+    script.onerror = () => {
+      if (done) return;
+      done = true;
+      cleanup();
+      reject(new Error("network error"));
+    };
+
+    script.src = full;
+    document.body.appendChild(script);
+  });
+}
+
+async function submitScore(name, score, seed) {
+  const url =
+    `${GAS_ENDPOINT}?action=submit` +
+    `&name=${encodeURIComponent(name)}` +
+    `&score=${encodeURIComponent(score)}` +
+    `&seed=${encodeURIComponent(seed)}` +
+    `&ua=${encodeURIComponent(navigator.userAgent)}`;
+  return await jsonp(url);
+}
+
+let rankingBtn = document.getElementById('rankingBtn');
+if (!rankingBtn) {
+  rankingBtn = document.createElement('button');
+  rankingBtn.id = 'rankingBtn';
+  rankingBtn.textContent = 'ランキング';
+  document.body.appendChild(rankingBtn);
+}
+rankingBtn.style.position = 'absolute';
+rankingBtn.style.top = '20px';
+rankingBtn.style.right = '20px';
+rankingBtn.style.padding = '10px 16px';
+rankingBtn.style.fontSize = '16px';
+rankingBtn.style.backgroundColor = '#111827';
+rankingBtn.style.color = 'white';
+rankingBtn.style.border = 'none';
+rankingBtn.style.borderRadius = '6px';
+rankingBtn.style.cursor = 'pointer';
+rankingBtn.style.display = 'none';
+
+rankingBtn.onclick = async () => {
+  try {
+    const res = await fetchTopScores(10);
+    if (!res.ok) throw new Error(res.error || 'unknown');
+
+    const lines = res.data.map(r => `${r.rank}. ${r.name}  ${r.score}`).join('\n');
+    alert(lines || 'まだスコアがありません');
+  } catch (e) {
+    alert('ランキング取得に失敗しました: ' + e.message);
+  }
+};
+
+let saveScoreBtn = document.getElementById('saveScoreBtn');
+if (!saveScoreBtn) {
+  saveScoreBtn = document.createElement('button');
+  saveScoreBtn.id = 'saveScoreBtn';
+  saveScoreBtn.textContent = 'スコア送信';
+  document.body.appendChild(saveScoreBtn);
+}
+saveScoreBtn.style.position = 'absolute';
+saveScoreBtn.style.bottom = '20px';
+saveScoreBtn.style.left = '20px';
+saveScoreBtn.style.padding = '10px 20px';
+saveScoreBtn.style.fontSize = '16px';
+saveScoreBtn.style.backgroundColor = '#2563eb';
+saveScoreBtn.style.color = 'white';
+saveScoreBtn.style.border = 'none';
+saveScoreBtn.style.borderRadius = '6px';
+saveScoreBtn.style.cursor = 'pointer';
+saveScoreBtn.style.display = 'none';
+
+saveScoreBtn.onclick = async () => {
+  const name = prompt('名前を入力してください（20文字まで）');
+  if (!name) return;
+  try {
+    const res = await submitScore(name, score, lastGameSeed);
+    if (!res.ok) throw new Error(res.error || 'unknown');
+    alert('送信しました！');
+
+    // 送信後にランキングも見せる（任意）
+    // const top = await fetchTopScores(10);
+  } catch (e) {
+    alert('送信に失敗しました: ' + e.message);
+  }
+};
 
 // --- 譜面データを直接埋め込む ---
 const notesChart = [
