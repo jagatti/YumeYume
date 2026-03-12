@@ -555,10 +555,16 @@ function resizeCanvas(){
     startBtn.style.display='none';
     retryBtn.style.display='none';
     reseedBtn.style.display='none';
+    rankingBtn.style.display = 'none';
+  　saveScoreBtn.style.display = 'none';
     return;
   }
   rotateMsg.style.display='none';
   cvs.style.display='block';
+  if (gameState === "init") rankingBtn.style.display = 'block';
+　else rankingBtn.style.display = 'none';
+　if (gameState === "result") saveScoreBtn.style.display = 'block';
+　else saveScoreBtn.style.display = 'none';
   if(gameState==="init") startBtn.style.display='block';
   else startBtn.style.display='none';
   if(gameState==="result") {
