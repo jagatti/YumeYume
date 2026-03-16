@@ -77,6 +77,7 @@ const bgm = document.getElementById('bgm');
 const bgimg = document.getElementById('bgimg');
 bgm.volume = 0.1;
 
+// --- JSONP ---
 function jsonp(url, timeoutMs = 8000) {
   return new Promise((resolve, reject) => {
     const cbName = "__jsonp_cb_" + Math.random().toString(36).slice(2);
@@ -117,6 +118,13 @@ function jsonp(url, timeoutMs = 8000) {
   });
 }
 
+// --- ランキング取得（※名前は fetchTopScores）---
+async function fetchTopScores(limit = 10) {
+  const url = `${GAS_ENDPOINT}?action=top&limit=${encodeURIComponent(limit)}`;
+  return await jsonp(url);
+}
+
+// --- スコア送信 ---
 async function submitScore(name, score, seed) {
   const url =
     `${GAS_ENDPOINT}?action=submit` +
@@ -184,9 +192,6 @@ saveScoreBtn.onclick = async () => {
     const res = await submitScore(name, score, lastGameSeed);
     if (!res.ok) throw new Error(res.error || 'unknown');
     alert('送信しました！');
-
-    // 送信後にランキングも見せる（任意）
-    // const top = await fetchTopScores(10);
   } catch (e) {
     alert('送信に失敗しました: ' + e.message);
   }
