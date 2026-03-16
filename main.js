@@ -165,7 +165,7 @@ rankingBtn.onclick = async () => {
     }
 
     // 表示幅を揃える（日本語でも崩れにくい範囲で）
-    const header = '順位  名前                 ベストスコア';
+    const header = '順位  名前                         ベストスコア';
     const sep = '----------------------------------------';
 
     const lines = res.data.map(r => {
