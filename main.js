@@ -154,7 +154,104 @@ rankingBtn.style.borderRadius = '6px';
 rankingBtn.style.cursor = 'pointer';
 rankingBtn.style.display = 'none';
 
+let rankingModal = document.getElementById('rankingModal');
+if (!rankingModal) {
+  rankingModal = document.createElement('div');
+  rankingModal.id = 'rankingModal';
+  rankingModal.style.position = 'absolute';
+  rankingModal.style.left = '50%';
+  rankingModal.style.top = '50%';
+  rankingModal.style.transform = 'translate(-50%, -50%)';
+  rankingModal.style.minWidth = '520px';
+  rankingModal.style.maxWidth = '80vw';
+  rankingModal.style.background = 'rgba(0,0,0,0.82)';
+  rankingModal.style.color = '#fff';
+  rankingModal.style.border = '1px solid rgba(255,255,255,0.25)';
+  rankingModal.style.borderRadius = '10px';
+  rankingModal.style.padding = '14px 16px';
+  rankingModal.style.zIndex = '9999';
+  rankingModal.style.display = 'none';
+
+  rankingModal.innerHTML = `
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px;">
+      <div style="font-weight:800; font-size:18px;">ランキング TOP10</div>
+      <button id="rankingCloseBtn"
+        style="padding:6px 10px; background:#111827; color:#fff; border:1px solid rgba(255,255,255,0.25); border-radius:8px; cursor:pointer;">
+        閉じる
+      </button>
+    </div>
+
+    <div id="rankingTable"
+      style="
+        display:grid;
+        grid-template-columns: 72px 1fr 160px;
+        gap:6px 10px;
+        align-items:center;
+        font-size:16px;
+      ">
+    </div>
+  `;
+  document.body.appendChild(rankingModal);
+
+  rankingModal.querySelector('#rankingCloseBtn').onclick = () => {
+    rankingModal.style.display = 'none';
+  };
+}
+
+function renderRankingTable(rows) {
+  const table = rankingModal.querySelector('#rankingTable');
+
+  const headerCell = (text, align = 'left') =>
+    `<div style="font-weight:800; opacity:0.95; padding-bottom:6px; border-bottom:1px dashed rgba(255,255,255,0.35); text-align:${align};">
+      ${text}
+     </div>`;
+
+  const cell = (text, align = 'left') =>
+    `<div style="padding-top:6px; text-align:${align}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+      ${text}
+     </div>`;
+
+  let html = '';
+  html += headerCell('順位');
+  html += headerCell('名前');
+  html += headerCell('ベストスコア', 'right');
+
+  for (const r of rows) {
+    const rankText = `${r.rank}位`;
+    const nameText = String(r.name ?? '');
+    const scoreNum = Number(r.score ?? 0);
+    const scoreText = Number.isFinite(scoreNum) ? scoreNum.toLocaleString('ja-JP') : '';
+
+    html += cell(rankText);
+    html += cell(escapeHtml_(nameText));
+    html += cell(scoreText, 'right');
+  }
+
+  table.innerHTML = html;
+}
+
+function escapeHtml_(s) {
+  return String(s)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 rankingBtn.onclick = async () => {
+  try {
+    const res = await fetchTopScores(20);
+    if (!res.ok) throw new Error(res.error || 'unknown');
+
+    const rows = (res.data && res.data.length) ? res.data : [];
+    renderRankingTable(rows);
+    rankingModal.style.display = 'block';
+  } catch (e) {
+    alert('ランキング取得に失敗しました: ' + e.message);
+  }
+};
+/*rankingBtn.onclick = async () => {
   try {
     const res = await fetchTopScores(20);
     if (!res.ok) throw new Error(res.error || 'unknown');
@@ -180,6 +277,7 @@ rankingBtn.onclick = async () => {
     alert('ランキング取得に失敗しました: ' + e.message);
   }
 };
+*/
 
 let saveScoreBtn = document.getElementById('saveScoreBtn');
 if (!saveScoreBtn) {
