@@ -1156,6 +1156,7 @@ function update(){
   if(gameState==="clear" && frame-clearStartFrame>120){
     gameState="result";
     resultStartFrame=frame;
+    resizeCanvas();
     if(score > bestScore) {
       bestScore = score;
       localStorage.setItem('bestScore', bestScore);
