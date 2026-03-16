@@ -174,8 +174,9 @@ if (!saveScoreBtn) {
   document.body.appendChild(saveScoreBtn);
 }
 saveScoreBtn.style.position = 'absolute';
-saveScoreBtn.style.bottom = '20px';
-saveScoreBtn.style.left = '20px';
+saveScoreBtn.style.right = '20px';
+saveScoreBtn.style.top = '50%';
+saveScoreBtn.style.transform = 'translateY(-50%)';
 saveScoreBtn.style.padding = '10px 20px';
 saveScoreBtn.style.fontSize = '16px';
 saveScoreBtn.style.backgroundColor = '#2563eb';
