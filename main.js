@@ -156,11 +156,26 @@ rankingBtn.style.display = 'none';
 
 rankingBtn.onclick = async () => {
   try {
-    const res = await fetchTopScores(10);
+    const res = await fetchTopScores(20);
     if (!res.ok) throw new Error(res.error || 'unknown');
 
-    const lines = res.data.map(r => `${r.rank}. ${r.name}  ${r.score}`).join('\n');
-    alert(lines || 'まだスコアがありません');
+    if (!res.data || res.data.length === 0) {
+      alert('まだスコアがありません');
+      return;
+    }
+
+    // 表示幅を揃える（日本語でも崩れにくい範囲で）
+    const header = '順位  名前                 ベストスコア';
+    const sep = '----------------------------------------';
+
+    const lines = res.data.map(r => {
+      const rank = `${r.rank}位`.padEnd(4, ' ');
+      const name = String(r.name || '').slice(0, 18).padEnd(20, ' ');
+      const score = String(r.score ?? '').padStart(10, ' ');
+      return `${rank} ${name} ${score}`;
+    });
+
+    alert([header, sep, ...lines].join('\n'));
   } catch (e) {
     alert('ランキング取得に失敗しました: ' + e.message);
   }
@@ -187,7 +202,7 @@ saveScoreBtn.style.cursor = 'pointer';
 saveScoreBtn.style.display = 'none';
 
 saveScoreBtn.onclick = async () => {
-  const name = prompt('名前を入力してください（20文字まで）');
+  const name = prompt('名前を入力してください（10文字まで）');
   if (!name) return;
   try {
     const res = await submitScore(name, score, lastGameSeed);
