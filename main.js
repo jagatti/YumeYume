@@ -119,8 +119,10 @@ function jsonp(url, timeoutMs = 8000) {
 }
 
 // --- ランキング取得（※名前は fetchTopScores）---
-async function fetchTopScores(limit = 10) {
-  const url = `${GAS_ENDPOINT}?action=top&limit=${encodeURIComponent(limit)}`;
+async function fetchTopScores(limit) {
+  const url = (typeof limit === 'number')
+    ? `${GAS_ENDPOINT}?action=top&limit=${encodeURIComponent(limit)}`
+    : `${GAS_ENDPOINT}?action=top`;
   return await jsonp(url);
 }
 
@@ -173,14 +175,21 @@ if (!rankingModal) {
   rankingModal.style.display = 'none';
 
   rankingModal.innerHTML = `
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px;">
-      <div style="font-weight:800; font-size:18px;">ランキング TOP10</div>
-      <button id="rankingCloseBtn"
-        style="padding:6px 10px; background:#111827; color:#fff; border:1px solid rgba(255,255,255,0.25); border-radius:8px; cursor:pointer;">
-        閉じる
-      </button>
-    </div>
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px;">
+    <div style="font-weight:800; font-size:18px;">ランキング（全員）</div>
+    <button id="rankingCloseBtn"
+      style="padding:6px 10px; background:#111827; color:#fff; border:1px solid rgba(255,255,255,0.25); border-radius:8px; cursor:pointer;">
+      閉じる
+    </button>
+  </div>
 
+  <!-- スクロール枠：見えるのはだいたいTOP5分 -->
+  <div id="rankingScroll"
+    style="
+      max-height: 240px;       /* ★ここが表示行数に相当（あとで調整） */
+      overflow-y: auto;
+      padding-right: 6px;      /* スクロールバー分 */
+    ">
     <div id="rankingTable"
       style="
         display:grid;
@@ -190,11 +199,14 @@ if (!rankingModal) {
         font-size:16px;
       ">
     </div>
-  `;
+  </div>
+`;
   document.body.appendChild(rankingModal);
 
   rankingModal.querySelector('#rankingCloseBtn').onclick = () => {
-    rankingModal.style.display = 'none';
+    rankingModal.style.display = 'block';
+　　const sc = rankingModal.querySelector('#rankingScroll');
+　　if (sc) sc.scrollTop = 0;
   };
 }
 
@@ -241,7 +253,7 @@ function escapeHtml_(s) {
 
 rankingBtn.onclick = async () => {
   try {
-    const res = await fetchTopScores(20);
+    const res = await fetchTopScores(); // ★引数なし（limitなし）
     if (!res.ok) throw new Error(res.error || 'unknown');
 
     const rows = (res.data && res.data.length) ? res.data : [];
