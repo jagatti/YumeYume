@@ -176,7 +176,7 @@ if (!rankingModal) {
 
   rankingModal.innerHTML = `
   <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px;">
-    <div style="font-weight:800; font-size:18px;">ランキング（全員）</div>
+    <div style="font-weight:800; font-size:18px;">全体ランキング</div>
     <button id="rankingCloseBtn"
       style="padding:6px 10px; background:#111827; color:#fff; border:1px solid rgba(255,255,255,0.25); border-radius:8px; cursor:pointer;">
       閉じる
@@ -204,10 +204,8 @@ if (!rankingModal) {
   document.body.appendChild(rankingModal);
 
   rankingModal.querySelector('#rankingCloseBtn').onclick = () => {
-    rankingModal.style.display = 'block';
-　　const sc = rankingModal.querySelector('#rankingScroll');
-　　if (sc) sc.scrollTop = 0;
-  };
+  rankingModal.style.display = 'none';
+　};
 }
 
 function renderRankingTable(rows) {
@@ -253,43 +251,19 @@ function escapeHtml_(s) {
 
 rankingBtn.onclick = async () => {
   try {
-    const res = await fetchTopScores(); // ★引数なし（limitなし）
+    const res = await fetchTopScores();
     if (!res.ok) throw new Error(res.error || 'unknown');
 
     const rows = (res.data && res.data.length) ? res.data : [];
     renderRankingTable(rows);
+
     rankingModal.style.display = 'block';
+    const sc = rankingModal.querySelector('#rankingScroll');
+    if (sc) sc.scrollTop = 0;
   } catch (e) {
     alert('ランキング取得に失敗しました: ' + e.message);
   }
 };
-/*rankingBtn.onclick = async () => {
-  try {
-    const res = await fetchTopScores(20);
-    if (!res.ok) throw new Error(res.error || 'unknown');
-
-    if (!res.data || res.data.length === 0) {
-      alert('まだスコアがありません');
-      return;
-    }
-
-    // 表示幅を揃える（日本語でも崩れにくい範囲で）
-    const header = '順位  名前                         ベストスコア';
-    const sep = '----------------------------------------';
-
-    const lines = res.data.map(r => {
-      const rank = `${r.rank}位`.padEnd(4, ' ');
-      const name = String(r.name || '').slice(0, 18).padEnd(20, ' ');
-      const score = String(r.score ?? '').padStart(10, ' ');
-      return `${rank} ${name} ${score}`;
-    });
-
-    alert([header, sep, ...lines].join('\n'));
-  } catch (e) {
-    alert('ランキング取得に失敗しました: ' + e.message);
-  }
-};
-*/
 
 let saveScoreBtn = document.getElementById('saveScoreBtn');
 if (!saveScoreBtn) {
