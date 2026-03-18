@@ -305,7 +305,7 @@ const notesChart = [
   {"time": 4.69, "side": "left"},
   {"time": 4.87, "side": "right"},
   {"time": 4.87, "side": "left"},//追加
-  {"time": 5.25, "side": "right", "longEnd": 7.14}
+  {"time": 5.25, "side": "right", "longEnd": 7.14},
   {"time": 5.63, "side": "left"},
   {"time": 6.57, "side": "left"},
   {"time": 7.14, "side": "left"},
