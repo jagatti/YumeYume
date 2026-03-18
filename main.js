@@ -706,7 +706,124 @@ function spawnNote(side, chartIdx){
 }
 function addPopup(text,x,y,ms,type){const d=Math.max(1,Math.round(ms/16.67));popups.push({text,x,y,timer:d,duration:d,type});}
 function triggerSPVisual(){ spFlashTimer=10; spRingTimer=spRingSpeed; }
-  
+
+// --- ロングノーツ(ホールド)状態 ---
+let holdState = {
+  active: false,
+  pointerId: null,
+  longId: null,
+  side: null,
+  headChartIdx: null,
+  tailNoteRef: null,
+  broke: false
+};
+
+// notesChart の要素に {time, side, longEnd, longId} を持たせるとロングになる
+// 例: {"time": 20.16, "side":"right", "longEnd": 21.29, "longId": 1}
+function spawnLongNote(chartIdx){
+  const headInfo = notesChart[chartIdx];
+  if(!headInfo || typeof headInfo.longEnd !== 'number') return;
+
+  const longId = headInfo.longId ?? chartIdx;
+
+  // 始点ノーツ（通常ノーツと同じタイミングで流れる）
+  const head = {
+    side: headInfo.side,
+    t: 0,
+    duration: noteDuration,
+    path: makePath(headInfo.side),
+    chartIdx,
+    noteType: 'longHead',
+    longId
+  };
+  notes.push(head);
+
+  // 終点ノーツ（longEndまでfreezeしておいて、到達したら流す）
+  const tail = {
+    side: headInfo.side,
+    t: 0,
+    duration: noteDuration,
+    path: makePath(headInfo.side),
+    chartIdx,
+    noteType: 'longTail',
+    longId,
+    tailTime: headInfo.longEnd,
+    __freeze: true
+  };
+  notes.push(tail);
+}
+
+// ヒットしたノーツがロング始点ならホールド開始
+function tryStartHoldFromHitNote(note, pointerId){
+  if (!note || note.noteType !== 'longHead') return;
+
+  const longId = note.longId;
+  const tail = notes.find(n => n.noteType === 'longTail' && n.longId === longId) || null;
+
+  holdState.active = true;
+  holdState.pointerId = pointerId ?? null;
+  holdState.longId = longId;
+  holdState.side = note.side;
+  holdState.headChartIdx = note.chartIdx;
+  holdState.tailNoteRef = tail;
+  holdState.broke = false;
+}
+
+// ホールド失敗（途中で離した・終点がまだ出てない・終点MISS）
+function failHold(){
+  const longId = holdState.longId;
+  // longTail を消す（headは既にヒット済み想定）
+  if (longId != null) {
+    notes = notes.filter(n => !(n.noteType === 'longTail' && n.longId === longId));
+  }
+  holdState.active = false;
+  holdState.pointerId = null;
+  holdState.longId = null;
+  holdState.side = null;
+  holdState.headChartIdx = null;
+  holdState.tailNoteRef = null;
+  holdState.broke = true;
+
+  applyMiss('MISS');
+}
+
+// ホールド成功（終点で離す）
+function succeedHold(){
+  const tail = holdState.tailNoteRef;
+  if(!tail) { failHold(); return; }
+
+  const target = (tail.side === 'left') ? leftTarget : rightTarget;
+
+  const posT = cubicBezier(
+    tail.path.p0, tail.path.p1, tail.path.p2, tail.path.p3,
+    Math.min(1, tail.t / tail.duration)
+  );
+  const dist = Math.hypot(posT.x - target.x, posT.y - target.y);
+
+  const baseRaw = calcTapBase();
+  const {points, label, reset} = calcTapScoreAndLabel(dist, baseRaw);
+
+  if(label === 'MISS'){
+    failHold();
+    return;
+  }
+
+  // 終点分（2コンボ目）
+  awardHit(target, points, label, reset, baseRaw, tail.chartIdx);
+
+  // tail削除
+  notes = notes.filter(n => n !== tail);
+
+  // holdState解除
+  holdState.active = false;
+  holdState.pointerId = null;
+  holdState.longId = null;
+  holdState.side = null;
+  holdState.headChartIdx = null;
+  holdState.tailNoteRef = null;
+  holdState.broke = false;
+}
+
 // --- AC進行チェック（nowTimeで判定） ---
 function updateACOnTap(pointsWithCombo, nowTime) {
   noteCounter++;
@@ -825,6 +942,7 @@ function judgeSingleNoteAt(mx, my, excludeNotes) {
   let bestNote = null, bestDist = Infinity, bestTarget = null;
   for (const n of notes) {
     if (excludeNotes && excludeNotes.includes(n)) continue;
+    if (n.__freeze) continue;
     const target = n.side === 'left' ? leftTarget : rightTarget;
     const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
     const judgeDist = Math.hypot(pos.x - mx, pos.y - my);
@@ -947,6 +1065,7 @@ function isInSPSemicircle(mx,my){
 function judgeNotesGlobal(mx, my){
   let bestIdx=-1, bestDist=Infinity, bestTarget=null;
   for(let i=0;i<notes.length;i++){
+    if (n.__freeze) continue;
     const n=notes[i];
     const target=n.side==='left'?leftTarget:rightTarget;
     const pos=cubicBezier(n.path.p0,n.path.p1,n.path.p2,n.path.p3, Math.min(1,n.t/n.duration));
@@ -1046,6 +1165,25 @@ function handlePointer(e){
     }
   }
 
+  // --- ホールド中：ホールドしている指(pointerId)の入力は判定に使わない ---
+  // 他の指/マウス入力は通常通り判定してOK
+  if (holdState.active && isTouch) {
+    // hold指を除いたタッチだけで判定したいので、touches をフィルタする
+    const holdId = holdState.pointerId;
+    const filtered = [];
+    for (const t of e.touches) {
+      if (holdId != null && t.identifier === holdId) continue;
+      filtered.push(t);
+    }
+    // hold指しか触ってないなら何もしない（押し続けるだけ）
+    if (filtered.length === 0) return;
+
+    // 以降の既存処理が e.touches を参照しているので、簡易的に差し替える
+    // （配列を持ったオブジェクトにするだけ）
+    e = Object.assign({}, e, { touches: filtered });
+    fingers = filtered.length;
+  }
+
   // === コア判定 ===
 
   // 2本指なら同時押しペアを右→左順で判定（どちらかだけでも消える）
@@ -1062,6 +1200,8 @@ function handlePointer(e){
       const resR = calcTapScoreAndLabel(distR, baseRaw);
       if(resR.label !== 'MISS'){
         awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, right.chartIdx);
+        const pid = (e.type.startsWith('touch') && e.touches && e.touches[0]) ? e.touches[0].identifier : 'mouse';
+        tryStartHoldFromHitNote(right, pid);
         notes = notes.filter(n => n !== right);
       }
       const posL = cubicBezier(left.path.p0, left.path.p1, left.path.p2, left.path.p3, Math.min(1, left.t/left.duration));
@@ -1069,6 +1209,7 @@ function handlePointer(e){
       const resL = calcTapScoreAndLabel(distL, baseRaw);
       if(resL.label !== 'MISS'){
         awardHit(leftTarget, resL.points, resL.label, resL.reset, baseRaw, left.chartIdx);
+        tryStartHoldFromHitNote(left, pid);
         notes = notes.filter(n => n !== left);
       }
       // どちらもMISSなら何もしない
@@ -1098,6 +1239,7 @@ function handlePointer(e){
     const res = calcTapScoreAndLabel(bestDistL, baseRaw);
     if(res.label !== 'MISS'){
       awardHit(leftTarget, res.points, res.label, res.reset, baseRaw, bestL.chartIdx);
+      tryStartHoldFromHitNote(bestL, pid);
       notes = notes.filter(n => n !== bestL);
     }
   }
@@ -1114,6 +1256,7 @@ function handlePointer(e){
     const res = calcTapScoreAndLabel(bestDistR, baseRaw);
     if(res.label !== 'MISS'){
       awardHit(rightTarget, res.points, res.label, res.reset, baseRaw, bestR.chartIdx);
+      tryStartHoldFromHitNote(bestR, pid);
       notes = notes.filter(n => n !== bestR);
     }
   }
@@ -1122,6 +1265,32 @@ function handlePointer(e){
 // --- イベント登録 ---
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
 cvs.addEventListener('mousedown',handlePointer);
+
+function onPointerRelease(e){
+  if(!holdState.active) return;
+
+  const isTouchEnd = e.type.startsWith('touch');
+  if(isTouchEnd){
+    // このリリースがホールド指か確認（変化後の touches に hold指がまだ居るかで判断）
+    const holdId = holdState.pointerId;
+    const stillHolding = Array.from(e.touches || []).some(t => t.identifier === holdId);
+    if(stillHolding) return; // まだ押してる（別の指が離れただけ）
+  }
+
+  // tailがまだ出てないなら失敗
+  const tail = holdState.tailNoteRef;
+  if(!tail || tail.__freeze){
+    failHold();
+    return;
+  }
+
+  // 終点で離したので成功判定
+  succeedHold();
+}
+
+cvs.addEventListener('touchend', onPointerRelease, {passive:false});
+cvs.addEventListener('touchcancel', onPointerRelease, {passive:false});
+window.addEventListener('mouseup', onPointerRelease);
 
 // ゲームを初期化して開始する共通関数
 async function startGame(seed) {
@@ -1229,13 +1398,31 @@ function update(){
   if (gameState === "playing" && !bgm.paused) {
     const bgmNowSec = bgm.currentTime;
     while (chartIndex < notesChart.length && bgmNowSec >= notesChart[chartIndex].time) {
-      spawnNote(notesChart[chartIndex].side, chartIndex); 
-      totalNotesSpawned++;
-      chartIndex++;
-    }
+  const info = notesChart[chartIndex];
+
+  // longEnd があるものはロングとして生成（head+tail）
+  if (typeof info.longEnd === 'number') {
+    spawnLongNote(chartIndex);
+  } else {
+    spawnNote(info.side, chartIndex);
+  }
+
+  totalNotesSpawned++;
+  chartIndex++;
+}
+
+// --- ロング終点のfreeze解除（時刻到達で流し始める） ---
+for (const n of notes) {
+  if (n.noteType === 'longTail') {
+    n.__freeze = (bgmNowSec < n.tailTime);
+  }
+}
     if(acFailFlashTimer > 0) acFailFlashTimer--;
   }
-  for(const n of notes) n.t++;
+  for (const n of notes) {
+  if (n.__freeze) continue;
+  n.t++;
+}
   const keep=[];for(const n of notes){if(n.t<=n.duration+5) keep.push(n);else applyMiss('MISS');}notes=keep;
   if(gameState==="playing" && chartIndex>=notesChart.length && notes.length===0){
     if(waitingClearFrame === null){
@@ -1282,14 +1469,20 @@ function getSimultaneousPairs() {
   const pairs = [];
   for (let i = 0; i < notes.length; i++) {
     const n1 = notes[i];
+    if (n1.__freeze) continue;
     if (n1.paired) continue;
     for (let j = i + 1; j < notes.length; j++) {
       const n2 = notes[j];
+      if (n2.__freeze) continue;
       if (n2.paired) continue;
       if (n1.chartIdx !== undefined && n2.chartIdx !== undefined) {
         const ni = notesChart[n1.chartIdx];
         const nj = notesChart[n2.chartIdx];
-        if (ni && nj && ni.time === nj.time && ni.side !== nj.side) {
+        // 通常は譜面time、ロングtailは tailTime を同時刻判定に使う
+        const t1 = (n1.noteType === 'longTail') ? Number(n1.tailTime) : Number(ni?.time);
+        const t2 = (n2.noteType === 'longTail') ? Number(n2.tailTime) : Number(nj?.time);
+
+        if (Number.isFinite(t1) && Number.isFinite(t2) && t1 === t2 && n1.side !== n2.side) {
           n1.paired = n2.paired = true;
           pairs.push([n1, n2]);
         }
@@ -1304,6 +1497,7 @@ function getSimultaneousPairs() {
 function judgeNotesAt(mx, my, alreadyHitIdx){
   let bestIdx=-1, bestDist=Infinity, bestTarget=null;
   for(let i=0;i<notes.length;i++){
+    if (n.__freeze) continue;
     if (alreadyHitIdx && alreadyHitIdx.includes(i)) continue;
     const n=notes[i];
     const target=n.side==='left'?leftTarget:rightTarget;
@@ -1341,6 +1535,33 @@ function drawNotes(){
     ctx.stroke();
   }
   ctx.restore();
+  
+  // 1.5 ロング帯（同じlongIdの head と tail を結ぶ）
+  const heads = new Map();
+  const tails = new Map();
+  for (const n of notes) {
+    if (n.__freeze) continue;
+    if (n.noteType === 'longHead') heads.set(n.longId, n);
+    if (n.noteType === 'longTail') tails.set(n.longId, n);
+  }
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 215, 0, 0.75)";
+  ctx.lineWidth = Math.max(10, R * 0.45);
+  ctx.lineCap = "round";
+  for (const [id, h] of heads.entries()) {
+    const t = tails.get(id);
+    if (!t) continue;
+
+    const posH = cubicBezier(h.path.p0, h.path.p1, h.path.p2, h.path.p3, Math.min(1, h.t/h.duration));
+    const posT = cubicBezier(t.path.p0, t.path.p1, t.path.p2, t.path.p3, Math.min(1, t.t/t.duration));
+
+    ctx.beginPath();
+    ctx.moveTo(posH.x, posH.y);
+    ctx.lineTo(posT.x, posT.y);
+    ctx.stroke();
+  }
+  ctx.restore();
 
   // 2. 通常ノーツ描画
   for(let i=0;i<notes.length;i++){
@@ -1364,6 +1585,15 @@ function drawNotes(){
     let glowColor = isAcCleared ? "rgba(255,220,60,0.7)" : "rgba(0,200,255,0.7)";
     let rimColor  = isAcCleared ? "#ffe777" : "#7fffff";
     let dotColor  = isAcCleared ? "#ffe066" : "#1cd9ee";
+
+    // ロングは常に黄色（AC色等は上書きしない）
+    const isLong = (n.noteType === 'longHead' || n.noteType === 'longTail');
+    if (isLong) {
+      mainColor = "#ffd700";
+      glowColor = "rgba(255,220,60,0.7)";
+      rimColor  = "#ffe777";
+      dotColor  = "#ffe066";
+    }
 
     const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
     const r = R;
