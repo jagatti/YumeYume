@@ -802,8 +802,8 @@ function tryStartHoldFromHitNote(note, pointerId){
   holdState.pointerId = (pointerId ?? null);
   holdState.longId = String(note.longId ?? '');
   holdState.side = note.side;
-  holdState.headChartIdx = headIdx;
-  holdState.tailChartIdx = (tailIdx ?? null);
+  holdState.headChartIdx = note.chartIdx;
+  holdState.tailChartIdx = findClosestNoteIndex(notesChart[note.chartIdx].longEnd);
   holdState.broke = false;
 }
 
