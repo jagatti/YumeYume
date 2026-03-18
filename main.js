@@ -299,7 +299,17 @@ saveScoreBtn.onclick = async () => {
 
 // --- 譜面データを直接埋め込む ---
 const notesChart = [
-  {"time": 0.54, "side": "left"},
+  {"time": 0.54, "side": "right", "longEnd": 2.61}
+  {"time": 3.18, "side": "left", "longEnd": 4.12}
+  {"time": 4.50, "side": "right"},
+  {"time": 4.69, "side": "left"},
+  {"time": 4.87, "side": "right"},
+  {"time": 4.87, "side": "left"},//追加
+  {"time": 5.25, "side": "right", "longEnd": 7.14}
+  {"time": 5.63, "side": "left"},
+  {"time": 6.57, "side": "left"},
+  {"time": 7.14, "side": "left"},
+/*  {"time": 0.54, "side": "left"},
   {"time": 1.11, "side": "left"},
   {"time": 1.48, "side": "right"},
   {"time": 1.86, "side": "right"},
@@ -338,7 +348,7 @@ const notesChart = [
   {"time": 15.44, "side": "right"},
   {"time": 15.63, "side": "left"},
   {"time": 16.01, "side": "right"},
-  {"time": 16.01, "side": "left"},//追加
+ */ {"time": 16.01, "side": "left"},//追加
   {"time": 16.39, "side": "left"},
   {"time": 16.95, "side": "right"},
   {"time": 17.33, "side": "left"},
