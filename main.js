@@ -1185,6 +1185,10 @@ function handlePointer(e){
   }
 
   // === コア判定 ===
+  
+  const pid = (e.type.startsWith('touch') && e.changedTouches && e.changedTouches[0])
+  ? e.changedTouches[0].identifier
+  : 'mouse';
 
   // 2本指なら同時押しペアを右→左順で判定（どちらかだけでも消える）
   if(fingers >= 2){
@@ -1200,7 +1204,6 @@ function handlePointer(e){
       const resR = calcTapScoreAndLabel(distR, baseRaw);
       if(resR.label !== 'MISS'){
         awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, right.chartIdx);
-        const pid = (e.type.startsWith('touch') && e.touches && e.touches[0]) ? e.touches[0].identifier : 'mouse';
         tryStartHoldFromHitNote(right, pid);
         notes = notes.filter(n => n !== right);
       }
