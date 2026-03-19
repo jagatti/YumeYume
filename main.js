@@ -299,11 +299,14 @@ saveScoreBtn.onclick = async () => {
 
 // --- 譜面データを直接埋め込む ---
 const notesChart = [
-{ time: 0.54, side:"right", longEnd: 2.61, longId:"L1" },
-{ time: 2.99, side:"left", longEnd: 4.12, longId:"L2" },
-{ time: 4.50, side:"right", longEnd: 4.87, longId:"L3" },
-{ time: 4.69, side: "left"},
-{ time: 4.87, side: "left"},
+  { time: 0.54, side:"right", type:"longStart", id:"L1" },
+  { time: 2.61, side:"right", type:"longEnd",   id:"L1" },
+  { time: 2.99, side:"left",  type:"longStart", id:"L2" },
+  { time: 4.12, side:"left",  type:"longEnd",   id:"L2" },
+  { time: 4.50, side:"right", type:"longStart", id:"L3" },
+  { time: 4.87, side:"right", type:"longEnd",   id:"L3" },
+  { time: 4.69, side: "left" },
+  { time: 4.87, side: "left" },
 /*  {"time": 0.54, "side": "left"},
   {"time": 1.11, "side": "left"},
   {"time": 1.48, "side": "right"},
@@ -786,6 +789,7 @@ function spawnLongEnd(chartIdx){
     chartIdx,
     noteType: 'longTail',
     longId: String(info.id ?? chartIdx)
+    tailTime: info.time
   });
 }
 
@@ -798,12 +802,14 @@ function tryStartHoldFromHitNote(note, pointerId){
   const headIdx = note.chartIdx;
   const tailIdx = longPairByStartIdx.get(headIdx);
 
+  if(tailIdx == null) return; // ペアが見つからなければ何もしない
+
   holdState.active = true;
   holdState.pointerId = (pointerId ?? null);
   holdState.longId = String(note.longId ?? '');
   holdState.side = note.side;
-  holdState.headChartIdx = note.chartIdx;
-  holdState.tailChartIdx = findClosestNoteIndex(notesChart[note.chartIdx].longEnd);
+  holdState.headChartIdx = headIdx;
+  holdState.tailChartIdx = tailIdx;  // ← longPairByStartIdx から取得した値
   holdState.broke = false;
 }
 
