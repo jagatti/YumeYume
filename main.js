@@ -1559,8 +1559,8 @@ function getSimultaneousPairs() {
 
   function groupOf(n){
     if (n.noteType === 'longHead') return 'longHead';
-    if (n.noteType === 'longTail') return 'tapOrTail'; // ← tapと同グループにする
-    return 'tapOrTail';                                 // ← tap も同グループ
+    if (n.noteType === 'longTail') return 'tapOrTail'; // ← 変更
+    return 'tapOrTail';                                // ← 変更（tapも同グループ）
   }
 
   function timeOf(n){
@@ -1626,6 +1626,28 @@ function judgeNotesAt(mx, my, alreadyHitIdx){
   
 // --- ノーツ描画: 同時押しペア間に白線描画 ---
 function drawNotes(){
+  // 0. ロングノーツの帯（headとtailを曲線で結ぶ）
+  for (const head of notes) {
+    if (!isLongHead(head)) continue;
+    const tailIdx = longPairByStartIdx.get(head.chartIdx);
+    if (tailIdx == null) continue;
+    const tail = notes.find(n => isLongTail(n) && n.chartIdx === tailIdx);
+    if (!tail) continue;
+
+    const posH = cubicBezier(head.path.p0, head.path.p1, head.path.p2, head.path.p3, Math.min(1, head.t / head.duration));
+    const posT = cubicBezier(tail.path.p0, tail.path.p1, tail.path.p2, tail.path.p3, Math.min(1, tail.t / tail.duration));
+
+    ctx.save();
+    ctx.strokeStyle = head.side === 'left' ? '#88ccff' : '#ffaacc';
+    ctx.lineWidth = R * 0.9;   // ← ノーツの直径に近い太さ
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = 0.55;
+    ctx.beginPath();
+    ctx.moveTo(posH.x, posH.y);
+    ctx.lineTo(posT.x, posT.y);
+    ctx.stroke();
+    ctx.restore();
+  }
   // 1. 同時ペアの白い線
   const pairs = getSimultaneousPairs();
   ctx.save();
