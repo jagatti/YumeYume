@@ -788,7 +788,7 @@ function spawnLongEnd(chartIdx){
     path: makePath(info.side),
     chartIdx,
     noteType: 'longTail',
-    longId: String(info.id ?? chartIdx)
+    longId: String(info.id ?? chartIdx),
     tailTime: info.time
   });
 }
