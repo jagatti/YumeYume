@@ -1081,72 +1081,59 @@ function tryUseSP(mx,my){
 }
   
 // == タップ時の処理 ==
-// ペアも単発も「距離判定」で、2本指時は同時ペアの右→左の順で個別に判定・消去
+// 各タッチを独立して判定（SP・作戦アイコン・ノーツが同時に反応できる）
 function handlePointer(e){
   if(gameState!=="playing") return;
   const isTouch = e.type.startsWith('touch');
-  let fingers = 1;
   if(isTouch){
     lastInputWasTouch=true;
     e.preventDefault();
-    fingers = (e.touches && e.touches.length) ? e.touches.length : 1;
   }
   if(!isTouch && lastInputWasTouch){ lastInputWasTouch=false; return; }
 
-  // 作戦切り替えアイコンのタップ判定
-  if (strategyChangeCooldown === 0) {
+  const rect = cvs.getBoundingClientRect();
+  const scaleX = cvs.width / rect.width;
+  const scaleY = cvs.height / rect.height;
+
+  // changedTouches: 今回新しく押された指のみ
+  const newPoints = isTouch ? Array.from(e.changedTouches) : [e];
+  let noteFingers = 0;
+
+  for (const t of newPoints) {
+    const tx = (t.clientX - rect.left) * scaleX;
+    const ty = (t.clientY - rect.top) * scaleY;
+
+    // 作戦切り替えアイコン判定
     const iconW = Math.max(60, Math.round(R * 2.0));
     const iconH = Math.max(80, Math.round(R * 2.7));
     const iconCY = cvs.height / 2;
-    const rect2 = cvs.getBoundingClientRect();
-    const scaleX2 = cvs.width / rect2.width;
-    const scaleY2 = cvs.height / rect2.height;
-    const touchPoints = isTouch ? Array.from(e.touches) : [e];
-    for (const t of touchPoints) {
-      const tx = (t.clientX - rect2.left) * scaleX2;
-      const ty = (t.clientY - rect2.top) * scaleY2;
-      const inIconY = ty >= iconCY - iconH / 2 && ty <= iconCY + iconH / 2;
-      if (inIconY && (tx <= iconW || tx >= cvs.width - iconW)) {
-        currentStrategy = currentStrategy === "red" ? "blue" : "red";
-        strategyChangeCooldown = STRATEGY_CHANGE_NOTES;
-        notesProcessedSinceSwitch = 0;
-        const strategyName = currentStrategy === "red" ? "赤作戦（アタッカー）" : "青作戦（ヒーラー）";
-        skillHistory.unshift({text: `[${strategyName}に切り替え]`, life: 180});
-        if (skillHistory.length > 5) skillHistory.pop();
-        return;
-      }
+    if (strategyChangeCooldown === 0 &&
+        ty >= iconCY - iconH / 2 && ty <= iconCY + iconH / 2 &&
+        (tx <= iconW || tx >= cvs.width - iconW)) {
+      currentStrategy = currentStrategy === "red" ? "blue" : "red";
+      strategyChangeCooldown = STRATEGY_CHANGE_NOTES;
+      notesProcessedSinceSwitch = 0;
+      const strategyName = currentStrategy === "red" ? "赤作戦（アタッカー）" : "青作戦（ヒーラー）";
+      skillHistory.unshift({text: `[${strategyName}に切り替え]`, life: 180});
+      if (skillHistory.length > 5) skillHistory.pop();
+      continue;
     }
+
+    // SP半円判定
+    if (isInSPSemicircle(tx, ty)) {
+      if (spValue >= SP_MAX) tryUseSP(tx, ty);
+      continue;
+    }
+
+    noteFingers++;
   }
 
-  // SP半円は従来通り
-  if(isTouch){
-    for(const t of e.touches){
-      const rect = cvs.getBoundingClientRect();
-      const scaleX = cvs.width  / rect.width;
-      const scaleY = cvs.height / rect.height;
-      const mx = (t.clientX-rect.left)*scaleX;
-      const my = (t.clientY-rect.top )*scaleY;
-      if(isInSPSemicircle(mx,my)){
-        if(spValue >= SP_MAX){ tryUseSP(mx,my); }
-        return;
-      }
-    }
-  }else{
-    const rect = cvs.getBoundingClientRect();
-    const scaleX = cvs.width  / rect.width;
-    const scaleY = cvs.height / rect.height;
-    const mx = (e.clientX-rect.left)*scaleX;
-    const my = (e.clientY-rect.top )*scaleY;
-    if(isInSPSemicircle(mx,my)){
-      if(spValue >= SP_MAX){ tryUseSP(mx,my); }
-      return;
-    }
-  }
+  if (noteFingers === 0) return;
 
-  // === コア判定 ===
+  // 全タッチ数（既存指も含む）でペア判定を決定
+  const totalFingers = isTouch ? e.touches.length : 1;
 
-  // 2本指なら同時押しペアを右→左順で判定（どちらかだけでも消える）
-  if(fingers >= 2){
+  if (totalFingers >= 2) {
     const pairs = getSimultaneousPairsInNotes(); // [[nL, nR], ...]
     for (const [nL, nR] of pairs) {
       let right = nL, left = nR;
@@ -1905,8 +1892,15 @@ function drawStaminaBar() {
   ctx.save();
   ctx.lineCap = 'round';
 
-  // 背景（グレー下地）
-  ctx.strokeStyle = '#374151';
+  // 黒縁取り（全体の外枠）
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 18;
+  ctx.beginPath();
+  ctx.arc(cx, cy, barRadius, startAngle, maxAngle, false);
+  ctx.stroke();
+
+  // 背景（黒下地）
+  ctx.strokeStyle = '#111111';
   ctx.lineWidth = 14;
   ctx.beginPath();
   ctx.arc(cx, cy, barRadius, startAngle, maxAngle, false);
@@ -1920,6 +1914,14 @@ function drawStaminaBar() {
     if (ratio >= 0.70) color = '#22c55e';
     else if (ratio >= 0.30) color = '#f97316';
     else color = '#ef4444';
+
+    // バー本体の縁取り
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 18;
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.arc(cx, cy, barRadius, startAngle, endAngle, false);
+    ctx.stroke();
 
     ctx.strokeStyle = color;
     ctx.lineWidth = 14;
@@ -1946,7 +1948,8 @@ function drawStrategyIcons() {
   const bgColor      = currentStrategy === "red" ? "rgba(10,20,40,0.6)"  : "rgba(30,10,20,0.6)";
   const chevronColor = currentStrategy === "red" ? "#1a3a5c" : "#5c1a2a";
   const labelColor   = currentStrategy === "red" ? "#60a5fa" : "#f87171";
-  const labelText    = currentStrategy === "red" ? "アタッカー" : "ヒーラー";
+  // アイコン下ラベルは「切り替え先」の作戦名を表示
+  const labelText    = currentStrategy === "red" ? "ヒーラー" : "アタッカー";
   const labelFontSize = Math.max(10, Math.round(R * 0.48));
 
   const glowColor = `hsl(${(frame * 4) % 360}, 100%, 65%)`;
@@ -2040,6 +2043,32 @@ function drawStrategyIcons() {
   ctx.restore();
 }
 
+// --- 現在の作戦バッジ描画（進捗バー左下） ---
+function drawCurrentStrategyBadge() {
+  if (gameState !== "playing") return;
+  const text = currentStrategy === "red" ? "アタッカー" : "ヒーラー";
+  const bgFill = currentStrategy === "red" ? "#dc2626" : "#2563eb";
+  const fontSize = Math.max(11, Math.round(R * 0.5));
+  const padX = 8, padY = 4;
+  const x = 20; // barMarginLeft
+  const y = 28; // 進捗バー(y=10, h=12)の直下
+  ctx.save();
+  ctx.font = `bold ${fontSize}px system-ui`;
+  const tw = ctx.measureText(text).width;
+  const bw = tw + padX * 2;
+  const bh = fontSize + padY * 2;
+  ctx.fillStyle = bgFill;
+  ctx.beginPath();
+  ctx.roundRect(x, y, bw, bh, 4);
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText(text, x + padX, y + padY);
+  ctx.textBaseline = "alphabetic";
+  ctx.restore();
+}
+
 function render(){
    ctx.clearRect(0,0,cvs.width,cvs.height);
   // 背景画像（30%不透明度）をcanvas全体に描画
@@ -2061,6 +2090,7 @@ function render(){
   drawSPGauge();
   drawStaminaBar();
   drawStrategyIcons();
+  drawCurrentStrategyBadge();
   drawPopups();
   drawUI();
   drawOverlays();
