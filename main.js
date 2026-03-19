@@ -1457,19 +1457,18 @@ function update(){
   }
   if (gameState === "playing" && !bgm.paused) {
     const bgmNowSec = bgm.currentTime;
-    while (chartIndex < notesChart.length && bgmNowSec >= notesChart[chartIndex].time) {
-  const info = notesChart[chartIndex];
+    while(chartIndex < notesChart.length){
+  const n = notesChart[chartIndex];
+  if(bgm.currentTime < n.time - noteTravelSec) break;
 
-  if(info){
-  if(info.type === 'longStart'){
+  if(n.type === 'longStart'){
     spawnLongStart(chartIndex);
-  }else if(info.type === 'longEnd'){
+  } else if(n.type === 'longEnd'){
     spawnLongEnd(chartIndex);
-  }else{
-    spawnNote(info.side, chartIndex);
+  } else {
+    spawnNote(n.side, chartIndex);
   }
-}
-chartIndex++;
+  chartIndex++;
 }
 
 // --- ロング終点のfreeze解除（時刻到達で流し始める） ---
