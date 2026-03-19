@@ -1625,25 +1625,33 @@ function judgeNotesAt(mx, my, alreadyHitIdx){
   
 // --- ノーツ描画: 同時押しペア間に白線描画 ---
 function drawNotes(){
-  // 0. ロングノーツの帯（headとtailを曲線で結ぶ）
-  for (const head of notes) {
-    if (!isLongHead(head)) continue;
-    const tailIdx = longPairByStartIdx.get(head.chartIdx);
-    if (tailIdx == null) continue;
-    const tail = notes.find(n => isLongTail(n) && n.chartIdx === tailIdx);
-    if (!tail) continue;
+  // --- ① ロングノーツの帯を先に描く（ノーツの下に描画） ---
+  const headMap = new Map(); // longId -> headNote
+  for(const n of notes){
+    if(isLongHead(n)) headMap.set(n.longId, n);
+  }
+  for(const n of notes){
+    if(!isLongTail(n)) continue;
+    const head = headMap.get(n.longId);
+    if(!head) continue;
 
-    const posH = cubicBezier(head.path.p0, head.path.p1, head.path.p2, head.path.p3, Math.min(1, head.t / head.duration));
-    const posT = cubicBezier(tail.path.p0, tail.path.p1, tail.path.p2, tail.path.p3, Math.min(1, tail.t / tail.duration));
+    const tH = Math.min(1, head.t / head.duration);
+    const tT = Math.min(1, n.t / n.duration);
+    const posH = cubicBezier(head.path.p0, head.path.p1, head.path.p2, head.path.p3, tH);
+    const posT = n.__freeze
+      ? cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, 0) // freeze中は始点に固定
+      : cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, tT);
 
     ctx.save();
-    ctx.strokeStyle = head.side === 'left' ? '#88ccff' : '#ffaacc';
-    ctx.lineWidth = R * 0.9;   // ← ノーツの直径に近い太さ
-    ctx.lineCap = 'round';
-    ctx.globalAlpha = 0.55;
     ctx.beginPath();
     ctx.moveTo(posH.x, posH.y);
     ctx.lineTo(posT.x, posT.y);
+    ctx.strokeStyle = holdState.active && holdState.longId === n.longId
+      ? 'rgba(255, 220, 80, 0.85)'   // ホールド中：黄色
+      : 'rgba(180, 120, 255, 0.75)'; // 通常：紫
+    ctx.lineWidth = R * 1.0; // ★ノーツの幅に合わせた太さ
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.stroke();
     ctx.restore();
   }
