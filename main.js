@@ -44,6 +44,17 @@ const acList = [
   }
 ];
   
+// --- 曲設定 ---
+const SONGS = [
+  {
+    id: "SStar",
+    title: "ユメ語るよりユメ歌おう",
+    bgmSrc: "YumeYume.wav",
+    jacketId: "jacketImg"
+  }
+];
+let currentSong = SONGS[0];
+
 // --- 必須グローバル変数 ---
 const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbz2gsX2XXdV0OOvHtPF0AsHkTBvrCQ_8_1zYxVQ0bki_CoAlFy25QbsEryqTe-dZJJu/exec";
 const cvs = document.getElementById('game');
@@ -75,7 +86,11 @@ reseedBtn.style.display = 'none'; // 最初は非表示
 
 const bgm = document.getElementById('bgm');
 const bgimg = document.getElementById('bgimg');
+const titleImg = document.getElementById('titleImg');
+const jacketImg = document.getElementById('jacketImg');
+const titleBgm = document.getElementById('titleBgm');
 bgm.volume = 0.1;
+titleBgm.volume = 0.1;
 
 // --- JSONP ---
 function jsonp(url, timeoutMs = 8000) {
@@ -123,14 +138,23 @@ async function fetchTopScores(limit) {
   const url = (typeof limit === 'number')
     ? `${GAS_ENDPOINT}?action=top&limit=${encodeURIComponent(limit)}`
     : `${GAS_ENDPOINT}?action=top`;
-  return await jsonp(url);
+  const res = await jsonp(url);
+  // 曲ごとにタグで分離：現在の曲のスコアのみ抽出し、タグを名前から取り除く
+  if (res && res.ok && Array.isArray(res.data)) {
+    const tag = ` [${currentSong.id}]`;
+    res.data = res.data
+      .filter(r => String(r.name ?? '').endsWith(tag))
+      .map(r => ({ ...r, name: String(r.name).slice(0, -tag.length) }));
+  }
+  return res;
 }
 
-// --- スコア送信 ---
+// --- スコア送信（曲タグを名前に付加して曲別管理） ---
 async function submitScore(name, score, seed) {
+  const taggedName = name + ` [${currentSong.id}]`;
   const url =
     `${GAS_ENDPOINT}?action=submit` +
-    `&name=${encodeURIComponent(name)}` +
+    `&name=${encodeURIComponent(taggedName)}` +
     `&score=${encodeURIComponent(score)}` +
     `&seed=${encodeURIComponent(seed)}` +
     `&ua=${encodeURIComponent(navigator.userAgent)}`;
@@ -176,7 +200,7 @@ if (!rankingModal) {
 
   rankingModal.innerHTML = `
   <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px;">
-    <div style="font-weight:800; font-size:18px;">全体ランキング</div>
+    <div style="font-weight:800; font-size:18px;" id="rankingTitle">ランキング</div>
     <button id="rankingCloseBtn"
       style="padding:6px 10px; background:#111827; color:#fff; border:1px solid rgba(255,255,255,0.25); border-radius:8px; cursor:pointer;">
       閉じる
@@ -257,6 +281,8 @@ rankingBtn.onclick = async () => {
     const rows = (res.data && res.data.length) ? res.data : [];
     renderRankingTable(rows);
 
+    const titleEl = rankingModal.querySelector('#rankingTitle');
+    if (titleEl) titleEl.textContent = currentSong.title + ' ランキング';
     rankingModal.style.display = 'block';
     const sc = rankingModal.querySelector('#rankingScroll');
     if (sc) sc.scrollTop = 0;
@@ -558,7 +584,7 @@ let lastGameSeed = 0; // 直前のゲームのシードを保存
 // --- グローバル変数 ---
 let chartIndex = 0, R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
 let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=55;
-let bestScore = Number(localStorage.getItem('bestScore')) || 0;
+let bestScore = Number(localStorage.getItem('bestScore_' + currentSong.id)) || 0;
 let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=0, spCountdownTimer=0, spCountdownValue=0;
 let popups=[], hitRings=[], lastInputWasTouch=false;
 let gameState = "init", countdownValue = 3, totalNotesSpawned = 0, clearStartFrame = null, resultStartFrame = null;
@@ -705,18 +731,16 @@ function resizeCanvas(){
   }
   rotateMsg.style.display='none';
   cvs.style.display='block';
-  if (gameState === "init") rankingBtn.style.display = 'block';
-　else rankingBtn.style.display = 'none';
-　if (gameState === "result") saveScoreBtn.style.display = 'block';
-　else saveScoreBtn.style.display = 'none';
-  if(gameState==="init") startBtn.style.display='block';
-  else startBtn.style.display='none';
+  rankingBtn.style.display = (gameState === "init" || gameState === "songSelect") ? 'block' : 'none';
+　saveScoreBtn.style.display = (gameState === "result") ? 'block' : 'none';
+  startBtn.style.display = (gameState === "init" || gameState === "songSelect") ? 'block' : 'none';
+  startBtn.textContent = gameState === "songSelect" ? 'PLAY' : 'S.T.A.R.T!!';
   if(gameState==="result") {
     retryBtn.style.display='block';
-    reseedBtn.style.display='block'; // リザルトで表示
+    reseedBtn.style.display='block';
   } else {
     retryBtn.style.display='none';
-    reseedBtn.style.display='none'; // それ以外で非表示
+    reseedBtn.style.display='none';
   }
   cvs.width = window.innerWidth;
   cvs.height= window.innerHeight;
@@ -820,9 +844,11 @@ function updateACOnSPUse(nowTime, spScore) {
 // ユーザー操作時に一度だけ呼ぶ
 window.addEventListener('touchstart', () => {
   loadTapSE(); // resumeも含む
+  if(gameState === "init" && titleBgm.paused) titleBgm.play().catch(()=>{});
 }, { once: true });
 window.addEventListener('mousedown', () => {
   loadTapSE();
+  if(gameState === "init" && titleBgm.paused) titleBgm.play().catch(()=>{});
 }, { once: true });
 
   
@@ -1214,6 +1240,10 @@ async function startGame(seed) {
   await loadTapSE();
   assignACNoteIndexes();
   
+  // タイトルBGM停止・ベストスコア再読み込み
+  try { titleBgm.pause(); titleBgm.currentTime = 0; } catch(e) {}
+  bestScore = Number(localStorage.getItem('bestScore_' + currentSong.id)) || 0;
+
   setSeed(seed);
   lastGameSeed = seed; // 今回のシードを保存
 
@@ -1270,7 +1300,13 @@ async function startGame(seed) {
 
 startBtn.onclick = function() {
   if(gameState === "init"){
-    startGame(Date.now()); // 新しいゲームは現在時刻をシードにする
+    // タイトル画面 → 曲選択へ
+    titleBgm.pause();
+    gameState = "songSelect";
+    resizeCanvas();
+  } else if(gameState === "songSelect"){
+    // 曲選択 → ゲーム開始
+    startGame(Date.now());
   }
 };
   
@@ -1283,6 +1319,8 @@ retryBtn.onclick = ()=>{
   resizeCanvas();
   try{ bgm.pause(); }catch(e){}
   bgm.currentTime = 0;
+  titleBgm.currentTime = 0;
+  titleBgm.play().catch(()=>{});
   permanentScoreBuff = 0;
   stamina = STAMINA_MAX;
   damageReduceNotes = 0;
@@ -1357,7 +1395,7 @@ function update(){
     resizeCanvas();
     if(score > bestScore) {
       bestScore = score;
-      localStorage.setItem('bestScore', bestScore);
+      localStorage.setItem('bestScore_' + currentSong.id, bestScore);
     }
   }
 
@@ -2116,8 +2154,105 @@ function drawCurrentStrategyBadge() {
   ctx.restore();
 }
 
+function drawSongSelectScreen() {
+  const song = currentSong;
+  const jacket = document.getElementById(song.jacketId);
+  const cardW = Math.round(Math.min(cvs.width * 0.55, 480));
+  const jacketSize = Math.round(cardW * 0.52);
+  const cardH = jacketSize + Math.round(cvs.height * 0.22);
+  const cardX = Math.round((cvs.width - cardW) / 2);
+  const cardY = Math.round((cvs.height - cardH) / 2) - Math.round(cvs.height * 0.04);
+  const r = 16;
+
+  // カード背景
+  ctx.save();
+  ctx.shadowColor = "rgba(57,255,20,0.3)";
+  ctx.shadowBlur = 28;
+  ctx.fillStyle = "rgba(15,23,42,0.88)";
+  ctx.strokeStyle = "rgba(57,255,20,0.6)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(cardX, cardY, cardW, cardH, r);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
+  // ジャケット画像
+  const jacketX = Math.round(cardX + (cardW - jacketSize) / 2);
+  const jacketY = cardY + 16;
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(jacketX, jacketY, jacketSize, jacketSize, 10);
+  ctx.clip();
+  if (jacket && jacket.complete && jacket.naturalWidth > 0) {
+    ctx.drawImage(jacket, jacketX, jacketY, jacketSize, jacketSize);
+  } else {
+    ctx.fillStyle = "#1e293b";
+    ctx.fillRect(jacketX, jacketY, jacketSize, jacketSize);
+    ctx.fillStyle = "#475569";
+    ctx.textAlign = "center";
+    ctx.font = `bold ${Math.round(jacketSize * 0.12)}px system-ui`;
+    ctx.fillText("NO IMAGE", jacketX + jacketSize / 2, jacketY + jacketSize / 2);
+  }
+  ctx.restore();
+
+  const textBaseY = jacketY + jacketSize + 18;
+
+  // 曲タイトル
+  const titleFontSize = Math.max(14, Math.round(cardW * 0.065));
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.font = `bold ${titleFontSize}px system-ui`;
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = "#000";
+  ctx.strokeText(song.title, cvs.width / 2, textBaseY);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(song.title, cvs.width / 2, textBaseY);
+
+  // ベストスコア
+  const scoreFontSize = Math.max(13, Math.round(cardW * 0.056));
+  const bsLabel = `BEST: ${bestScore > 0 ? bestScore.toLocaleString('ja-JP') : '---'}`;
+  ctx.font = `bold ${scoreFontSize}px system-ui`;
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#000";
+  ctx.strokeText(bsLabel, cvs.width / 2, textBaseY + titleFontSize + 10);
+  ctx.fillStyle = "#ffd700";
+  ctx.fillText(bsLabel, cvs.width / 2, textBaseY + titleFontSize + 10);
+
+  ctx.textBaseline = "alphabetic";
+  ctx.restore();
+}
+
 function render(){
    ctx.clearRect(0,0,cvs.width,cvs.height);
+
+  // --- タイトル画面 ---
+  if(gameState==="init"){
+    if(titleImg.complete && titleImg.naturalWidth > 0) {
+      ctx.drawImage(titleImg, 0, 0, cvs.width, cvs.height);
+    } else {
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(0,0,cvs.width,cvs.height);
+    }
+    return;
+  }
+
+  // --- 曲選択画面 ---
+  if(gameState==="songSelect"){
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(0,0,cvs.width,cvs.height);
+    if(bgimg.complete && bgimg.naturalWidth > 0) {
+      ctx.save();
+      ctx.globalAlpha = 0.15;
+      ctx.drawImage(bgimg, 0, 0, cvs.width, cvs.height);
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+    drawSongSelectScreen();
+    return;
+  }
+
   // 背景画像（30%不透明度）をcanvas全体に描画
   if(bgimg.complete && bgimg.naturalWidth > 0) {
     ctx.save();
@@ -2130,6 +2265,8 @@ function render(){
     ctx.fillRect(0,0,cvs.width,cvs.height);
   }
   
+  if(gameState!=="countdown" && gameState!=="playing" && gameState!=="clear" && gameState!=="result") return;
+
   drawProgressBarWithAC();
   drawTargets();
   drawNotes();
@@ -2146,7 +2283,6 @@ function render(){
   drawACMissionNotice();
   drawACFailFlash();
   
-  if(gameState==="init"){ return; }
   if(gameState==="countdown"){
     const txt = countdownValue>0 ? countdownValue : 1;
     ctx.textAlign='center';
