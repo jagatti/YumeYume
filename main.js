@@ -1559,8 +1559,8 @@ function getSimultaneousPairs() {
 
   function groupOf(n){
     if (n.noteType === 'longHead') return 'longHead';
-    if (n.noteType === 'longTail') return 'longTail';
-    return 'tap';
+    if (n.noteType === 'longTail') return 'tapOrTail'; // ← tapと同グループにする
+    return 'tapOrTail';                                 // ← tap も同グループ
   }
 
   function timeOf(n){
@@ -1583,7 +1583,7 @@ function getSimultaneousPairs() {
       if (n2.paired) continue;
 
       const g2 = groupOf(n2);
-      if (g1 !== g2) continue; // ★混在は結ばない
+      if (g1 !== g2) continue; // longHead同士 / (tap or longTail)同士のみ
 
       const t2 = timeOf(n2);
       if (!Number.isFinite(t2)) continue;
@@ -1653,7 +1653,7 @@ function drawNotes(){
 
   ctx.save();
   ctx.strokeStyle = "rgba(255, 215, 0, 0.75)";
-  ctx.lineWidth = Math.max(10, R * 0.45);
+  ctx.lineWidth = Math.max(10, R * 0.8);
   ctx.lineCap = "round";
   for (const [id, h] of heads.entries()) {
     const t = tails.get(id);
