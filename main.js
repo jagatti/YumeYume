@@ -578,6 +578,7 @@ let currentStrategy = "red";
 let strategyChangeCooldown = 0;
 const STRATEGY_CHANGE_NOTES = 5;
 let notesProcessedSinceSwitch = 0;
+let strategyBadgeOffsetX = 0; // バッジスライドアニメーション用（0=定位置、負=画面外左）
   
 // ノーツ到達までの秒数
 const noteTravelSec = noteDuration / 60;
@@ -1113,6 +1114,7 @@ function handlePointer(e){
       currentStrategy = currentStrategy === "red" ? "blue" : "red";
       strategyChangeCooldown = STRATEGY_CHANGE_NOTES;
       notesProcessedSinceSwitch = 0;
+      strategyBadgeOffsetX = -300; // バッジを左画面外から登場させる
       const strategyName = currentStrategy === "red" ? "赤作戦（アタッカー）" : "青作戦（ヒーラー）";
       skillHistory.unshift({text: `[${strategyName}に切り替え]`, life: 180});
       if (skillHistory.length > 5) skillHistory.pop();
@@ -1894,14 +1896,14 @@ function drawStaminaBar() {
 
   // 黒縁取り（全体の外枠）
   ctx.strokeStyle = '#000000';
-  ctx.lineWidth = 18;
+  ctx.lineWidth = 12;
   ctx.beginPath();
   ctx.arc(cx, cy, barRadius, startAngle, maxAngle, false);
   ctx.stroke();
 
   // 背景（黒下地）
   ctx.strokeStyle = '#111111';
-  ctx.lineWidth = 14;
+  ctx.lineWidth = 8;
   ctx.beginPath();
   ctx.arc(cx, cy, barRadius, startAngle, maxAngle, false);
   ctx.stroke();
@@ -1917,14 +1919,14 @@ function drawStaminaBar() {
 
     // バー本体の縁取り
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 18;
+    ctx.lineWidth = 12;
     ctx.shadowBlur = 0;
     ctx.beginPath();
     ctx.arc(cx, cy, barRadius, startAngle, endAngle, false);
     ctx.stroke();
 
     ctx.strokeStyle = color;
-    ctx.lineWidth = 14;
+    ctx.lineWidth = 8;
     ctx.shadowColor = color;
     ctx.shadowBlur = 8;
     ctx.beginPath();
@@ -1944,10 +1946,10 @@ function drawStrategyIcons() {
   const centerY = cvs.height / 2;
   const canSwitch = strategyChangeCooldown === 0;
 
-  // アイコン色（現在の作戦の逆色 — 赤作戦中は青アイコン、青作戦中は赤アイコン）
-  const bgColor      = currentStrategy === "red" ? "rgba(10,20,40,0.6)"  : "rgba(30,10,20,0.6)";
-  const chevronColor = currentStrategy === "red" ? "#1a3a5c" : "#5c1a2a";
-  const labelColor   = currentStrategy === "red" ? "#60a5fa" : "#f87171";
+  // アイコン色（現在の作戦の逆色 — 赤作戦中は緑アイコン、緑作戦中は赤アイコン）
+  const bgColor      = currentStrategy === "red" ? "rgba(10,30,15,0.6)"  : "rgba(30,10,10,0.6)";
+  const chevronColor = currentStrategy === "red" ? "#14532d" : "#5c1a2a";
+  const labelColor   = currentStrategy === "red" ? "#4ade80" : "#f87171";
   // アイコン下ラベルは「切り替え先」の作戦名を表示
   const labelText    = currentStrategy === "red" ? "ヒーラー" : "アタッカー";
   const labelFontSize = Math.max(10, Math.round(R * 0.48));
@@ -2046,25 +2048,70 @@ function drawStrategyIcons() {
 // --- 現在の作戦バッジ描画（進捗バー左下） ---
 function drawCurrentStrategyBadge() {
   if (gameState !== "playing") return;
-  const text = currentStrategy === "red" ? "アタッカー" : "ヒーラー";
-  const bgFill = currentStrategy === "red" ? "#dc2626" : "#2563eb";
-  const fontSize = Math.max(11, Math.round(R * 0.5));
-  const padX = 8, padY = 4;
-  const x = 20; // barMarginLeft
-  const y = 28; // 進捗バー(y=10, h=12)の直下
+
+  // スライドアニメーション（easing）
+  if (strategyBadgeOffsetX < 0) {
+    strategyBadgeOffsetX += (-strategyBadgeOffsetX) * 0.18 + 1.5;
+    if (strategyBadgeOffsetX > -0.5) strategyBadgeOffsetX = 0;
+  }
+
+  const isRed = currentStrategy === "red";
+  const text = isRed ? "⚔ アタッカー" : "✦ ヒーラー";
+  const colorA = isRed ? "#ff4444" : "#22c55e";
+  const colorB = isRed ? "#991b1b" : "#14532d";
+  const glowCol = isRed ? "rgba(255,80,80,0.7)" : "rgba(34,197,94,0.7)";
+  const fontSize = Math.max(13, Math.round(R * 0.6));
+  const padX = 14, padY = 6;
+  const baseX = 20;
+  const baseY = 28;
+
   ctx.save();
   ctx.font = `bold ${fontSize}px system-ui`;
   const tw = ctx.measureText(text).width;
   const bw = tw + padX * 2;
   const bh = fontSize + padY * 2;
-  ctx.fillStyle = bgFill;
+  const x = baseX + strategyBadgeOffsetX;
+  const y = baseY;
+  const r = 6;
+
+  // 外側グロー
+  ctx.shadowColor = glowCol;
+  ctx.shadowBlur = 14;
+
+  // グラデーション背景
+  const grad = ctx.createLinearGradient(x, y, x, y + bh);
+  grad.addColorStop(0, colorA);
+  grad.addColorStop(1, colorB);
+  ctx.fillStyle = grad;
   ctx.beginPath();
-  ctx.roundRect(x, y, bw, bh, 4);
+  ctx.roundRect(x, y, bw, bh, r);
   ctx.fill();
-  ctx.fillStyle = "#ffffff";
+
+  // 上半分ハイライト（光沢）
+  ctx.shadowBlur = 0;
+  const shine = ctx.createLinearGradient(x, y, x, y + bh * 0.5);
+  shine.addColorStop(0, "rgba(255,255,255,0.25)");
+  shine.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = shine;
+  ctx.beginPath();
+  ctx.roundRect(x, y, bw, bh * 0.55, [r, r, 0, 0]);
+  ctx.fill();
+
+  // 枠線
+  ctx.strokeStyle = "rgba(255,255,255,0.45)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(x, y, bw, bh, r);
+  ctx.stroke();
+
+  // テキスト（ドロップシャドウ風）
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
+  ctx.fillText(text, x + padX + 1, y + padY + 1);
+  ctx.fillStyle = "#ffffff";
   ctx.fillText(text, x + padX, y + padY);
+
   ctx.textBaseline = "alphabetic";
   ctx.restore();
 }
