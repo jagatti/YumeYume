@@ -566,6 +566,18 @@ let skillHistory = [], appealBoostNotes = 0, skillActivationCount = 0, spUseCoun
 let judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
 let spScoreBuffNotes = 0, noteCounter = 0, totalSPUsed = 0, permanentScoreBuff = 0, acFailFlashTimer = 0, waitingClearFrame = null;
 let audioContext, tapBuffer = null;
+
+// --- スタミナシステム ---
+const STAMINA_MAX = 100000;
+let stamina = STAMINA_MAX;
+let damageReduceNotes = 0;
+let skillRateBoostNotes = 0;
+
+// --- 作戦切り替えシステム ---
+let currentStrategy = "red";
+let strategyChangeCooldown = 0;
+const STRATEGY_CHANGE_NOTES = 5;
+let notesProcessedSinceSwitch = 0;
   
 // ノーツ到達までの秒数
 const noteTravelSec = noteDuration / 60;
@@ -618,6 +630,32 @@ function getComboBonus(combo) {
   if (combo >= 31) return 1.02;
   if (combo >= 11) return 1.01;
   return 1.0;
+}
+
+// --- スタミナ関連関数 ---
+function getNoteDamage() { return 200; }
+
+function getStaminaScoreMult() {
+  const ratio = stamina / STAMINA_MAX;
+  if (ratio >= 0.70) return 1.0;
+  if (ratio >= 0.30) return 0.8;
+  if (ratio > 0)     return 0.6;
+  return 0.0;
+}
+
+function applyACFailDamage() {
+  stamina = Math.max(0, stamina - 25000);
+}
+
+function applyNoteDamage(nowTime) {
+  if (isACClearedNowByTime(nowTime)) return;
+  let damage = getNoteDamage();
+  if (isACActiveByTime(nowTime)) damage = Math.floor(damage * 1.1);
+  if (damageReduceNotes > 0) {
+    damage = Math.floor(damage * 0.5);
+    damageReduceNotes--;
+  }
+  stamina = Math.max(0, stamina - damage);
 }
 
 // 効果音再生
@@ -739,6 +777,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
       !ac.cleared             // まだクリアしてない
     ) {
       ac.state = "ended";
+      applyACFailDamage();
       acFailFlashTimer = 18; // 0.3秒間赤フラッシュ
       skillHistory.unshift({text: "AC失敗！", life:180});
       if(skillHistory.length>5) skillHistory.pop();
@@ -863,6 +902,60 @@ function calcTapScoreAndLabel(dist, baseRaw){
 function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
   playTapSE();
   let nowTime = bgm.currentTime || 0;
+
+  // 作戦クールダウンと特技発動率バフのデクリメント
+  if (strategyChangeCooldown > 0) strategyChangeCooldown--;
+  const skillRate = skillRateBoostNotes > 0 ? 0.66 : 0.33;
+  if (skillRateBoostNotes > 0) skillRateBoostNotes--;
+
+  // 特技発動抽選（スタミナダメージより先にdamageReduceNotesをセット → 当ノーツから軽減適用）
+  if(seededRandom() < skillRate){
+    skillActivationCount++;
+    const skillType = Math.floor(seededRandom()*3);
+    if (currentStrategy === "red") {
+      if(skillType===0){
+        // --- ボルテージ獲得(バフ適用版) ---
+        let voltage = baseRaw;
+        if (appealBoostNotes > 0) voltage = Math.ceil(voltage * 1.12);
+        if (spBoostTimer > 0) voltage = Math.floor(voltage * 1.1);
+        const comboBonus = getComboBonus(combo + 1);
+        voltage = Math.floor(voltage * comboBonus);
+        let nowTime2 = bgm.currentTime || 0;
+        if (isACActiveByTime(nowTime2) || isACClearedNowByTime(nowTime2)) voltage = Math.floor(voltage * 1.1);
+        if (spScoreBuffNotes > 0) voltage = Math.floor(voltage * 1.1);
+        let permanentBuff = 1 + permanentScoreBuff * 0.05;
+        voltage = Math.floor(voltage * permanentBuff);
+        if (voltage > 50000) voltage = 50000;
+        score += voltage;
+        skillHistory.unshift({text:`[追加スコア獲得 ${voltage}]`, life:180});
+      }else if(skillType===1){
+        spValue = Math.min(SP_MAX, spValue+540);
+        skillHistory.unshift({text:`[SPゲージ獲得 9%]`, life:180});
+      }else{
+        appealBoostNotes = 5;
+        skillHistory.unshift({text:`[アピール増加 12%]`, life:180});
+      }
+    } else {
+      // --- 青作戦（ヒーラー）特技 ---
+      if (skillType === 0) {
+        if (stamina > 0) {
+          stamina = Math.min(STAMINA_MAX, stamina + 2000);
+          skillHistory.unshift({text: '[スタミナ回復 2000]', life: 180});
+        }
+      } else if (skillType === 1) {
+        damageReduceNotes += 3;
+        skillHistory.unshift({text: '[ダメージ軽減 50%]', life: 180});
+      } else {
+        skillRateBoostNotes += 2;
+        skillHistory.unshift({text: '[特技発動率上昇 33%]', life: 180});
+      }
+    }
+    if(skillHistory.length>5) skillHistory.pop();
+  }
+
+  // スタミナダメージ適用（特技後なのでdamageReduceNotesが当ノーツに反映される）
+  applyNoteDamage(nowTime);
+
   let acBuff = 1.0;
   if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) acBuff = 1.1;
   let spBuff = 1.0;
@@ -875,6 +968,8 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
   const comboBonus = getComboBonus(combo+1);
   let pointsWithCombo = Math.floor(points * comboBonus * acBuff * spBuff * permanentBuff);
   if(pointsWithCombo > 50000) pointsWithCombo = 50000;
+  // スタミナスコア倍率適用
+  pointsWithCombo = Math.floor(pointsWithCombo * getStaminaScoreMult());
 
   score += pointsWithCombo;
   if(resetCombo){if(spValue<SP_MAX) spValue=Math.max(0, spValue-300);combo=0;}
@@ -886,33 +981,6 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
   addPopup(label, midX, midY - 30, 500, 'label');
   addPopup(String(pointsWithCombo), midX, midY, 500, 'score');
   if(judgeCount[label] !== undefined) judgeCount[label]++;
-  if(seededRandom() < 0.33){
-  skillActivationCount++;
-  const skillType = Math.floor(seededRandom()*3);
-  if(skillType===0){
-    // --- ボルテージ獲得(バフ適用版) ---
-    let voltage = baseRaw;
-    if (appealBoostNotes > 0) voltage = Math.ceil(voltage * 1.12);
-    if (spBoostTimer > 0) voltage = Math.floor(voltage * 1.1);
-    const comboBonus = getComboBonus(combo + 1);
-    voltage = Math.floor(voltage * comboBonus);
-    let nowTime = bgm.currentTime || 0;
-    if (isACActiveByTime(nowTime) || isACClearedNowByTime(nowTime)) voltage = Math.floor(voltage * 1.1);
-    if (spScoreBuffNotes > 0) voltage = Math.floor(voltage * 1.1);
-    let permanentBuff = 1 + permanentScoreBuff * 0.05;
-    voltage = Math.floor(voltage * permanentBuff);
-    if (voltage > 50000) voltage = 50000;
-    score += voltage;
-    skillHistory.unshift({text:`[追加スコア獲得 ${voltage}]`, life:180});
-  　}else if(skillType===1){
-      spValue = Math.min(SP_MAX, spValue+540);
-      skillHistory.unshift({text:`[SPゲージ獲得 9%]`, life:180});
-    }else{
-      appealBoostNotes = 5;
-      skillHistory.unshift({text:`[アピール増加 12%]`, life:180});
-    }
-    if(skillHistory.length>5) skillHistory.pop();
-  }
 
   // AC開始バフ抽選（STARTノーツ到達時のみ）
   for(const ac of acList){
@@ -930,6 +998,10 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
 }
   
 function applyMiss(label='MISS'){
+  let nowTime = bgm.currentTime || 0;
+  applyNoteDamage(nowTime);
+  if (strategyChangeCooldown > 0) strategyChangeCooldown--;
+  if (skillRateBoostNotes > 0) skillRateBoostNotes--;
   if(spValue<SP_MAX) spValue=Math.max(0, spValue-300);
   combo=0;
   const midX = (leftTarget.x + rightTarget.x) / 2;
@@ -1020,6 +1092,31 @@ function handlePointer(e){
     fingers = (e.touches && e.touches.length) ? e.touches.length : 1;
   }
   if(!isTouch && lastInputWasTouch){ lastInputWasTouch=false; return; }
+
+  // 作戦切り替えアイコンのタップ判定
+  if (strategyChangeCooldown === 0) {
+    const iconW = Math.max(60, Math.round(R * 2.0));
+    const iconH = Math.max(80, Math.round(R * 2.7));
+    const iconCY = cvs.height / 2;
+    const rect2 = cvs.getBoundingClientRect();
+    const scaleX2 = cvs.width / rect2.width;
+    const scaleY2 = cvs.height / rect2.height;
+    const touchPoints = isTouch ? Array.from(e.touches) : [e];
+    for (const t of touchPoints) {
+      const tx = (t.clientX - rect2.left) * scaleX2;
+      const ty = (t.clientY - rect2.top) * scaleY2;
+      const inIconY = ty >= iconCY - iconH / 2 && ty <= iconCY + iconH / 2;
+      if (inIconY && (tx <= iconW || tx >= cvs.width - iconW)) {
+        currentStrategy = currentStrategy === "red" ? "blue" : "red";
+        strategyChangeCooldown = STRATEGY_CHANGE_NOTES;
+        notesProcessedSinceSwitch = 0;
+        const strategyName = currentStrategy === "red" ? "赤作戦（アタッカー）" : "青作戦（ヒーラー）";
+        skillHistory.unshift({text: `[${strategyName}に切り替え]`, life: 180});
+        if (skillHistory.length > 5) skillHistory.pop();
+        return;
+      }
+    }
+  }
 
   // SP半円は従来通り
   if(isTouch){
@@ -1152,6 +1249,12 @@ async function startGame(seed) {
   judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
   noteCounter = 0;
   totalSPUsed = 0;
+  stamina = STAMINA_MAX;
+  damageReduceNotes = 0;
+  skillRateBoostNotes = 0;
+  currentStrategy = "red";
+  strategyChangeCooldown = 0;
+  notesProcessedSinceSwitch = 0;
 
   // --- 永続バフ初期化&50%で発動処理 ---
   permanentScoreBuff = 0;
@@ -1192,6 +1295,12 @@ retryBtn.onclick = ()=>{
   try{ bgm.pause(); }catch(e){}
   bgm.currentTime = 0;
   permanentScoreBuff = 0;
+  stamina = STAMINA_MAX;
+  damageReduceNotes = 0;
+  skillRateBoostNotes = 0;
+  currentStrategy = "red";
+  strategyChangeCooldown = 0;
+  notesProcessedSinceSwitch = 0;
   acList.forEach(ac=>{
     ac.state = "waiting";
     ac.progress = 0;
@@ -1784,6 +1893,153 @@ function drawJudgeCountsResult() {
   ctx.restore();
 }
 
+// --- スタミナバー描画 ---
+function drawStaminaBar() {
+  if (gameState !== "playing") return;
+  const cx = cvs.width / 2;
+  const cy = cvs.height - 10;
+  const barRadius = spRadius + 14;
+  const startAngle = Math.PI;
+  const maxAngle = Math.PI * 1.5;
+
+  ctx.save();
+  ctx.lineCap = 'round';
+
+  // 背景（グレー下地）
+  ctx.strokeStyle = '#374151';
+  ctx.lineWidth = 14;
+  ctx.beginPath();
+  ctx.arc(cx, cy, barRadius, startAngle, maxAngle, false);
+  ctx.stroke();
+
+  // スタミナバー本体
+  const ratio = stamina / STAMINA_MAX;
+  if (ratio > 0) {
+    const endAngle = startAngle + (maxAngle - startAngle) * ratio;
+    let color;
+    if (ratio >= 0.70) color = '#22c55e';
+    else if (ratio >= 0.30) color = '#f97316';
+    else color = '#ef4444';
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 14;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(cx, cy, barRadius, startAngle, endAngle, false);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// --- 作戦切り替えアイコン描画 ---
+function drawStrategyIcons() {
+  if (gameState !== "playing") return;
+
+  const iconW = Math.max(60, Math.round(R * 2.0));
+  const iconH = Math.max(80, Math.round(R * 2.7));
+  const centerY = cvs.height / 2;
+  const canSwitch = strategyChangeCooldown === 0;
+
+  // アイコン色（現在の作戦の逆色 — 赤作戦中は青アイコン、青作戦中は赤アイコン）
+  const bgColor      = currentStrategy === "red" ? "rgba(10,20,40,0.6)"  : "rgba(30,10,20,0.6)";
+  const chevronColor = currentStrategy === "red" ? "#1a3a5c" : "#5c1a2a";
+  const labelColor   = currentStrategy === "red" ? "#60a5fa" : "#f87171";
+  const labelText    = currentStrategy === "red" ? "アタッカー" : "ヒーラー";
+  const labelFontSize = Math.max(10, Math.round(R * 0.48));
+
+  const glowColor = `hsl(${(frame * 4) % 360}, 100%, 65%)`;
+
+  // --- 左アイコン（< シェブロン） ---
+  const lx = 0;
+  const ly = centerY - iconH / 2;
+
+  ctx.save();
+  // 背景
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = bgColor;
+  ctx.beginPath();
+  ctx.roundRect(lx, ly, iconW, iconH, 8);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // 発光エフェクト（切り替え可能時）
+  if (canSwitch) {
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = glowColor;
+  }
+
+  // シェブロン < （右2点→左頂点の塗りつぶし三角形）
+  ctx.fillStyle = chevronColor;
+  ctx.beginPath();
+  ctx.moveTo(lx + iconW * 0.76, centerY - iconH * 0.29);
+  ctx.lineTo(lx + iconW * 0.24, centerY);
+  ctx.lineTo(lx + iconW * 0.76, centerY + iconH * 0.29);
+  ctx.closePath();
+  ctx.fill();
+
+  // ハイライト線
+  ctx.strokeStyle = "rgba(255,255,255,0.3)";
+  ctx.lineWidth = 1.5;
+  ctx.shadowBlur = 0;
+  ctx.stroke();
+  ctx.restore();
+
+  // ラベル
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.font = `bold ${labelFontSize}px system-ui`;
+  ctx.fillStyle = labelColor;
+  ctx.globalAlpha = 0.9;
+  ctx.fillText(labelText, lx + iconW / 2, ly + iconH + labelFontSize + 2);
+  ctx.restore();
+
+  // --- 右アイコン（> シェブロン） ---
+  const rx = cvs.width - iconW;
+  const ry = centerY - iconH / 2;
+
+  ctx.save();
+  // 背景
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = bgColor;
+  ctx.beginPath();
+  ctx.roundRect(rx, ry, iconW, iconH, 8);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // 発光エフェクト（切り替え可能時）
+  if (canSwitch) {
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = glowColor;
+  }
+
+  // シェブロン > （左2点→右頂点の塗りつぶし三角形）
+  ctx.fillStyle = chevronColor;
+  ctx.beginPath();
+  ctx.moveTo(rx + iconW * 0.24, centerY - iconH * 0.29);
+  ctx.lineTo(rx + iconW * 0.76, centerY);
+  ctx.lineTo(rx + iconW * 0.24, centerY + iconH * 0.29);
+  ctx.closePath();
+  ctx.fill();
+
+  // ハイライト線
+  ctx.strokeStyle = "rgba(255,255,255,0.3)";
+  ctx.lineWidth = 1.5;
+  ctx.shadowBlur = 0;
+  ctx.stroke();
+  ctx.restore();
+
+  // ラベル
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.font = `bold ${labelFontSize}px system-ui`;
+  ctx.fillStyle = labelColor;
+  ctx.globalAlpha = 0.9;
+  ctx.fillText(labelText, rx + iconW / 2, ry + iconH + labelFontSize + 2);
+  ctx.restore();
+}
+
 function render(){
    ctx.clearRect(0,0,cvs.width,cvs.height);
   // 背景画像（30%不透明度）をcanvas全体に描画
@@ -1803,6 +2059,8 @@ function render(){
   drawNotes();
   drawHitRings();
   drawSPGauge();
+  drawStaminaBar();
+  drawStrategyIcons();
   drawPopups();
   drawUI();
   drawOverlays();
