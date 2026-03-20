@@ -984,11 +984,11 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
         skillHistory.unshift({text:`[アピール増加 12%]`, life:180});
       }
     } else {
-      // --- 青作戦（ヒーラー）特技 ---
+      // --- 緑作戦（ヒーラー）特技 ---
       if (skillType === 0) {
         if (stamina > 0) {
-          stamina = Math.min(STAMINA_MAX, stamina + 2000);
-          skillHistory.unshift({text: '[スタミナ回復 2000]', life: 180});
+          stamina = Math.min(STAMINA_MAX, stamina + 3000);
+          skillHistory.unshift({text: '[スタミナ回復 3000]', life: 180});
         }
       } else if (skillType === 1) {
         damageReduceNotes += 3;
@@ -1162,7 +1162,7 @@ function handlePointer(e){
       strategyChangeCooldown = STRATEGY_CHANGE_NOTES;
       notesProcessedSinceSwitch = 0;
       strategyBadgeOffsetX = -300; // バッジを左画面外から登場させる
-      const strategyName = currentStrategy === "red" ? "赤作戦（アタッカー）" : "青作戦（ヒーラー）";
+      const strategyName = currentStrategy === "red" ? "赤作戦（アタッカー）" : "緑作戦（ヒーラー）";
       skillHistory.unshift({text: `[${strategyName}に切り替え]`, life: 180});
       if (skillHistory.length > 5) skillHistory.pop();
       continue;
