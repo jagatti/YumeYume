@@ -332,8 +332,17 @@ const bgimg = document.getElementById('bgimg');
 const titleImg = document.getElementById('titleImg');
 const jacketImg = document.getElementById('jacketImg');
 const titleBgm = document.getElementById('titleBgm');
-bgm.volume = 0.1;
-titleBgm.volume = 0.1;
+// --- ユーザー設定 (localStorage永続化) ---
+let settingsVolume      = parseFloat(localStorage.getItem('settings_volume')        ?? '0.1');
+let settingsNoteSpeed   = parseInt(localStorage.getItem('settings_noteSpeed')       ?? '55', 10);
+let settingsTimingOffset= parseFloat(localStorage.getItem('settings_timingOffset')  ?? '0');
+// 値域クランプ
+settingsVolume       = Math.max(0, Math.min(1, settingsVolume));
+settingsNoteSpeed    = Math.max(30, Math.min(90, settingsNoteSpeed));
+settingsTimingOffset = Math.max(-0.3, Math.min(0.3, settingsTimingOffset));
+
+bgm.volume = settingsVolume;
+titleBgm.volume = settingsVolume;
 
 // --- JSONP ---
 function jsonp(url, timeoutMs = 8000) {
@@ -427,6 +436,132 @@ rankingBtn.style.letterSpacing = '0.04em';
 rankingBtn.style.boxShadow = '0 2px 10px rgba(0,0,0,0.4)';
 rankingBtn.style.zIndex = '100';
 rankingBtn.style.display = 'none';
+
+// --- 設定ボタン ---
+let settingsBtn = document.getElementById('settingsBtn');
+if (!settingsBtn) {
+  settingsBtn = document.createElement('button');
+  settingsBtn.id = 'settingsBtn';
+  settingsBtn.textContent = '⚙';
+  document.body.appendChild(settingsBtn);
+}
+settingsBtn.style.position = 'absolute';
+settingsBtn.style.top = '16px';
+settingsBtn.style.right = '18px';
+settingsBtn.style.padding = '0.3em 0.65em';
+settingsBtn.style.fontSize = '1.25rem';
+settingsBtn.style.backgroundColor = '#1e293b';
+settingsBtn.style.color = 'white';
+settingsBtn.style.border = '1px solid rgba(255,255,255,0.18)';
+settingsBtn.style.borderRadius = '8px';
+settingsBtn.style.cursor = 'pointer';
+settingsBtn.style.boxShadow = '0 2px 10px rgba(0,0,0,0.4)';
+settingsBtn.style.zIndex = '110';
+settingsBtn.style.display = 'none';
+settingsBtn.title = '設定';
+
+// --- 設定モーダル ---
+let settingsModal = document.getElementById('settingsModal');
+if (!settingsModal) {
+  settingsModal = document.createElement('div');
+  settingsModal.id = 'settingsModal';
+  settingsModal.style.position = 'absolute';
+  settingsModal.style.left = '50%';
+  settingsModal.style.top = '50%';
+  settingsModal.style.transform = 'translate(-50%, -50%)';
+  settingsModal.style.minWidth = '340px';
+  settingsModal.style.maxWidth = '90vw';
+  settingsModal.style.background = 'rgba(10,14,28,0.96)';
+  settingsModal.style.color = '#fff';
+  settingsModal.style.border = '1px solid rgba(255,255,255,0.22)';
+  settingsModal.style.borderRadius = '12px';
+  settingsModal.style.padding = '20px 24px 18px';
+  settingsModal.style.zIndex = '9999';
+  settingsModal.style.display = 'none';
+  settingsModal.style.boxShadow = '0 8px 40px rgba(0,0,0,0.7)';
+  settingsModal.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+      <div style="font-weight:800;font-size:17px;letter-spacing:0.05em;">⚙ 設定</div>
+      <button id="settingsCloseBtn"
+        style="padding:5px 11px;background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:7px;cursor:pointer;font-size:0.9rem;">
+        閉じる
+      </button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:18px;">
+      <!-- 音量 -->
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:14px;">
+          <span>🔊 音量</span>
+          <span id="settingsVolumeVal" style="font-weight:700;">${Math.round(settingsVolume * 100)}%</span>
+        </div>
+        <input id="settingsVolumeSlider" type="range" min="0" max="100" step="1"
+          value="${Math.round(settingsVolume * 100)}"
+          style="width:100%;accent-color:#6366f1;cursor:pointer;">
+      </div>
+      <!-- ノーツ速度 -->
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:14px;">
+          <span>🎵 ノーツ速度</span>
+          <span id="settingsSpeedVal" style="font-weight:700;">${settingsNoteSpeed}</span>
+        </div>
+        <input id="settingsSpeedSlider" type="range" min="30" max="90" step="1"
+          value="${settingsNoteSpeed}"
+          style="width:100%;accent-color:#6366f1;cursor:pointer;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;opacity:0.5;margin-top:3px;">
+          <span>遅い</span><span>速い</span>
+        </div>
+      </div>
+      <!-- ノーツタイミング -->
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:14px;">
+          <span>⏱ タイミング補正</span>
+          <span id="settingsTimingVal" style="font-weight:700;">${settingsTimingOffset >= 0 ? '+' : ''}${(settingsTimingOffset * 1000).toFixed(0)}ms</span>
+        </div>
+        <input id="settingsTimingSlider" type="range" min="-300" max="300" step="10"
+          value="${Math.round(settingsTimingOffset * 1000)}"
+          style="width:100%;accent-color:#6366f1;cursor:pointer;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;opacity:0.5;margin-top:3px;">
+          <span>早く</span><span>遅く</span>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(settingsModal);
+
+  settingsModal.querySelector('#settingsCloseBtn').onclick = () => {
+    settingsModal.style.display = 'none';
+  };
+
+  // 音量スライダー
+  settingsModal.querySelector('#settingsVolumeSlider').oninput = (e) => {
+    settingsVolume = e.target.value / 100;
+    settingsModal.querySelector('#settingsVolumeVal').textContent = Math.round(settingsVolume * 100) + '%';
+    bgm.volume = settingsVolume;
+    titleBgm.volume = settingsVolume;
+    localStorage.setItem('settings_volume', settingsVolume);
+  };
+
+  // ノーツ速度スライダー
+  settingsModal.querySelector('#settingsSpeedSlider').oninput = (e) => {
+    settingsNoteSpeed = parseInt(e.target.value, 10);
+    noteDuration = settingsNoteSpeed;
+    noteTravelSec = noteDuration / 60;
+    settingsModal.querySelector('#settingsSpeedVal').textContent = settingsNoteSpeed;
+    localStorage.setItem('settings_noteSpeed', settingsNoteSpeed);
+  };
+
+  // タイミング補正スライダー
+  settingsModal.querySelector('#settingsTimingSlider').oninput = (e) => {
+    settingsTimingOffset = parseInt(e.target.value, 10) / 1000;
+    const ms = Math.round(settingsTimingOffset * 1000);
+    settingsModal.querySelector('#settingsTimingVal').textContent = (ms >= 0 ? '+' : '') + ms + 'ms';
+    localStorage.setItem('settings_timingOffset', settingsTimingOffset);
+  };
+}
+
+settingsBtn.onclick = () => {
+  settingsModal.style.display = settingsModal.style.display === 'none' ? 'block' : 'none';
+};
 
 let rankingModal = document.getElementById('rankingModal');
 if (!rankingModal) {
@@ -585,7 +720,7 @@ let lastGameSeed = 0; // 直前のゲームのシードを保存
 
 // --- グローバル変数 ---
 let chartIndex = 0, R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
-let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=55;
+let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=settingsNoteSpeed;
 let bestScore = Number(localStorage.getItem('bestScore_' + currentSong.id)) || 0;
 let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=0, spCountdownTimer=0, spCountdownValue=0;
 let popups=[], hitRings=[], lastInputWasTouch=false;
@@ -609,7 +744,7 @@ let notesProcessedSinceSwitch = 0;
 let strategyBadgeOffsetX = 0; // バッジスライドアニメーション用（0=定位置、負=画面外左）
   
 // ノーツ到達までの秒数
-const noteTravelSec = noteDuration / 60;
+let noteTravelSec = noteDuration / 60;
   
 // --- 効果音ロード ---
 async function loadTapSE() {
@@ -729,6 +864,7 @@ function resizeCanvas(){
     reseedBtn.style.display='none';
     rankingBtn.style.display = 'none';
   　saveScoreBtn.style.display = 'none';
+    settingsBtn.style.display = 'none';
     return;
   }
   rotateMsg.style.display='none';
@@ -736,6 +872,8 @@ function resizeCanvas(){
   // ランキングボタンはタイトル画面のみ表示（曲選択画面では非表示）
   rankingBtn.style.display = (gameState === "init") ? 'block' : 'none';
 　saveScoreBtn.style.display = (gameState === "result") ? 'block' : 'none';
+  // 設定ボタンはタイトル画面のみ表示
+  settingsBtn.style.display = (gameState === "init") ? 'block' : 'none';
   startBtn.style.display = (gameState === "init" || gameState === "songSelect") ? 'block' : 'none';
   startBtn.textContent = gameState === "songSelect" ? 'PLAY' : 'S.T.A.R.T!!';
   if(gameState==="result") {
@@ -984,11 +1122,11 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
         skillHistory.unshift({text:`[アピール増加 12%]`, life:180});
       }
     } else {
-      // --- 緑作戦（ヒーラー）特技 ---
+      // --- 青作戦（ヒーラー）特技 ---
       if (skillType === 0) {
         if (stamina > 0) {
-          stamina = Math.min(STAMINA_MAX, stamina + 3000);
-          skillHistory.unshift({text: '[スタミナ回復 3000]', life: 180});
+          stamina = Math.min(STAMINA_MAX, stamina + 2000);
+          skillHistory.unshift({text: '[スタミナ回復 2000]', life: 180});
         }
       } else if (skillType === 1) {
         damageReduceNotes += 3;
@@ -1162,7 +1300,7 @@ function handlePointer(e){
       strategyChangeCooldown = STRATEGY_CHANGE_NOTES;
       notesProcessedSinceSwitch = 0;
       strategyBadgeOffsetX = -300; // バッジを左画面外から登場させる
-      const strategyName = currentStrategy === "red" ? "赤作戦（アタッカー）" : "緑作戦（ヒーラー）";
+      const strategyName = currentStrategy === "red" ? "赤作戦（アタッカー）" : "青作戦（ヒーラー）";
       skillHistory.unshift({text: `[${strategyName}に切り替え]`, life: 180});
       if (skillHistory.length > 5) skillHistory.pop();
       continue;
@@ -1375,7 +1513,7 @@ function update(){
           gameState="playing";
           frame = 0;
           bgm.currentTime = 0;
-          bgm.volume = 0.10;
+          bgm.volume = settingsVolume;
           bgm.play().catch(()=>{});
         },1000);
       }
@@ -1385,7 +1523,7 @@ function update(){
   }
   if (gameState === "playing" && !bgm.paused) {
     const bgmNowSec = bgm.currentTime;
-    while (chartIndex < currentSong.notesChart.length && bgmNowSec >= currentSong.notesChart[chartIndex].time) {
+    while (chartIndex < currentSong.notesChart.length && bgmNowSec >= currentSong.notesChart[chartIndex].time + settingsTimingOffset) {
       spawnNote(currentSong.notesChart[chartIndex].side, chartIndex); 
       totalNotesSpawned++;
       chartIndex++;
@@ -1404,7 +1542,7 @@ function update(){
       waitingClearFrame = null;
       let fadeOut = setInterval(() => {
         if (bgm.volume > 0.02) { bgm.volume -= 0.02; }
-        else { bgm.pause(); bgm.currentTime = 0; clearInterval(fadeOut); bgm.volume = 0.10; }
+        else { bgm.pause(); bgm.currentTime = 0; clearInterval(fadeOut); bgm.volume = settingsVolume; }
       }, 50);
     }
   } else {
