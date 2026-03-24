@@ -1735,14 +1735,18 @@ function drawNotes(){
     ctx.stroke();
     ctx.restore();
 
-    // --- 主円 ---
+    // --- 主円 (中央から外へ暗くなる放射グラデーション) ---
     ctx.save();
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, r * 0.72, 0, Math.PI * 2);
-    ctx.fillStyle = mainColor;
+    const mainGrad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, r * 0.72);
+    mainGrad.addColorStop(0,   isAcCleared ? "#fff9c4" : "#e0fbff");
+    mainGrad.addColorStop(0.4, mainColor);
+    mainGrad.addColorStop(1,   isAcCleared ? "rgba(60,30,0,0.55)" : "rgba(0,30,60,0.55)");
+    ctx.fillStyle = mainGrad;
     ctx.shadowColor = mainColor;
     ctx.shadowBlur = r * 0.16;
-    ctx.globalAlpha = isAcCleared ? 0.72 : 0.6;
+    ctx.globalAlpha = isAcCleared ? 0.82 : 0.72;
     ctx.fill();
     ctx.restore();
 
@@ -1905,9 +1909,23 @@ function drawSkillHistory(){
   }
 }
 function drawTargets(){
-  ctx.strokeStyle='#fff'; ctx.lineWidth=3;
   for(const t of [leftTarget,rightTarget]){
-    ctx.beginPath(); ctx.arc(t.x,t.y,t.r,0,Math.PI*2); ctx.stroke();
+    ctx.save();
+    // 中央から外へ暗くなる放射グラデーション
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+    const grad = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, t.r);
+    grad.addColorStop(0,   "rgba(255,255,255,0.22)");
+    grad.addColorStop(0.5, "rgba(255,255,255,0.07)");
+    grad.addColorStop(1,   "rgba(0,0,0,0.25)");
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+    ctx.stroke();
   }
 }
 
