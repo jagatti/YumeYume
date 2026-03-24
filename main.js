@@ -336,13 +336,27 @@ const titleBgm = document.getElementById('titleBgm');
 let settingsVolume      = parseFloat(localStorage.getItem('settings_volume')        ?? '0.1');
 let settingsNoteSpeed   = parseInt(localStorage.getItem('settings_noteSpeed')       ?? '55', 10);
 let settingsTimingOffset= parseFloat(localStorage.getItem('settings_timingOffset')  ?? '0');
+let settingsSE          = localStorage.getItem('settings_se') !== 'off';
 // 値域クランプ
 settingsVolume       = Math.max(0, Math.min(1, settingsVolume));
 settingsNoteSpeed    = Math.max(30, Math.min(90, settingsNoteSpeed));
 settingsTimingOffset = Math.max(-0.3, Math.min(0.3, settingsTimingOffset));
 
+// --- BGM 音量制御（Web Audio API GainNode、iOS Safari 対応） ---
+// GainNode 変数は loadTapSE() 内で接続される
+let bgmGain = null;
+let titleBgmGain = null;
+
+function applyVolume(vol) {
+  if (bgmGain)      bgmGain.gain.value      = vol;
+  else              bgm.volume              = vol;
+  if (titleBgmGain) titleBgmGain.gain.value = vol;
+  else              titleBgm.volume         = vol;
+}
+
 bgm.volume = settingsVolume;
 titleBgm.volume = settingsVolume;
+// Web Audio 未接続時のフォールバック用（接続後は applyVolume で制御）
 
 // --- JSONP ---
 function jsonp(url, timeoutMs = 8000) {
@@ -524,6 +538,14 @@ if (!settingsModal) {
           <span>早く</span><span>遅く</span>
         </div>
       </div>
+      <!-- SE -->
+      <div style="display:flex;align-items:center;justify-content:space-between;font-size:14px;">
+        <span>🎹 タップSE</span>
+        <button id="settingsSEBtn"
+          style="padding:5px 14px;background:${settingsSE ? '#6366f1' : '#1e293b'};color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:7px;cursor:pointer;font-size:0.85rem;min-width:56px;">
+          ${settingsSE ? 'ON' : 'OFF'}
+        </button>
+      </div>
     </div>
   `;
   document.body.appendChild(settingsModal);
@@ -536,8 +558,7 @@ if (!settingsModal) {
   settingsModal.querySelector('#settingsVolumeSlider').oninput = (e) => {
     settingsVolume = e.target.value / 100;
     settingsModal.querySelector('#settingsVolumeVal').textContent = Math.round(settingsVolume * 100) + '%';
-    bgm.volume = settingsVolume;
-    titleBgm.volume = settingsVolume;
+    applyVolume(settingsVolume);
     localStorage.setItem('settings_volume', settingsVolume);
   };
 
@@ -556,6 +577,15 @@ if (!settingsModal) {
     const ms = Math.round(settingsTimingOffset * 1000);
     settingsModal.querySelector('#settingsTimingVal').textContent = (ms >= 0 ? '+' : '') + ms + 'ms';
     localStorage.setItem('settings_timingOffset', settingsTimingOffset);
+  };
+
+  // SE ON/OFF ボタン
+  settingsModal.querySelector('#settingsSEBtn').onclick = () => {
+    settingsSE = !settingsSE;
+    const btn = settingsModal.querySelector('#settingsSEBtn');
+    btn.textContent = settingsSE ? 'ON' : 'OFF';
+    btn.style.background = settingsSE ? '#6366f1' : '#1e293b';
+    localStorage.setItem('settings_se', settingsSE ? 'on' : 'off');
   };
 }
 
@@ -743,13 +773,30 @@ const STRATEGY_CHANGE_NOTES = 5;
 let notesProcessedSinceSwitch = 0;
 let strategyBadgeOffsetX = 0; // バッジスライドアニメーション用（0=定位置、負=画面外左）
   
-// ノーツ到達までの秒数
+// ノーツ到達までの秒数（デフォルト55フレーム固定：AC判定・進捗バーの基準）
+const DEFAULT_NOTE_TRAVEL_SEC = 55 / 60;
+// 現在のノーツ速度によるビジュアル到達時間（スポーン補正のみに使用）
 let noteTravelSec = noteDuration / 60;
   
 // --- 効果音ロード ---
 async function loadTapSE() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    // bgm / titleBgm を GainNode 経由でルーティング（iOS Safari 音量対応）
+    try {
+      const bs = audioContext.createMediaElementSource(bgm);
+      bgmGain = audioContext.createGain();
+      bgmGain.gain.value = settingsVolume;
+      bs.connect(bgmGain);
+      bgmGain.connect(audioContext.destination);
+      const ts = audioContext.createMediaElementSource(titleBgm);
+      titleBgmGain = audioContext.createGain();
+      titleBgmGain.gain.value = settingsVolume;
+      ts.connect(titleBgmGain);
+      titleBgmGain.connect(audioContext.destination);
+    } catch(e) {
+      console.warn('Web Audio BGM routing failed:', e);
+    }
   }
   await audioContext.resume();
   if (!tapBuffer) {
@@ -824,7 +871,7 @@ function applyNoteDamage(nowTime) {
 
 // 効果音再生
 function playTapSE() {
-  if (!tapBuffer) return;
+  if (!tapBuffer || !settingsSE) return;
   const source = audioContext.createBufferSource();
   source.buffer = tapBuffer;
   source.connect(audioContext.destination);
@@ -840,8 +887,8 @@ function playTapSE() {
 // --- AC取得関数 ---
 function getActiveACByTime(nowTime) {
   return currentSong.acList.find(ac =>
-    (ac.state === "active" || (ac.state === "cleared" && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec))
-    && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec
+    (ac.state === "active" || (ac.state === "cleared" && nowTime >= ac.startTime + DEFAULT_NOTE_TRAVEL_SEC && nowTime <= ac.endTime + DEFAULT_NOTE_TRAVEL_SEC))
+    && nowTime >= ac.startTime + DEFAULT_NOTE_TRAVEL_SEC && nowTime <= ac.endTime + DEFAULT_NOTE_TRAVEL_SEC
   );
 }
 function isACActiveByTime(nowTime) {
@@ -849,7 +896,7 @@ function isACActiveByTime(nowTime) {
 }
 function isACClearedNowByTime(nowTime) {
   return !!currentSong.acList.find(ac =>
-    ac.state === "cleared" && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec
+    ac.state === "cleared" && nowTime >= ac.startTime + DEFAULT_NOTE_TRAVEL_SEC && nowTime <= ac.endTime + DEFAULT_NOTE_TRAVEL_SEC
   );
 }
   
@@ -934,7 +981,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
   noteCounter++;
   currentSong.acList.forEach(ac => {
     
-    if (ac.state === "active" && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec) {
+    if (ac.state === "active" && nowTime >= ac.startTime + DEFAULT_NOTE_TRAVEL_SEC && nowTime <= ac.endTime + DEFAULT_NOTE_TRAVEL_SEC) {
       if (ac.type === "score") {
         ac.tapScore += pointsWithCombo;
         ac.progress = ac.tapScore + ac.spScore;
@@ -957,7 +1004,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
     // --- AC失敗判定と赤フラッシュ演出 ---
     if (
       ac.state === "active" &&
-      nowTime > ac.endTime + noteTravelSec && // AC時間を過ぎた
+      nowTime > ac.endTime + DEFAULT_NOTE_TRAVEL_SEC && // AC時間を過ぎた
       !ac.cleared             // まだクリアしてない
     ) {
       ac.state = "ended";
@@ -972,7 +1019,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
 function updateACOnSPUse(nowTime, spScore) {
   totalSPUsed++;
   currentSong.acList.forEach(ac => {
-    if (ac.state === "active" && nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec) {
+    if (ac.state === "active" && nowTime >= ac.startTime + DEFAULT_NOTE_TRAVEL_SEC && nowTime <= ac.endTime + DEFAULT_NOTE_TRAVEL_SEC) {
       if (ac.type === "sp") {
         ac.progress += 1;
         if (!ac.cleared && ac.progress >= ac.target) {
@@ -1513,7 +1560,7 @@ function update(){
           gameState="playing";
           frame = 0;
           bgm.currentTime = 0;
-          bgm.volume = settingsVolume;
+          applyVolume(settingsVolume);
           bgm.play().catch(()=>{});
         },1000);
       }
@@ -1523,7 +1570,7 @@ function update(){
   }
   if (gameState === "playing" && !bgm.paused) {
     const bgmNowSec = bgm.currentTime;
-    while (chartIndex < currentSong.notesChart.length && bgmNowSec >= currentSong.notesChart[chartIndex].time + settingsTimingOffset) {
+    while (chartIndex < currentSong.notesChart.length && bgmNowSec >= currentSong.notesChart[chartIndex].time + DEFAULT_NOTE_TRAVEL_SEC - noteTravelSec + settingsTimingOffset) {
       spawnNote(currentSong.notesChart[chartIndex].side, chartIndex); 
       totalNotesSpawned++;
       chartIndex++;
@@ -1541,8 +1588,9 @@ function update(){
       clearStartFrame=frame;
       waitingClearFrame = null;
       let fadeOut = setInterval(() => {
-        if (bgm.volume > 0.02) { bgm.volume -= 0.02; }
-        else { bgm.pause(); bgm.currentTime = 0; clearInterval(fadeOut); bgm.volume = settingsVolume; }
+        const curVol = bgmGain ? bgmGain.gain.value : bgm.volume;
+        if (curVol > 0.02) { applyVolume(curVol - 0.02); }
+        else { bgm.pause(); bgm.currentTime = 0; clearInterval(fadeOut); applyVolume(settingsVolume); }
       }, 50);
     }
   } else {
@@ -1734,7 +1782,7 @@ function drawNotes(){
 function drawACMissionNotice(){
   let nowTime = bgm.currentTime || 0;
   const ac = currentSong.acList.find(ac => (ac.state === "active" || ac.state === "cleared") &&
-    nowTime >= ac.startTime + noteTravelSec && nowTime <= ac.endTime + noteTravelSec);
+    nowTime >= ac.startTime + DEFAULT_NOTE_TRAVEL_SEC && nowTime <= ac.endTime + DEFAULT_NOTE_TRAVEL_SEC);
   if(!ac) return;
   // 進捗バーより下で中央より上位置
   const barMarginLeft = 20;
@@ -1798,13 +1846,13 @@ function drawProgressBarWithAC(){
 
   // 2. ピンクAC区間
   let lastNoteTime = currentSong.notesChart[currentSong.notesChart.length-1]?.time || 0;
-  let fallbackSongLen = lastNoteTime + noteTravelSec + 3;
+  let fallbackSongLen = lastNoteTime + DEFAULT_NOTE_TRAVEL_SEC + 3;
   let songLen = (bgm.duration && !isNaN(bgm.duration) && bgm.duration > 1)
     ? bgm.duration
     : fallbackSongLen;
   for(const ac of currentSong.acList){
-    let startRatio = (ac.startTime + noteTravelSec) / songLen;
-    let endRatio   = (ac.endTime   + noteTravelSec) / songLen;
+    let startRatio = (ac.startTime + DEFAULT_NOTE_TRAVEL_SEC) / songLen;
+    let endRatio   = (ac.endTime   + DEFAULT_NOTE_TRAVEL_SEC) / songLen;
     let width      = barWidth * (endRatio - startRatio);
     if(isNaN(startRatio) || isNaN(endRatio) || width <= 0) continue;
     ctx.fillStyle = "#ff69b4";
