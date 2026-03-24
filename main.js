@@ -1056,6 +1056,10 @@ window.addEventListener('mousedown', () => {
   loadTapSE();
   if(gameState === "init" && titleBgm.paused) titleBgm.play().catch(()=>{});
 }, { once: true });
+window.addEventListener('keydown', () => {
+  loadTapSE();
+  if(gameState === "init" && titleBgm.paused) titleBgm.play().catch(()=>{});
+}, { once: true });
 
   
 // --- 基本スコアの計算を一律30000・上限50000に ---
@@ -1286,9 +1290,9 @@ function judgeNotesGlobal(mx, my){
 }
 
 // --- SPゲージ使用時のスコア計算 ---
-function tryUseSP(mx,my){
+function tryUseSP(mx,my,bypassPos){
   if(spValue<SP_MAX) return false;
-  if(!isInSPSemicircle(mx,my)) return false;
+  if(!bypassPos && !isInSPSemicircle(mx,my)) return false;
   let nowTime = bgm.currentTime || 0;
   spUseCount++;
   let spBase = 180000;
@@ -1455,6 +1459,97 @@ function handlePointer(e){
 // --- イベント登録 ---
 cvs.addEventListener('touchstart',handlePointer,{passive:false});
 cvs.addEventListener('mousedown',handlePointer);
+
+// --- キーボード対応（PC向け） ---
+// Z/X=ノーツタップ（両押しでペア），Ctrl=SP，Shift=作戦切り替え
+const keyState = {};
+window.addEventListener('keyup', e => { keyState[e.code] = false; });
+window.addEventListener('keydown', e => {
+  if(gameState !== 'playing') return;
+  const code = e.code;
+  if(!['KeyZ','KeyX','ControlLeft','ControlRight','ShiftLeft','ShiftRight'].includes(code)) return;
+  e.preventDefault();
+  if(e.repeat) return; // キーリピートは無視
+
+  // 作戦切り替え（Shift）
+  if(code === 'ShiftLeft' || code === 'ShiftRight'){
+    if(strategyChangeCooldown === 0){
+      currentStrategy = currentStrategy === 'red' ? 'blue' : 'red';
+      strategyChangeCooldown = STRATEGY_CHANGE_NOTES;
+      notesProcessedSinceSwitch = 0;
+      strategyBadgeOffsetX = -300;
+      const strategyName = currentStrategy === 'red' ? '赤作戦（アタッカー）' : '青作戦（ヒーラー）';
+      skillHistory.unshift({text: `[${strategyName}に切り替え]`, life: 180});
+      if(skillHistory.length > 5) skillHistory.pop();
+    }
+    return;
+  }
+
+  // SP発動（Ctrl）
+  if(code === 'ControlLeft' || code === 'ControlRight'){
+    tryUseSP(0, 0, true);
+    return;
+  }
+
+  // ノーツタップ（Z/X）
+  keyState[code] = true;
+  const bothHeld = keyState['KeyZ'] && keyState['KeyX'];
+
+  if(bothHeld){
+    // 両押し → ペアノーツ判定
+    const pairs = getSimultaneousPairsInNotes();
+    for(const [nL, nR] of pairs){
+      const left  = (currentSong.notesChart[nL.chartIdx]?.side === 'left') ? nL : nR;
+      const right = (currentSong.notesChart[nL.chartIdx]?.side === 'left') ? nR : nL;
+      const baseRaw = calcTapBase();
+      const posR = cubicBezier(right.path.p0, right.path.p1, right.path.p2, right.path.p3, Math.min(1, right.t/right.duration));
+      const distR = Math.hypot(posR.x - rightTarget.x, posR.y - rightTarget.y);
+      const resR = calcTapScoreAndLabel(distR, baseRaw);
+      if(resR.label !== 'MISS'){
+        awardHit(rightTarget, resR.points, resR.label, resR.reset, baseRaw, right.chartIdx);
+        notes = notes.filter(n => n !== right);
+      }
+      const posL = cubicBezier(left.path.p0, left.path.p1, left.path.p2, left.path.p3, Math.min(1, left.t/left.duration));
+      const distL = Math.hypot(posL.x - leftTarget.x, posL.y - leftTarget.y);
+      const resL = calcTapScoreAndLabel(distL, baseRaw);
+      if(resL.label !== 'MISS'){
+        awardHit(leftTarget, resL.points, resL.label, resL.reset, baseRaw, left.chartIdx);
+        notes = notes.filter(n => n !== left);
+      }
+    }
+    return;
+  }
+
+  // 片押し → 対応サイドの単発ノーツを判定
+  const tapSide = code === 'KeyZ' ? 'left' : 'right';
+  const tapTarget = tapSide === 'left' ? leftTarget : rightTarget;
+  // ペアノーツ（同時刻・異サイドのペア）のインデックスを事前に収集して除外
+  const pairIndices = new Set();
+  for(let i = 0; i < notes.length; i++){
+    if(pairIndices.has(i)) continue;
+    for(let j = i + 1; j < notes.length; j++){
+      if(currentSong.notesChart[notes[i].chartIdx]?.time === currentSong.notesChart[notes[j].chartIdx]?.time &&
+         currentSong.notesChart[notes[i].chartIdx]?.side !== currentSong.notesChart[notes[j].chartIdx]?.side){
+        pairIndices.add(i); pairIndices.add(j);
+      }
+    }
+  }
+  const candidates = notes.filter((n, idx) => n.side === tapSide && !pairIndices.has(idx));
+  let best = null, bestDist = Infinity;
+  for(const n of candidates){
+    const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
+    const dist = Math.hypot(pos.x - tapTarget.x, pos.y - tapTarget.y);
+    if(dist < bestDist){ bestDist = dist; best = n; }
+  }
+  if(best){
+    const baseRaw = calcTapBase();
+    const res = calcTapScoreAndLabel(bestDist, baseRaw);
+    if(res.label !== 'MISS'){
+      awardHit(tapTarget, res.points, res.label, res.reset, baseRaw, best.chartIdx);
+      notes = notes.filter(n => n !== best);
+    }
+  }
+});
 
 // ゲームを初期化して開始する共通関数
 async function startGame(seed) {
