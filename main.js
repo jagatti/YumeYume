@@ -1356,6 +1356,8 @@ function handlePointer(e){
     // SP半円判定
     if (isInSPSemicircle(tx, ty)) {
       if (spValue >= SP_MAX) tryUseSP(tx, ty);
+      // SP半円タップでもノーツ判定を行うため noteFingers をカウントする
+      noteFingers++;
       continue;
     }
 
