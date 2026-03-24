@@ -522,7 +522,7 @@ if (!settingsModal) {
           value="${settingsNoteSpeed}"
           style="width:100%;accent-color:#6366f1;cursor:pointer;">
         <div style="display:flex;justify-content:space-between;font-size:11px;opacity:0.5;margin-top:3px;">
-          <span>遅い</span><span>速い</span>
+          <span>速い</span><span>遅い</span>
         </div>
       </div>
       <!-- ノーツタイミング -->
@@ -1394,7 +1394,7 @@ function handlePointer(e){
     return;
   }
 
-  // 1本指時は単発ノーツのみ左右順に判定
+  // 1本指時は単発ノーツのみ、最もターゲットに近い1つのみ判定（誤って複数消費しないよう）
   function isNotPairNote(n){
     return !notes.some(other =>
       other !== n &&
@@ -1404,35 +1404,20 @@ function handlePointer(e){
   }
   let targetNotes = notes.filter(isNotPairNote);
 
-  let bestL = null, bestDistL = Infinity;
+  let best = null, bestDist = Infinity, bestTarget = null;
   for(const n of targetNotes){
-    if(n.side !== 'left') continue;
+    const target = n.side === 'left' ? leftTarget : (n.side === 'right' ? rightTarget : null);
+    if(!target) continue;
     const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
-    const dist = Math.hypot(pos.x-leftTarget.x, pos.y-leftTarget.y);
-    if(dist < bestDistL){ bestDistL = dist; bestL = n; }
+    const dist = Math.hypot(pos.x - target.x, pos.y - target.y);
+    if(dist < bestDist){ bestDist = dist; best = n; bestTarget = target; }
   }
-  if(bestL){
+  if(best){
     const baseRaw = calcTapBase();
-    const res = calcTapScoreAndLabel(bestDistL, baseRaw);
+    const res = calcTapScoreAndLabel(bestDist, baseRaw);
     if(res.label !== 'MISS'){
-      awardHit(leftTarget, res.points, res.label, res.reset, baseRaw, bestL.chartIdx);
-      notes = notes.filter(n => n !== bestL);
-    }
-  }
-
-  let bestR = null, bestDistR = Infinity;
-  for(const n of targetNotes){
-    if(n.side !== 'right') continue;
-    const pos = cubicBezier(n.path.p0, n.path.p1, n.path.p2, n.path.p3, Math.min(1, n.t/n.duration));
-    const dist = Math.hypot(pos.x-rightTarget.x, pos.y-rightTarget.y);
-    if(dist < bestDistR){ bestDistR = dist; bestR = n; }
-  }
-  if(bestR){
-    const baseRaw = calcTapBase();
-    const res = calcTapScoreAndLabel(bestDistR, baseRaw);
-    if(res.label !== 'MISS'){
-      awardHit(rightTarget, res.points, res.label, res.reset, baseRaw, bestR.chartIdx);
-      notes = notes.filter(n => n !== bestR);
+      awardHit(bestTarget, res.points, res.label, res.reset, baseRaw, best.chartIdx);
+      notes = notes.filter(n => n !== best);
     }
   }
 }
