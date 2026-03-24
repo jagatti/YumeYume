@@ -753,7 +753,8 @@ let chartIndex = 0, R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, s
 let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=settingsNoteSpeed;
 let bestScore = Number(localStorage.getItem('bestScore_' + currentSong.id)) || 0;
 let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=0, spCountdownTimer=0, spCountdownValue=0;
-let popups=[], hitRings=[], lastInputWasTouch=false;
+let popups=[], hitRings=[], particles=[], lastInputWasTouch=false;
+let targetRotAngle=0;
 let gameState = "init", countdownValue = 3, totalNotesSpawned = 0, clearStartFrame = null, resultStartFrame = null;
 let skillHistory = [], appealBoostNotes = 0, skillActivationCount = 0, spUseCount = 0, progressDisplay = 0;
 let judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
@@ -1209,6 +1210,20 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
   else combo++;
   spValue=Math.min(SP_MAX, spValue+200);
   hitRings.push({x:target.x,y:target.y,r:target.r,alpha:1});
+  // ヒットパーティクル生成
+  {
+    const particleProps = {
+      CRITICAL:  {count:14, color:'#ffd700'},
+      WONDERFUL: {count:10, color:'#ff69b4'},
+      GREAT:     {count:8,  color:'#00eaff'},
+    };
+    const pp = particleProps[label] || {count:5, color:'#ffffff'};
+    for(let p=0;p<pp.count;p++){
+      const angle = (Math.PI*2/pp.count)*p + Math.random()*0.4;
+      const speed = (2.5 + Math.random()*3.5) * (R/30);
+      particles.push({x:target.x,y:target.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:28+Math.floor(Math.random()*14),maxLife:40,r:2.5+Math.random()*2,color:pp.color});
+    }
+  }
   const midX = (leftTarget.x + rightTarget.x) / 2;
   const midY = (leftTarget.y + rightTarget.y) / 2 - R*2;
   addPopup(label, midX, midY - 30, 500, 'label');
@@ -1469,7 +1484,7 @@ async function startGame(seed) {
   spCountdownTimer=0;
   spCountdownValue=0;
   spScoreBuffNotes = 0;
-  popups=[]; hitRings=[];
+  popups=[]; hitRings=[]; particles=[];
   frame = 0;
   countdownValue = 3;
   judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
@@ -1618,6 +1633,8 @@ function update(){
   if(spRingTimer>0)  spRingTimer--;
   if(spBoostTimer>0) spBoostTimer--;
   hitRings=hitRings.filter(r=>{r.r+=4; r.alpha-=0.06; return r.alpha>0;});
+  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.18;p.life--;return p.life>0;});
+  targetRotAngle += 0.022;
   popups=popups.filter(p=>{p.timer--; return p.timer>0;});
   }
   // --- ユーティリティ: 同時押しペア情報を取得 ---
@@ -1670,21 +1687,48 @@ function judgeNotesAt(mx, my, alreadyHitIdx){
   
 // --- ノーツ描画: 同時押しペア間に白線描画 ---
 function drawNotes(){
-  // 1. 同時ペアの白い線
+  // 1. 同時ペアのライン（グラデーション+グロー）
   const pairs = getSimultaneousPairs();
-  ctx.save();
-  ctx.strokeStyle = "#fff";
-  ctx.lineWidth = R * 0.19;
-  ctx.globalAlpha = 0.8;
   for (const [n1, n2] of pairs) {
     const pos1 = cubicBezier(n1.path.p0, n1.path.p1, n1.path.p2, n1.path.p3, Math.min(1, n1.t/n1.duration));
     const pos2 = cubicBezier(n2.path.p0, n2.path.p1, n2.path.p2, n2.path.p3, Math.min(1, n2.t/n2.duration));
+
+    // AC判定で各ノーツの色を決める
+    const isAc1 = currentSong.acList.some(ac=>ac.state==="cleared"&&n1.chartIdx>=ac.startIdx&&n1.chartIdx<=ac.endIdx);
+    const isAc2 = currentSong.acList.some(ac=>ac.state==="cleared"&&n2.chartIdx>=ac.startIdx&&n2.chartIdx<=ac.endIdx);
+    const col1 = isAc1 ? "#ffd700" : "#00eaff";
+    const col2 = isAc2 ? "#ffd700" : "#00eaff";
+
+    // グロー（太めの半透明線）
+    ctx.save();
+    ctx.globalAlpha = 0.28;
+    ctx.strokeStyle = col1;
+    ctx.lineWidth = R * 0.55;
+    ctx.lineCap = 'round';
+    ctx.shadowColor = col1;
+    ctx.shadowBlur = 18;
     ctx.beginPath();
     ctx.moveTo(pos1.x, pos1.y);
     ctx.lineTo(pos2.x, pos2.y);
     ctx.stroke();
+    ctx.restore();
+
+    // グラデーション本線
+    ctx.save();
+    const lineGrad = ctx.createLinearGradient(pos1.x, pos1.y, pos2.x, pos2.y);
+    lineGrad.addColorStop(0, col1);
+    lineGrad.addColorStop(0.5, "#ffffff");
+    lineGrad.addColorStop(1, col2);
+    ctx.strokeStyle = lineGrad;
+    ctx.lineWidth = R * 0.18;
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = 0.88;
+    ctx.beginPath();
+    ctx.moveTo(pos1.x, pos1.y);
+    ctx.lineTo(pos2.x, pos2.y);
+    ctx.stroke();
+    ctx.restore();
   }
-  ctx.restore();
 
   // 2. 通常ノーツ描画
   for(let i=0;i<notes.length;i++){
@@ -1921,11 +1965,39 @@ function drawTargets(){
     ctx.fillStyle = grad;
     ctx.fill();
     ctx.restore();
+    // 外枠
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
     ctx.stroke();
+    // 回転リング（外側）
+    ctx.save();
+    ctx.translate(t.x, t.y);
+    ctx.rotate(targetRotAngle);
+    ctx.strokeStyle = 'rgba(0,234,255,0.7)';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([t.r * 0.38, t.r * 0.22]);
+    ctx.beginPath();
+    ctx.arc(0, 0, t.r + 7, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+}
+
+function drawParticles(){
+  for(const p of particles){
+    const a = p.life / p.maxLife;
+    ctx.save();
+    ctx.globalAlpha = a * 0.92;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * a + 0.5, 0, Math.PI*2);
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 8;
+    ctx.fill();
+    ctx.restore();
   }
 }
 
@@ -2517,6 +2589,7 @@ function render(){
   drawTargets();
   drawNotes();
   drawHitRings();
+  drawParticles();
   drawSPGauge();
   drawStaminaBar();
   drawStrategyIcons();
