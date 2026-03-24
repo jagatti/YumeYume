@@ -1328,6 +1328,11 @@ function handlePointer(e){
   const scaleX = cvs.width / rect.width;
   const scaleY = cvs.height / rect.height;
 
+  // 作戦アイコンの当たり判定サイズ（両ループで共用）
+  const iconW = Math.max(60, Math.round(R * 2.0));
+  const iconH = Math.max(80, Math.round(R * 2.7));
+  const iconCY = cvs.height / 2;
+
   // changedTouches: 今回新しく押された指のみ
   const newPoints = isTouch ? Array.from(e.changedTouches) : [e];
   let noteFingers = 0;
@@ -1337,9 +1342,6 @@ function handlePointer(e){
     const ty = (t.clientY - rect.top) * scaleY;
 
     // 作戦切り替えアイコン判定
-    const iconW = Math.max(60, Math.round(R * 2.0));
-    const iconH = Math.max(80, Math.round(R * 2.7));
-    const iconCY = cvs.height / 2;
     if (strategyChangeCooldown === 0 &&
         ty >= iconCY - iconH / 2 && ty <= iconCY + iconH / 2 &&
         (tx <= iconW || tx >= cvs.width - iconW)) {
@@ -1364,10 +1366,24 @@ function handlePointer(e){
 
   if (noteFingers === 0) return;
 
-  // ノーツ専用の指数（SP・作戦アイコン以外）でペア判定を決定
-  // totalFingersではなくnoteFingers を使うことで、SP連打中に別指でノーツを叩いても
-  // 誤ってペアノーツ判定に入らないようにする
-  if (noteFingers >= 2) {
+  // ペア/シングル分岐は「現在画面に触れている全指」からSP・作戦アイコン指を除いた数で決定する。
+  // changedTouches（新規指のみ）ではなく e.touches（全アクティブ指）を使うことで、
+  // 2本指をわずかにずらして押した場合（= 2回の touchstart が別々に発火する場合）でも
+  // 正しくペアノーツ判定に入れる。また SP 押しっぱなし中も SP 指を除外するため誤判定しない。
+  let activeNoteFingers = 1; // マウスはタッチなし扱い(常に1)
+  if (isTouch) {
+    activeNoteFingers = 0;
+    for (const t of e.touches) {
+      const tx2 = (t.clientX - rect.left) * scaleX;
+      const ty2 = (t.clientY - rect.top) * scaleY;
+      if (isInSPSemicircle(tx2, ty2)) continue;
+      if (ty2 >= iconCY - iconH / 2 && ty2 <= iconCY + iconH / 2 &&
+          (tx2 <= iconW || tx2 >= cvs.width - iconW)) continue;
+      activeNoteFingers++;
+    }
+  }
+
+  if (activeNoteFingers >= 2) {
     const pairs = getSimultaneousPairsInNotes(); // [[nL, nR], ...]
     for (const [nL, nR] of pairs) {
       let right = nL, left = nR;
