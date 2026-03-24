@@ -1353,11 +1353,9 @@ function handlePointer(e){
       continue;
     }
 
-    // SP半円判定
+    // SP半円判定（SP専用操作なのでノーツ判定には含めない）
     if (isInSPSemicircle(tx, ty)) {
       if (spValue >= SP_MAX) tryUseSP(tx, ty);
-      // SP半円タップでもノーツ判定を行うため noteFingers をカウントする
-      noteFingers++;
       continue;
     }
 
@@ -1366,10 +1364,10 @@ function handlePointer(e){
 
   if (noteFingers === 0) return;
 
-  // 全タッチ数（既存指も含む）でペア判定を決定
-  const totalFingers = isTouch ? e.touches.length : 1;
-
-  if (totalFingers >= 2) {
+  // ノーツ専用の指数（SP・作戦アイコン以外）でペア判定を決定
+  // totalFingersではなくnoteFingers を使うことで、SP連打中に別指でノーツを叩いても
+  // 誤ってペアノーツ判定に入らないようにする
+  if (noteFingers >= 2) {
     const pairs = getSimultaneousPairsInNotes(); // [[nL, nR], ...]
     for (const [nL, nR] of pairs) {
       let right = nL, left = nR;
