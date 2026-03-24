@@ -1860,38 +1860,26 @@ function drawACMissionNotice(){
 }
 
 // --- 以降は描画処理など ---
-function applyTextDepthShadow(offsetX=2, offsetY=3, blur=3){
-  ctx.shadowColor='rgba(0,0,0,0.55)'; ctx.shadowOffsetX=offsetX; ctx.shadowOffsetY=offsetY; ctx.shadowBlur=blur;
-}
-function clearTextShadow(){
-  ctx.shadowOffsetX=0; ctx.shadowOffsetY=0; ctx.shadowBlur=0;
-}
 function strokeRainbowText(text,x,y,font){
   ctx.textAlign='center'; ctx.font=font;
   const g=ctx.createLinearGradient(x-100,y,x+100,y);
   const hue=(frame*4)%360;
   for(let i=0;i<=6;i++) g.addColorStop(i/6,`hsl(${(hue+i*60)%360},100%,50%)`);
   ctx.lineWidth=4; ctx.strokeStyle=g;
-  applyTextDepthShadow();
   ctx.strokeText(text,x,y);
   ctx.fillStyle='#fff'; ctx.fillText(text,x,y);
-  clearTextShadow();
 }
 function strokeColoredText(text,x,y,font,color){
   ctx.textAlign='center'; ctx.font=font;
   ctx.lineWidth=4; ctx.strokeStyle=color;
-  applyTextDepthShadow();
   ctx.strokeText(text,x,y);
   ctx.fillStyle='#fff'; ctx.fillText(text,x,y);
-  clearTextShadow();
 }
 function strokeOrangeWhiteText(text,x,y,font){
   ctx.textAlign='center'; ctx.font=font;
   ctx.lineWidth=6; ctx.strokeStyle='#fff';
-  applyTextDepthShadow();
   ctx.strokeText(text,x,y);
   ctx.fillStyle='#ffa500'; ctx.fillText(text,x,y);
-  clearTextShadow();
 }
   
 function drawProgressBarWithAC(){
@@ -2079,15 +2067,11 @@ function drawPopups(){
 function drawUI(){
   if(gameState!=="playing") return;
   const cx=cvs.width - Math.max(70, Math.round(R*2.7));
-  ctx.save();
-  applyTextDepthShadow(2, 3, 4);
-  ctx.shadowColor='rgba(0,0,0,0.6)';
   ctx.textAlign='center'; ctx.fillStyle='#fff';
   ctx.font=`bold ${Math.max(38,Math.round(R*1.7))}px system-ui`; ctx.fillText(`${combo}`, cx, Math.max(40,Math.round(R*1.4)));
   ctx.font=`bold ${Math.max(20,Math.round(R*0.9))}px system-ui`; ctx.fillText('COMBO', cx, Math.max(70,Math.round(R*2.0)));
   ctx.textAlign='right'; ctx.font=`bold ${Math.max(16,Math.round(R*0.7))}px system-ui`;
   ctx.fillText(`SCORE: ${score}`, cvs.width-12, cvs.height-16);
-  ctx.restore();
 }
 function drawOverlays(){
   const f=popups.find(p=>p.type==='flash');
@@ -2106,11 +2090,8 @@ function drawSPCountdown(){
   const hue=(frame*4)%360;
   for(let i=0;i<=6;i++) g.addColorStop(i/6, `hsl(${(hue+i*60)%360},100%,50%)`);
   ctx.lineWidth=8; ctx.strokeStyle=g;
-  applyTextDepthShadow(3, 4, 4);
-  ctx.shadowColor='rgba(0,0,0,0.6)';
   ctx.strokeText(spCountdownValue, x, y);
   ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.fillText(spCountdownValue, x, y);
-  clearTextShadow();
 }
 
 function drawACFailFlash(){
@@ -2638,38 +2619,51 @@ function render(){
     ctx.scale(scale, scale);
     ctx.textAlign='center';
 
-    ctx.font=`bold ${Math.round(cvs.height*0.10)}px system-ui`;
-    ctx.lineWidth=8; ctx.strokeStyle='#000'; ctx.strokeText('RESULT', 0, -90);
-    ctx.fillStyle='#ffa500'; ctx.fillText('RESULT', 0, -90);
+    const h = cvs.height, w = cvs.width;
+    // maxWidth in local (pre-scale) coords so text never overflows canvas width
+    const safeW = Math.round(w * 0.90 / scale);
+    // Font sizes capped by both height and width for narrow screens
+    const titleSize = Math.round(h * 0.09);
+    const mainSize  = Math.min(Math.round(h * 0.063), Math.round(w * 0.13));
+    const subSize   = Math.min(Math.round(h * 0.038), Math.round(w * 0.082));
+    // Proportional vertical spacing unit
+    const rowH = Math.round(h * 0.065);
+    // Subtle depth shadow helpers (result screen only)
+    const applyShadow = () => { ctx.shadowColor='rgba(0,0,0,0.45)'; ctx.shadowOffsetX=1; ctx.shadowOffsetY=2; ctx.shadowBlur=2; };
+    const clearShadow = () => { ctx.shadowOffsetX=0; ctx.shadowOffsetY=0; ctx.shadowBlur=0; };
+
+    // "RESULT" header
+    ctx.font=`bold ${titleSize}px system-ui`;
+    ctx.lineWidth=8; ctx.strokeStyle='#000'; applyShadow();
+    ctx.strokeText('RESULT', 0, -rowH*2, safeW);
+    ctx.fillStyle='#ffa500'; ctx.fillText('RESULT', 0, -rowH*2, safeW); clearShadow();
 
     // 曲名
-    const scoreFontSize = Math.round(cvs.height*0.07);
-    ctx.font = `bold ${scoreFontSize}px system-ui`;
-    ctx.lineWidth = 8;
-    ctx.strokeStyle = "#000";
-    ctx.strokeText("ユメ語るよりユメ歌おう", 0, -36);
-    ctx.fillStyle = "#fff";
-    ctx.fillText("ユメ語るよりユメ歌おう", 0, -36);
+    ctx.font = `bold ${mainSize}px system-ui`;
+    ctx.lineWidth = 6; ctx.strokeStyle = "#000"; applyShadow();
+    ctx.strokeText(currentSong.title, 0, -rowH*0.75, safeW);
+    ctx.fillStyle = "#fff"; ctx.fillText(currentSong.title, 0, -rowH*0.75, safeW); clearShadow();
 
     // SCORE
-    ctx.font=`bold ${scoreFontSize}px system-ui`;
-    ctx.lineWidth=10; ctx.strokeStyle='#000'; ctx.strokeText(`SCORE: ${score}`, 0, 0);
-    ctx.fillStyle='#39ff14'; ctx.fillText(`SCORE: ${score}`, 0, 0);
-    // BEST SCORE表示
-    ctx.font=`bold ${scoreFontSize*0.8}px system-ui`;
-    ctx.lineWidth=8;
-    ctx.strokeStyle="#000";
-    ctx.strokeText(`BEST SCORE: ${bestScore}`, 0, 28);
-    ctx.fillStyle="#ffd700";
-    ctx.fillText(`BEST SCORE: ${bestScore}`, 0, 28);
+    ctx.font=`bold ${mainSize}px system-ui`;
+    ctx.lineWidth=8; ctx.strokeStyle='#000'; applyShadow();
+    ctx.strokeText(`SCORE: ${score}`, 0, rowH*0.25, safeW);
+    ctx.fillStyle='#39ff14'; ctx.fillText(`SCORE: ${score}`, 0, rowH*0.25, safeW); clearShadow();
 
-    ctx.font=`bold ${Math.round(cvs.height*0.04)}px system-ui`;
-    ctx.lineWidth=6; ctx.strokeStyle='#000';
-    ctx.strokeText(`特技発動回数: ${skillActivationCount}`, 0, 60);
-    ctx.strokeText(`SP使用回数: ${spUseCount}`, 0, 80);
+    // BEST SCORE
+    ctx.font=`bold ${Math.round(mainSize*0.78)}px system-ui`;
+    ctx.lineWidth=6; ctx.strokeStyle="#000"; applyShadow();
+    ctx.strokeText(`BEST SCORE: ${bestScore}`, 0, rowH*1.0, safeW);
+    ctx.fillStyle="#ffd700"; ctx.fillText(`BEST SCORE: ${bestScore}`, 0, rowH*1.0, safeW); clearShadow();
+
+    // 特技・SP 統計
+    ctx.font=`bold ${subSize}px system-ui`;
+    ctx.lineWidth=5; ctx.strokeStyle='#000'; applyShadow();
+    ctx.strokeText(`特技発動回数: ${skillActivationCount}`, 0, rowH*1.85, safeW);
+    ctx.strokeText(`SP使用回数: ${spUseCount}`, 0, rowH*2.45, safeW);
     ctx.fillStyle='#e5faff';
-    ctx.fillText(`特技発動回数: ${skillActivationCount}`, 0, 60);
-    ctx.fillText(`SP使用回数: ${spUseCount}`, 0, 80);
+    ctx.fillText(`特技発動回数: ${skillActivationCount}`, 0, rowH*1.85, safeW);
+    ctx.fillText(`SP使用回数: ${spUseCount}`, 0, rowH*2.45, safeW); clearShadow();
 
     ctx.restore();
     drawJudgeCountsResult();
