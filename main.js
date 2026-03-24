@@ -754,7 +754,6 @@ let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], fr
 let bestScore = Number(localStorage.getItem('bestScore_' + currentSong.id)) || 0;
 let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=0, spCountdownTimer=0, spCountdownValue=0;
 let popups=[], hitRings=[], particles=[], lastInputWasTouch=false;
-let targetRotAngle=0;
 let gameState = "init", countdownValue = 3, totalNotesSpawned = 0, clearStartFrame = null, resultStartFrame = null;
 let skillHistory = [], appealBoostNotes = 0, skillActivationCount = 0, spUseCount = 0, progressDisplay = 0;
 let judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
@@ -1213,15 +1212,15 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
   // ヒットパーティクル生成
   {
     const particleProps = {
-      CRITICAL:  {count:14, color:'#ffd700'},
-      WONDERFUL: {count:10, color:'#ff69b4'},
-      GREAT:     {count:8,  color:'#00eaff'},
+      CRITICAL:  {count:7, color:'#ffd700'},
+      WONDERFUL: {count:5, color:'#ff69b4'},
+      GREAT:     {count:4, color:'#00eaff'},
     };
-    const pp = particleProps[label] || {count:5, color:'#ffffff'};
+    const pp = particleProps[label] || {count:3, color:'#ffffff'};
     for(let p=0;p<pp.count;p++){
-      const angle = (Math.PI*2/pp.count)*p + Math.random()*0.4;
-      const speed = (2.5 + Math.random()*3.5) * (R/30);
-      particles.push({x:target.x,y:target.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:28+Math.floor(Math.random()*14),maxLife:40,r:2.5+Math.random()*2,color:pp.color});
+      const angle = (Math.PI*2/pp.count)*p + Math.random()*0.5;
+      const speed = (1.8 + Math.random()*2.5) * (R/30);
+      particles.push({x:target.x,y:target.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:22+Math.floor(Math.random()*10),maxLife:32,r:2+Math.random()*1.5,color:pp.color});
     }
   }
   const midX = (leftTarget.x + rightTarget.x) / 2;
@@ -1633,8 +1632,7 @@ function update(){
   if(spRingTimer>0)  spRingTimer--;
   if(spBoostTimer>0) spBoostTimer--;
   hitRings=hitRings.filter(r=>{r.r+=4; r.alpha-=0.06; return r.alpha>0;});
-  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.18;p.life--;return p.life>0;});
-  targetRotAngle += 0.022;
+  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.life--;return p.life>0;});
   popups=popups.filter(p=>{p.timer--; return p.timer>0;});
   }
   // --- ユーティリティ: 同時押しペア情報を取得 ---
@@ -1699,14 +1697,14 @@ function drawNotes(){
     const col1 = isAc1 ? "#ffd700" : "#00eaff";
     const col2 = isAc2 ? "#ffd700" : "#00eaff";
 
-    // グロー（太めの半透明線）
+    // グロー（薄く細い発光線）
     ctx.save();
-    ctx.globalAlpha = 0.28;
+    ctx.globalAlpha = 0.22;
     ctx.strokeStyle = col1;
-    ctx.lineWidth = R * 0.55;
+    ctx.lineWidth = R * 0.22;
     ctx.lineCap = 'round';
     ctx.shadowColor = col1;
-    ctx.shadowBlur = 18;
+    ctx.shadowBlur = 12;
     ctx.beginPath();
     ctx.moveTo(pos1.x, pos1.y);
     ctx.lineTo(pos2.x, pos2.y);
@@ -1720,9 +1718,9 @@ function drawNotes(){
     lineGrad.addColorStop(0.5, "#ffffff");
     lineGrad.addColorStop(1, col2);
     ctx.strokeStyle = lineGrad;
-    ctx.lineWidth = R * 0.18;
+    ctx.lineWidth = R * 0.09;
     ctx.lineCap = 'round';
-    ctx.globalAlpha = 0.88;
+    ctx.globalAlpha = 0.85;
     ctx.beginPath();
     ctx.moveTo(pos1.x, pos1.y);
     ctx.lineTo(pos2.x, pos2.y);
@@ -1862,23 +1860,38 @@ function drawACMissionNotice(){
 }
 
 // --- 以降は描画処理など ---
+function applyTextDepthShadow(offsetX=2, offsetY=3, blur=3){
+  ctx.shadowColor='rgba(0,0,0,0.55)'; ctx.shadowOffsetX=offsetX; ctx.shadowOffsetY=offsetY; ctx.shadowBlur=blur;
+}
+function clearTextShadow(){
+  ctx.shadowOffsetX=0; ctx.shadowOffsetY=0; ctx.shadowBlur=0;
+}
 function strokeRainbowText(text,x,y,font){
   ctx.textAlign='center'; ctx.font=font;
   const g=ctx.createLinearGradient(x-100,y,x+100,y);
   const hue=(frame*4)%360;
   for(let i=0;i<=6;i++) g.addColorStop(i/6,`hsl(${(hue+i*60)%360},100%,50%)`);
-  ctx.lineWidth=4; ctx.strokeStyle=g; ctx.strokeText(text,x,y);
+  ctx.lineWidth=4; ctx.strokeStyle=g;
+  applyTextDepthShadow();
+  ctx.strokeText(text,x,y);
   ctx.fillStyle='#fff'; ctx.fillText(text,x,y);
+  clearTextShadow();
 }
 function strokeColoredText(text,x,y,font,color){
   ctx.textAlign='center'; ctx.font=font;
-  ctx.lineWidth=4; ctx.strokeStyle=color; ctx.strokeText(text,x,y);
+  ctx.lineWidth=4; ctx.strokeStyle=color;
+  applyTextDepthShadow();
+  ctx.strokeText(text,x,y);
   ctx.fillStyle='#fff'; ctx.fillText(text,x,y);
+  clearTextShadow();
 }
 function strokeOrangeWhiteText(text,x,y,font){
   ctx.textAlign='center'; ctx.font=font;
-  ctx.lineWidth=6; ctx.strokeStyle='#fff'; ctx.strokeText(text,x,y);
+  ctx.lineWidth=6; ctx.strokeStyle='#fff';
+  applyTextDepthShadow();
+  ctx.strokeText(text,x,y);
   ctx.fillStyle='#ffa500'; ctx.fillText(text,x,y);
+  clearTextShadow();
 }
   
 function drawProgressBarWithAC(){
@@ -1971,18 +1984,6 @@ function drawTargets(){
     ctx.beginPath();
     ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
     ctx.stroke();
-    // 回転リング（外側）
-    ctx.save();
-    ctx.translate(t.x, t.y);
-    ctx.rotate(targetRotAngle);
-    ctx.strokeStyle = 'rgba(0,234,255,0.7)';
-    ctx.lineWidth = 2.5;
-    ctx.setLineDash([t.r * 0.38, t.r * 0.22]);
-    ctx.beginPath();
-    ctx.arc(0, 0, t.r + 7, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.restore();
   }
 }
 
@@ -2078,11 +2079,15 @@ function drawPopups(){
 function drawUI(){
   if(gameState!=="playing") return;
   const cx=cvs.width - Math.max(70, Math.round(R*2.7));
+  ctx.save();
+  applyTextDepthShadow(2, 3, 4);
+  ctx.shadowColor='rgba(0,0,0,0.6)';
   ctx.textAlign='center'; ctx.fillStyle='#fff';
   ctx.font=`bold ${Math.max(38,Math.round(R*1.7))}px system-ui`; ctx.fillText(`${combo}`, cx, Math.max(40,Math.round(R*1.4)));
   ctx.font=`bold ${Math.max(20,Math.round(R*0.9))}px system-ui`; ctx.fillText('COMBO', cx, Math.max(70,Math.round(R*2.0)));
   ctx.textAlign='right'; ctx.font=`bold ${Math.max(16,Math.round(R*0.7))}px system-ui`;
   ctx.fillText(`SCORE: ${score}`, cvs.width-12, cvs.height-16);
+  ctx.restore();
 }
 function drawOverlays(){
   const f=popups.find(p=>p.type==='flash');
@@ -2100,8 +2105,12 @@ function drawSPCountdown(){
   const g=ctx.createLinearGradient(x-80,y,x+80,y);
   const hue=(frame*4)%360;
   for(let i=0;i<=6;i++) g.addColorStop(i/6, `hsl(${(hue+i*60)%360},100%,50%)`);
-  ctx.lineWidth=8; ctx.strokeStyle=g; ctx.strokeText(spCountdownValue, x, y);
+  ctx.lineWidth=8; ctx.strokeStyle=g;
+  applyTextDepthShadow(3, 4, 4);
+  ctx.shadowColor='rgba(0,0,0,0.6)';
+  ctx.strokeText(spCountdownValue, x, y);
   ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.fillText(spCountdownValue, x, y);
+  clearTextShadow();
 }
 
 function drawACFailFlash(){
