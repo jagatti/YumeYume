@@ -686,6 +686,147 @@ function escapeHtml_(s) {
     .replaceAll("'", '&#39;');
 }
 
+// --- チュートリアルボタン ---
+let tutorialBtn = document.getElementById('tutorialBtn');
+if (!tutorialBtn) {
+  tutorialBtn = document.createElement('button');
+  tutorialBtn.id = 'tutorialBtn';
+  tutorialBtn.textContent = 'あそびかた';
+  document.body.appendChild(tutorialBtn);
+}
+tutorialBtn.style.position = 'absolute';
+tutorialBtn.style.left = '50%';
+tutorialBtn.style.transform = 'translateX(-50%)';
+tutorialBtn.style.right = 'auto';
+tutorialBtn.style.top = 'auto';
+tutorialBtn.style.padding = '0.45em 2em';
+tutorialBtn.style.fontSize = '0.95rem';
+tutorialBtn.style.backgroundColor = '#1e293b';
+tutorialBtn.style.color = 'white';
+tutorialBtn.style.border = '1px solid rgba(255,255,255,0.18)';
+tutorialBtn.style.borderRadius = '8px';
+tutorialBtn.style.cursor = 'pointer';
+tutorialBtn.style.letterSpacing = '0.04em';
+tutorialBtn.style.boxShadow = '0 2px 10px rgba(0,0,0,0.4)';
+tutorialBtn.style.zIndex = '100';
+tutorialBtn.style.display = 'none';
+
+// --- チュートリアルモーダル ---
+const TUTORIAL_PAGES = [
+  {
+    title: '🎵 基本ルール',
+    body: `画面に流れてくる「ノーツ」を<br>タイミングよくタップして<br>スコアを稼ごう！<br><br>
+           判定は良い順に<br><b>CRITICAL → WONDERFUL → GREAT → NICE → BAD → MISS</b><br><br>
+           コンボが続くほど獲得スコアがアップ！`
+  },
+  {
+    title: '👆 ノーツのタップ',
+    body: `ノーツは画面<b>左右</b>のターゲットに向かって流れてくる。<br><br>
+           ▶ <b>左ノーツ</b>：画面左半分をタップ<br>
+           ▶ <b>右ノーツ</b>：画面右半分をタップ<br><br>
+           ターゲットに近いほど高得点！<br><br>
+           <b>【PC】</b>　<kbd>Z</kbd>キー = 左　／　<kbd>X</kbd>キー = 右`
+  },
+  {
+    title: '✌️ 同時押し（ペアノーツ）',
+    body: `左右に同時に出るノーツは<br><b>2本指で同時タップ</b>すると両方判定！<br><br>
+           片方だけ叩くと、もう片方はMISSになるので注意。<br><br>
+           <b>【PC】</b>　<kbd>Z</kbd>＋<kbd>X</kbd>を同時押し`
+  },
+  {
+    title: '⚡ SPゲージ',
+    body: `ノーツを叩くとSPゲージが溜まる。<br><br>
+           ゲージが<b>MAX</b>になると画面下の半円が光る。<br>その半円を<b>タップ</b>するとSPスキルを発動！<br><br>
+           一気に大きなスコアが加算されるぞ！<br><br>
+           <b>【PC】</b>　<kbd>Ctrl</kbd>キーで発動`
+  },
+  {
+    title: '🎯 作戦切り替え',
+    body: `画面の左右端にある<b>作戦アイコン</b>をタップすると<br>作戦を切り替えられる。<br><br>
+           🔴 <b>赤作戦（アタッカー）</b>：スコア重視の特技発動<br>
+           🔵 <b>青作戦（ヒーラー）</b>：スタミナ回復の特技発動<br><br>
+           スタミナが減ってきたら青作戦に切り替えよう！<br><br>
+           <b>【PC】</b>　<kbd>Shift</kbd>キーで切り替え`
+  },
+  {
+    title: '🌟 アピールチャンス（AC）',
+    body: `曲の特定パートに<b>アピールチャンス（AC）</b>が発生！<br><br>
+           ACミッションを達成すると<br>ボーナスとして<b>大量スコア・SPゲージ</b>が獲得できる。<br><br>
+           ACは全部で<b>3回</b>。すべてクリアを目指そう！`
+  },
+  {
+    title: '💡 まとめ',
+    body: `① ノーツをタイミングよく叩いてコンボをつなげる<br>
+           ② SPゲージが溜まったらすかさず発動！<br>
+           ③ スタミナに気をつけて作戦を切り替える<br>
+           ④ ACミッションを全クリアしてハイスコアを狙え！<br><br>
+           <b>さあ、フルコンボを目指してみよう！</b>`
+  }
+];
+let tutorialPage = 0;
+
+let tutorialModal = document.getElementById('tutorialModal');
+if (!tutorialModal) {
+  tutorialModal = document.createElement('div');
+  tutorialModal.id = 'tutorialModal';
+  tutorialModal.style.position = 'absolute';
+  tutorialModal.style.left = '50%';
+  tutorialModal.style.top = '50%';
+  tutorialModal.style.transform = 'translate(-50%, -50%)';
+  tutorialModal.style.width = 'min(460px, 92vw)';
+  tutorialModal.style.background = 'rgba(10,14,28,0.97)';
+  tutorialModal.style.color = '#fff';
+  tutorialModal.style.border = '1px solid rgba(255,255,255,0.22)';
+  tutorialModal.style.borderRadius = '14px';
+  tutorialModal.style.padding = '22px 26px 18px';
+  tutorialModal.style.zIndex = '9999';
+  tutorialModal.style.display = 'none';
+  tutorialModal.style.boxShadow = '0 8px 40px rgba(0,0,0,0.75)';
+  document.body.appendChild(tutorialModal);
+}
+
+function renderTutorialPage() {
+  const p = TUTORIAL_PAGES[tutorialPage];
+  const total = TUTORIAL_PAGES.length;
+  tutorialModal.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-weight:800;font-size:17px;letter-spacing:0.04em;">${p.title}</div>
+      <button id="tutorialCloseBtn"
+        style="padding:4px 11px;background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:7px;cursor:pointer;font-size:0.9rem;">
+        ✕
+      </button>
+    </div>
+    <div style="font-size:14.5px;line-height:1.75;min-height:130px;">${p.body}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px;">
+      <button id="tutorialPrevBtn"
+        style="padding:6px 18px;background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:7px;cursor:pointer;font-size:0.9rem;${tutorialPage === 0 ? 'opacity:0.3;pointer-events:none;' : ''}">
+        ◀ 前へ
+      </button>
+      <span style="font-size:12px;opacity:0.6;">${tutorialPage + 1} / ${total}</span>
+      <button id="tutorialNextBtn"
+        style="padding:6px 18px;background:${tutorialPage === total - 1 ? '#6366f1' : '#1e293b'};color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:7px;cursor:pointer;font-size:0.9rem;">
+        ${tutorialPage === total - 1 ? 'とじる ▶' : '次へ ▶'}
+      </button>
+    </div>
+  `;
+  tutorialModal.querySelector('#tutorialCloseBtn').onclick = () => {
+    tutorialModal.style.display = 'none';
+  };
+  tutorialModal.querySelector('#tutorialPrevBtn').onclick = () => {
+    if (tutorialPage > 0) { tutorialPage--; renderTutorialPage(); }
+  };
+  tutorialModal.querySelector('#tutorialNextBtn').onclick = () => {
+    if (tutorialPage < total - 1) { tutorialPage++; renderTutorialPage(); }
+    else { tutorialModal.style.display = 'none'; }
+  };
+}
+
+tutorialBtn.onclick = () => {
+  tutorialPage = 0;
+  renderTutorialPage();
+  tutorialModal.style.display = 'block';
+};
+
 rankingBtn.onclick = async () => {
   try {
     const res = await fetchTopScores();
@@ -910,6 +1051,7 @@ function resizeCanvas(){
     retryBtn.style.display='none';
     reseedBtn.style.display='none';
     rankingBtn.style.display = 'none';
+    tutorialBtn.style.display = 'none';
   　saveScoreBtn.style.display = 'none';
     settingsBtn.style.display = 'none';
     return;
@@ -918,6 +1060,7 @@ function resizeCanvas(){
   cvs.style.display='block';
   // ランキングボタンはタイトル画面のみ表示（曲選択画面では非表示）
   rankingBtn.style.display = (gameState === "init") ? 'block' : 'none';
+  tutorialBtn.style.display = (gameState === "init") ? 'block' : 'none';
 　saveScoreBtn.style.display = (gameState === "result") ? 'block' : 'none';
   // 設定ボタンはタイトル画面のみ表示
   settingsBtn.style.display = (gameState === "init") ? 'block' : 'none';
@@ -942,7 +1085,7 @@ function resizeCanvas(){
 
   // --- ボタン位置の動的設定 ---
   if (gameState === "init") {
-    // タイトル画面: S.T.A.R.T!! ボタンを中央より下に、ランキングをその下に配置
+    // タイトル画面: S.T.A.R.T!! ボタンを中央より下に、ランキング・チュートリアルをその下に配置
     const startBtnTop = Math.round(cvs.height * 0.67);
     startBtn.style.top = startBtnTop + 'px';
     startBtn.style.left = '50%';
@@ -951,6 +1094,10 @@ function resizeCanvas(){
     rankingBtn.style.left = '50%';
     rankingBtn.style.transform = 'translateX(-50%)';
     rankingBtn.style.right = 'auto';
+    tutorialBtn.style.top = (startBtnTop + 104) + 'px';
+    tutorialBtn.style.left = '50%';
+    tutorialBtn.style.transform = 'translateX(-50%)';
+    tutorialBtn.style.right = 'auto';
   } else if (gameState === "songSelect") {
     // 曲選択画面: PLAYボタンを画面下部に小さく配置
     startBtn.style.top = Math.round(cvs.height * 0.86) + 'px';
