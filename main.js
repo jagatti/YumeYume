@@ -1086,15 +1086,17 @@ function resizeCanvas(){
   // --- ボタン位置の動的設定 ---
   if (gameState === "init") {
     // タイトル画面: S.T.A.R.T!! ボタンを中央より下に、ランキング・チュートリアルをその下に配置
+    // ボタン間隔は画面高さに比例させ、小型スマホでも画面内に収まるよう最小値を設ける
     const startBtnTop = Math.round(cvs.height * 0.67);
+    const btnGap = Math.max(38, Math.round(cvs.height * 0.10));
     startBtn.style.top = startBtnTop + 'px';
     startBtn.style.left = '50%';
     startBtn.style.transform = 'translateX(-50%)';
-    rankingBtn.style.top = (startBtnTop + 54) + 'px';
+    rankingBtn.style.top = (startBtnTop + btnGap) + 'px';
     rankingBtn.style.left = '50%';
     rankingBtn.style.transform = 'translateX(-50%)';
     rankingBtn.style.right = 'auto';
-    tutorialBtn.style.top = (startBtnTop + 104) + 'px';
+    tutorialBtn.style.top = (startBtnTop + btnGap * 2) + 'px';
     tutorialBtn.style.left = '50%';
     tutorialBtn.style.transform = 'translateX(-50%)';
     tutorialBtn.style.right = 'auto';
