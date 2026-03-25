@@ -365,6 +365,104 @@ creditsBtn.onclick = () => {
   creditsModal.style.display = 'block';
 };
 
+// --- 設定ボタン ---
+let settingsBtn = document.getElementById('settingsBtn');
+if (!settingsBtn) {
+  settingsBtn = document.createElement('button');
+  settingsBtn.id = 'settingsBtn';
+  settingsBtn.textContent = '⚙';
+  document.body.appendChild(settingsBtn);
+}
+settingsBtn.style.position = 'absolute';
+settingsBtn.style.right = '12px';
+settingsBtn.style.left = 'auto';
+settingsBtn.style.transform = 'none';
+settingsBtn.style.top = '12px';
+settingsBtn.style.padding = '0.4em 0.7em';
+settingsBtn.style.fontSize = '1.1rem';
+settingsBtn.style.backgroundColor = '#1e293b';
+settingsBtn.style.color = 'white';
+settingsBtn.style.border = '1px solid rgba(255,255,255,0.18)';
+settingsBtn.style.borderRadius = '8px';
+settingsBtn.style.cursor = 'pointer';
+settingsBtn.style.boxShadow = '0 2px 10px rgba(0,0,0,0.4)';
+settingsBtn.style.zIndex = '100';
+settingsBtn.style.display = 'none';
+
+// --- 設定モーダル ---
+let settingsModal = document.getElementById('settingsModal');
+if (!settingsModal) {
+  settingsModal = document.createElement('div');
+  settingsModal.id = 'settingsModal';
+  settingsModal.style.position = 'absolute';
+  settingsModal.style.left = '50%';
+  settingsModal.style.top = '50%';
+  settingsModal.style.transform = 'translate(-50%, -50%)';
+  settingsModal.style.width = 'min(360px, 92vw)';
+  settingsModal.style.background = 'rgba(10,14,28,0.97)';
+  settingsModal.style.color = '#fff';
+  settingsModal.style.border = '1px solid rgba(255,255,255,0.22)';
+  settingsModal.style.borderRadius = '14px';
+  settingsModal.style.padding = '16px 18px 14px';
+  settingsModal.style.zIndex = '9999';
+  settingsModal.style.display = 'none';
+  settingsModal.style.boxShadow = '0 8px 40px rgba(0,0,0,0.75)';
+  settingsModal.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-weight:800;font-size:14px;letter-spacing:0.04em;">⚙ 設定</div>
+      <button id="settingsCloseBtn"
+        style="padding:3px 9px;background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:7px;cursor:pointer;font-size:0.85rem;">
+        ✕
+      </button>
+    </div>
+    <div style="font-size:13px;display:flex;flex-direction:column;gap:12px;">
+      <label style="display:flex;flex-direction:column;gap:4px;">
+        <span>音量: <span id="settingsVolumeVal">${Math.round(settingsVolume * 100)}</span>%</span>
+        <input id="settingsVolumeRange" type="range" min="0" max="100" value="${Math.round(settingsVolume * 100)}"
+          style="width:100%;">
+      </label>
+      <label style="display:flex;flex-direction:column;gap:4px;">
+        <span>ノーツ速度: <span id="settingsSpeedVal">${settingsNoteSpeed}</span></span>
+        <input id="settingsSpeedRange" type="range" min="30" max="90" value="${settingsNoteSpeed}"
+          style="width:100%;">
+      </label>
+      <label style="display:flex;flex-direction:column;gap:4px;">
+        <span>タイミング調整: <span id="settingsTimingVal">${settingsTimingOffset.toFixed(2)}</span>秒</span>
+        <input id="settingsTimingRange" type="range" min="-30" max="30" value="${Math.round(settingsTimingOffset * 100)}"
+          style="width:100%;">
+      </label>
+    </div>
+  `;
+  document.body.appendChild(settingsModal);
+  settingsModal.querySelector('#settingsCloseBtn').onclick = () => {
+    settingsModal.style.display = 'none';
+  };
+  settingsModal.querySelector('#settingsVolumeRange').oninput = (e) => {
+    settingsVolume = parseInt(e.target.value, 10) / 100;
+    settingsVolume = Math.max(0, Math.min(1, settingsVolume));
+    localStorage.setItem('settings_volume', settingsVolume);
+    applyVolume(settingsVolume);
+    settingsModal.querySelector('#settingsVolumeVal').textContent = e.target.value;
+  };
+  settingsModal.querySelector('#settingsSpeedRange').oninput = (e) => {
+    settingsNoteSpeed = parseInt(e.target.value, 10);
+    settingsNoteSpeed = Math.max(30, Math.min(90, settingsNoteSpeed));
+    localStorage.setItem('settings_noteSpeed', settingsNoteSpeed);
+    noteTravelSec = settingsNoteSpeed / 60;
+    settingsModal.querySelector('#settingsSpeedVal').textContent = settingsNoteSpeed;
+  };
+  settingsModal.querySelector('#settingsTimingRange').oninput = (e) => {
+    settingsTimingOffset = parseInt(e.target.value, 10) / 100;
+    settingsTimingOffset = Math.max(-0.3, Math.min(0.3, settingsTimingOffset));
+    localStorage.setItem('settings_timingOffset', settingsTimingOffset);
+    settingsModal.querySelector('#settingsTimingVal').textContent = settingsTimingOffset.toFixed(2);
+  };
+}
+
+settingsBtn.onclick = () => {
+  settingsModal.style.display = 'block';
+};
+
 let saveScoreBtn = document.getElementById('saveScoreBtn');
 if (!saveScoreBtn) {
   saveScoreBtn = document.createElement('button');
