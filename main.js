@@ -353,7 +353,7 @@ let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], fr
 let bestScore = Number(localStorage.getItem('bestScore_' + currentSong.id)) || 0;
 let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=0, spCountdownTimer=0, spCountdownValue=0;
 let popups=[], hitRings=[], particles=[], lastInputWasTouch=false;
-let gameState = "init", countdownValue = 3, totalNotesSpawned = 0, clearStartFrame = null, resultStartFrame = null;
+let gameState = "init", countdownValue = 3, countdownSecsAccum = 60, totalNotesSpawned = 0, clearStartFrame = null, resultStartFrame = null;
 let skillHistory = [], appealBoostNotes = 0, skillActivationCount = 0, spUseCount = 0, progressDisplay = 0;
 let judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
 let spScoreBuffNotes = 0, noteCounter = 0, totalSPUsed = 0, permanentScoreBuff = 0, acFailFlashTimer = 0, waitingClearFrame = null;
@@ -1266,6 +1266,7 @@ async function startGame(seed) {
   popups=[]; hitRings=[]; particles=[];
   frame = 0;
   countdownValue = 3;
+  countdownSecsAccum = 60;
   judgeCount = {CRITICAL:0,WONDERFUL:0,GREAT:0,NICE:0,BAD:0,MISS:0};
   noteCounter = 0;
   totalSPUsed = 0;
@@ -1345,11 +1346,13 @@ reseedBtn.onclick = function() {
 
 
 // ノーツ出現時にchartIdxを渡すよう修正
-function update(){
-  frame++;
+function update(dt){
+  frame += dt;
   if(gameState==="countdown"){
-    if(frame % 60 === 0 && countdownValue>0){
+    countdownSecsAccum -= dt;
+    if(countdownSecsAccum <= 0 && countdownValue>0){
       countdownValue--;
+      countdownSecsAccum += 60; // 60 dt-units = 1 second at 60fps-equivalent
       if(countdownValue===0){
         setTimeout(()=>{
           gameState="playing";
@@ -1360,7 +1363,7 @@ function update(){
         },1000);
       }
     }
-    if(acFailFlashTimer > 0) acFailFlashTimer--;
+    if(acFailFlashTimer > 0) acFailFlashTimer -= dt;
     return;
   }
   if (gameState === "playing" && !bgm.paused) {
@@ -1371,9 +1374,9 @@ function update(){
       chartIndex++;
     }
     updateACOnTime(bgmNowSec);
-    if(acFailFlashTimer > 0) acFailFlashTimer--;
+    if(acFailFlashTimer > 0) acFailFlashTimer -= dt;
   }
-  for(const n of notes) n.t++;
+  for(const n of notes) n.t += dt;
   const keep=[];for(const n of notes){if(n.t<=n.duration+5) keep.push(n);else applyMiss('MISS');}notes=keep;
   if(gameState==="playing" && chartIndex>=currentSong.notesChart.length && notes.length===0){
     if(waitingClearFrame === null){
@@ -1404,17 +1407,17 @@ function update(){
 
   if(spValue>=SP_MAX){ if(!spFullNotified){ triggerSPVisual(); spFullNotified=true; } }
   else spFullNotified=false;
-  if(spCountdownTimer>0){ spCountdownTimer--; if(spCountdownTimer % 60 === 0){ spCountdownValue = Math.max(0, spCountdownValue-1); } }
+  if(spCountdownTimer>0){ const prevSec=Math.floor(spCountdownTimer/60); spCountdownTimer -= dt; if(spCountdownTimer>0 && Math.floor(spCountdownTimer/60)<prevSec){ spCountdownValue = Math.max(0, spCountdownValue-1); } }
   const clearedNotes = chartIndex - notes.length;
   const targetProgress = currentSong.notesChart.length>0 ? Math.min(1, clearedNotes / currentSong.notesChart.length) : 0;
-  progressDisplay += (targetProgress - progressDisplay) * 0.2;
-  skillHistory.forEach(h=>h.life--);skillHistory = skillHistory.filter(h=>h.life>0);
-  if(spFlashTimer>0) spFlashTimer--;
-  if(spRingTimer>0)  spRingTimer--;
-  if(spBoostTimer>0) spBoostTimer--;
-  hitRings=hitRings.filter(r=>{r.r+=4; r.alpha-=0.06; return r.alpha>0;});
-  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.life--;return p.life>0;});
-  popups=popups.filter(p=>{p.timer--; return p.timer>0;});
+  progressDisplay += (targetProgress - progressDisplay) * 0.2 * dt;
+  skillHistory.forEach(h=>h.life-=dt);skillHistory = skillHistory.filter(h=>h.life>0);
+  if(spFlashTimer>0) spFlashTimer -= dt;
+  if(spRingTimer>0)  spRingTimer -= dt;
+  if(spBoostTimer>0) spBoostTimer -= dt;
+  hitRings=hitRings.filter(r=>{r.r+=4*dt; r.alpha-=0.06*dt; return r.alpha>0;});
+  particles=particles.filter(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;return p.life>0;});
+  popups=popups.filter(p=>{p.timer-=dt; return p.timer>0;});
   }
   // --- ユーティリティ: 同時押しペア情報を取得 ---
 function getSimultaneousPairs() {
@@ -2476,5 +2479,12 @@ function render(){
     reseedBtn.style.display = "none";
   }
 }
-function loop(){ update(); render(); requestAnimationFrame(loop); }
-(function start(){ loop(); })();
+let _loopLastTs = 0;
+function loop(ts){
+  // dt: elapsed time scaled to 60fps-equivalent units (1.0 = one 60fps frame = 16.667ms)
+  // Capped at 3 to prevent huge jumps after tab switching / sleep
+  const dt = _loopLastTs ? Math.min((ts - _loopLastTs) / 16.667, 3) : 1;
+  _loopLastTs = ts;
+  update(dt); render(); requestAnimationFrame(loop);
+}
+(function start(){ requestAnimationFrame(loop); })();
