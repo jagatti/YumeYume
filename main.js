@@ -743,8 +743,8 @@ const TUTORIAL_PAGES = [
   {
     title: '🎯 作戦切り替え',
     body: `画面の左右端にある<b>作戦アイコン</b>をタップすると<br>作戦を切り替えられる。<br><br>
-             <b>赤作戦（アタッカー）</b>：スコア重視の特技発動<br>
-             <b>緑作戦（ヒーラー）</b>：スタミナ回復の特技発動<br><br>
+           <b>赤作戦（アタッカー）</b>：スコア重視の特技発動<br>
+           <b>緑作戦（ヒーラー）</b>：スタミナ回復の特技発動<br><br>
            スタミナが減ってきたら緑作戦に切り替えよう！<br><br>
            <b>【PC】</b>　<kbd>Shift</kbd>キーで切り替え`
   },
@@ -752,7 +752,7 @@ const TUTORIAL_PAGES = [
     title: '🌟 アピールチャンス（AC）',
     body: `曲の特定パートに<b>アピールチャンス（AC）</b>が発生！<br><br>
            ACミッションを達成すると<br>ボーナスとして<b>大量スコア・SPゲージ</b>が獲得できる。<br><br>
-           すべてクリアを目指そう！`
+           ACはすべてクリアを目指そう！`
   },
   {
     title: '💡 まとめ',
@@ -1086,15 +1086,17 @@ function resizeCanvas(){
   // --- ボタン位置の動的設定 ---
   if (gameState === "init") {
     // タイトル画面: S.T.A.R.T!! ボタンを中央より下に、ランキング・チュートリアルをその下に配置
+    // ボタン間隔は画面高さに比例させ、小型スマホでも画面内に収まるよう最小値を設ける
     const startBtnTop = Math.round(cvs.height * 0.67);
+    const btnGap = Math.max(38, Math.round(cvs.height * 0.10));
     startBtn.style.top = startBtnTop + 'px';
     startBtn.style.left = '50%';
     startBtn.style.transform = 'translateX(-50%)';
-    rankingBtn.style.top = (startBtnTop + 54) + 'px';
+    rankingBtn.style.top = (startBtnTop + btnGap) + 'px';
     rankingBtn.style.left = '50%';
     rankingBtn.style.transform = 'translateX(-50%)';
     rankingBtn.style.right = 'auto';
-    tutorialBtn.style.top = (startBtnTop + 104) + 'px';
+    tutorialBtn.style.top = (startBtnTop + btnGap * 2) + 'px';
     tutorialBtn.style.left = '50%';
     tutorialBtn.style.transform = 'translateX(-50%)';
     tutorialBtn.style.right = 'auto';
