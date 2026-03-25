@@ -207,6 +207,68 @@ tutorialBtn.onclick = () => {
   renderTutorialPage();
 };
 
+// --- ランキングボタン ---
+let rankingBtn = document.getElementById('rankingBtn');
+if (!rankingBtn) {
+  rankingBtn = document.createElement('button');
+  rankingBtn.id = 'rankingBtn';
+  rankingBtn.textContent = 'ランキング';
+  document.body.appendChild(rankingBtn);
+}
+rankingBtn.style.position = 'absolute';
+rankingBtn.style.right = '12px';
+rankingBtn.style.left = 'auto';
+rankingBtn.style.transform = 'none';
+rankingBtn.style.top = 'auto';
+rankingBtn.style.padding = '0.4em 1.1em';
+rankingBtn.style.fontSize = '0.82rem';
+rankingBtn.style.backgroundColor = '#1e293b';
+rankingBtn.style.color = 'white';
+rankingBtn.style.border = '1px solid rgba(255,255,255,0.18)';
+rankingBtn.style.borderRadius = '8px';
+rankingBtn.style.cursor = 'pointer';
+rankingBtn.style.letterSpacing = '0.04em';
+rankingBtn.style.boxShadow = '0 2px 10px rgba(0,0,0,0.4)';
+rankingBtn.style.zIndex = '100';
+rankingBtn.style.display = 'none';
+
+// --- ランキングモーダル ---
+let rankingModal = document.getElementById('rankingModal');
+if (!rankingModal) {
+  rankingModal = document.createElement('div');
+  rankingModal.id = 'rankingModal';
+  rankingModal.style.position = 'absolute';
+  rankingModal.style.left = '50%';
+  rankingModal.style.top = '50%';
+  rankingModal.style.transform = 'translate(-50%, -50%)';
+  rankingModal.style.width = 'min(420px, 94vw)';
+  rankingModal.style.maxHeight = '80vh';
+  rankingModal.style.background = 'rgba(10,14,28,0.97)';
+  rankingModal.style.color = '#fff';
+  rankingModal.style.border = '1px solid rgba(255,255,255,0.22)';
+  rankingModal.style.borderRadius = '14px';
+  rankingModal.style.padding = '16px 18px 14px';
+  rankingModal.style.zIndex = '9999';
+  rankingModal.style.display = 'none';
+  rankingModal.style.boxShadow = '0 8px 40px rgba(0,0,0,0.75)';
+  rankingModal.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div id="rankingTitle" style="font-weight:800;font-size:14px;letter-spacing:0.04em;">🏆 全体ランキング</div>
+      <button id="rankingCloseBtn"
+        style="padding:3px 9px;background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:7px;cursor:pointer;font-size:0.85rem;">
+        ✕
+      </button>
+    </div>
+    <div id="rankingScroll" style="overflow-y:auto;max-height:calc(80vh - 80px);">
+      <div id="rankingTable" style="display:grid;grid-template-columns:3em 1fr auto;gap:0 12px;font-size:13px;"></div>
+    </div>
+  `;
+  document.body.appendChild(rankingModal);
+  rankingModal.querySelector('#rankingCloseBtn').onclick = () => {
+    rankingModal.style.display = 'none';
+  };
+}
+
 rankingBtn.onclick = async () => {
   try {
     const res = await fetchTopScores();
