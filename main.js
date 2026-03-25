@@ -1224,7 +1224,7 @@ async function fetchTopScores(limit) {
         const tag = ` [${songId}]`;
         if (nameStr.endsWith(tag)) {
           const playerName = nameStr.slice(0, -tag.length);
-          if (!playerMap[playerName]) playerMap[playerName] = {};
+          playerMap[playerName] ??= {};
           if (!playerMap[playerName][songId] || scoreVal > playerMap[playerName][songId]) {
             playerMap[playerName][songId] = scoreVal;
           }
