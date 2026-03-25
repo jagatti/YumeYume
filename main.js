@@ -7,7 +7,50 @@ const SONGS = [
     title: "シャイニングスター",
     bgmSrc: "shining_star.mp3",
     jacketId: "jacketImg",
-    acList: [],
+    acList: [
+    {
+      startTime: 9.87,
+      endTime: 21.27,
+      type: "score",
+      target: 1000000,
+      rewardScore: 500000,
+      rewardSP: 3600,
+      state: "waiting",
+      progress: 0,
+      cleared: false,
+      desc: "スコアを100万獲得する",
+      tapScore: 0,
+      spScore: 0
+    },
+    {
+      startTime: 35.70,
+      endTime: 59.24,
+      type: "sp",
+      target: 2,
+      rewardScore: 500000,
+      rewardSP: 3600,
+      state: "waiting",
+      progress: 0,
+      cleared: false,
+      desc: "SPを2回発動する",
+      tapScore: 0,
+      spScore: 0
+    },
+    {
+      startTime: 69.11,
+      endTime: 74.81,
+      type: "score",
+      target: 750000,
+      rewardScore: 1000000,
+      rewardSP: 3600,
+      state: "waiting",
+      progress: 0,
+      cleared: false,
+      desc: "スコアを75万獲得する",
+      tapScore: 0,
+      spScore: 0
+    }
+  ],
     notesChart: [
   {"time": 3.80, "side": "right"},
   {"time": 4.18, "side": "right"},
