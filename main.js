@@ -41,13 +41,14 @@ const titleBgm = document.getElementById('titleBgm');
 // --- ユーザー設定 (localStorage永続化) ---
 let settingsVolume      = parseFloat(localStorage.getItem('settings_volume')        ?? '0.1');
 let settingsNoteSpeed   = parseInt(localStorage.getItem('settings_noteSpeed')       ?? '5', 10);
-let settingsTimingOffset= parseFloat(localStorage.getItem('settings_timingOffset')  ?? '0');
+const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+let settingsTimingOffset= parseFloat(localStorage.getItem('settings_timingOffset')  ?? (isMobile ? '0.3' : '0'));
 let settingsSE          = localStorage.getItem('settings_se') !== 'off';
 // 値域クランプ
 settingsVolume       = Math.max(0, Math.min(1, settingsVolume));
 // settingsNoteSpeed は 1-10 スケール (旧30-90値は5にリセット、1未満も同様)
 settingsNoteSpeed    = (settingsNoteSpeed < 1 || settingsNoteSpeed > 10) ? 5 : settingsNoteSpeed;
-settingsTimingOffset = Math.max(-0.3, Math.min(0.3, settingsTimingOffset));
+settingsTimingOffset = Math.max(-0.5, Math.min(0.5, settingsTimingOffset));
 // 1-10 スケールからフレーム数(30-90)に変換: 速度1→90フレーム(遅い)、速度10→30フレーム(速い)
 function speedToFrames(speed) { return Math.round(90 - (speed - 1) * (60 / 9)); }
 
@@ -431,7 +432,7 @@ if (!settingsModal) {
       </label>
       <label style="display:flex;flex-direction:column;gap:4px;">
         <span>タイミング調整: <span id="settingsTimingVal">${settingsTimingOffset.toFixed(2)}</span>秒</span>
-        <input id="settingsTimingRange" type="range" min="-30" max="30" value="${Math.round(settingsTimingOffset * 100)}"
+        <input id="settingsTimingRange" type="range" min="-50" max="50" value="${Math.round(settingsTimingOffset * 100)}"
           style="width:100%;">
       </label>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -462,7 +463,7 @@ if (!settingsModal) {
   };
   settingsModal.querySelector('#settingsTimingRange').oninput = (e) => {
     settingsTimingOffset = parseInt(e.target.value, 10) / 100;
-    settingsTimingOffset = Math.max(-0.3, Math.min(0.3, settingsTimingOffset));
+    settingsTimingOffset = Math.max(-0.5, Math.min(0.5, settingsTimingOffset));
     localStorage.setItem('settings_timingOffset', settingsTimingOffset);
     settingsModal.querySelector('#settingsTimingVal').textContent = settingsTimingOffset.toFixed(2);
   };
@@ -674,8 +675,8 @@ function playTapSE() {
 // --- AC取得関数 ---
 function getActiveACByTime(nowTime) {
   return currentSong.acList.find(ac =>
-    (ac.state === "active" || (ac.state === "cleared" && nowTime >= ac.startTime && nowTime <= ac.endTime))
-    && nowTime >= ac.startTime && nowTime <= ac.endTime
+    (ac.state === "active" || (ac.state === "cleared" && nowTime >= ac.startTime + settingsTimingOffset && nowTime <= ac.endTime + settingsTimingOffset))
+    && nowTime >= ac.startTime + settingsTimingOffset && nowTime <= ac.endTime + settingsTimingOffset
   );
 }
 function isACActiveByTime(nowTime) {
@@ -683,7 +684,7 @@ function isACActiveByTime(nowTime) {
 }
 function isACClearedNowByTime(nowTime) {
   return !!currentSong.acList.find(ac =>
-    ac.state === "cleared" && nowTime >= ac.startTime && nowTime <= ac.endTime
+    ac.state === "cleared" && nowTime >= ac.startTime + settingsTimingOffset && nowTime <= ac.endTime + settingsTimingOffset
   );
 }
   
@@ -778,7 +779,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
   noteCounter++;
   currentSong.acList.forEach(ac => {
     
-    if (ac.state === "active" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
+    if (ac.state === "active" && nowTime >= ac.startTime + settingsTimingOffset && nowTime <= ac.endTime + settingsTimingOffset) {
       if (ac.type === "score") {
         ac.tapScore += pointsWithCombo;
         ac.progress = ac.tapScore + ac.spScore;
@@ -801,7 +802,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
     // --- AC失敗判定と赤フラッシュ演出 ---
     if (
       ac.state === "active" &&
-      nowTime > ac.endTime && // AC時間を過ぎた
+      nowTime > ac.endTime + settingsTimingOffset && // AC時間を過ぎた
       !ac.cleared             // まだクリアしてない
     ) {
       ac.state = "ended";
@@ -816,7 +817,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
 function updateACOnSPUse(nowTime, spScore) {
   totalSPUsed++;
   currentSong.acList.forEach(ac => {
-    if (ac.state === "active" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
+    if (ac.state === "active" && nowTime >= ac.startTime + settingsTimingOffset && nowTime <= ac.endTime + settingsTimingOffset) {
       if (ac.type === "sp") {
         ac.progress += 1;
         if (!ac.cleared && ac.progress >= ac.target) {
@@ -847,7 +848,7 @@ function updateACOnSPUse(nowTime, spScore) {
 // --- AC進行チェック：作戦切り替え時 ---
 function updateACOnStrategyChange(nowTime) {
   currentSong.acList.forEach(ac => {
-    if (ac.state === "active" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
+    if (ac.state === "active" && nowTime >= ac.startTime + settingsTimingOffset && nowTime <= ac.endTime + settingsTimingOffset) {
       if (ac.type === "strategy") {
         ac.progress += 1;
         if (!ac.cleared && ac.progress >= ac.target) {
@@ -866,7 +867,7 @@ function updateACOnStrategyChange(nowTime) {
 // --- AC進行チェック：時間ベース（スタミナ型はendTime到達時に判定） ---
 function updateACOnTime(nowTime) {
   currentSong.acList.forEach(ac => {
-    if (ac.state === "active" && nowTime > ac.endTime) {
+    if (ac.state === "active" && nowTime > ac.endTime + settingsTimingOffset) {
       if (ac.type === "stamina") {
         if (stamina / STAMINA_MAX >= ac.target / 100) {
           ac.cleared = true;
@@ -1811,8 +1812,8 @@ function drawACMissionNotice(){
   let nowTime = bgm.currentTime || 0;
   const ac = currentSong.acList.find(ac =>
     (ac.state === "active" || ac.state === "cleared") &&
-    nowTime >= ac.startTime &&
-    (nowTime <= ac.endTime || (ac.cleared && nowTime <= ac.endTime + 1.0)));
+    nowTime >= ac.startTime + settingsTimingOffset &&
+    (nowTime <= ac.endTime + settingsTimingOffset || (ac.cleared && nowTime <= ac.endTime + settingsTimingOffset + 1.0)));
   if(!ac) return;
   // 進捗バーより下で中央より上位置
   const barMarginLeft = 20;
@@ -1896,8 +1897,8 @@ function drawProgressBarWithAC(){
     ? bgm.duration
     : fallbackSongLen;
   for(const ac of currentSong.acList){
-    let startRatio = ac.startTime / songLen;
-    let endRatio   = ac.endTime   / songLen;
+    let startRatio = (ac.startTime + settingsTimingOffset) / songLen;
+    let endRatio   = (ac.endTime   + settingsTimingOffset) / songLen;
     let width      = barWidth * (endRatio - startRatio);
     if(isNaN(startRatio) || isNaN(endRatio) || width <= 0) continue;
     ctx.fillStyle = "#ff69b4";
