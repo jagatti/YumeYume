@@ -435,12 +435,12 @@ if (!rankingBtn) {
   document.body.appendChild(rankingBtn);
 }
 rankingBtn.style.position = 'absolute';
-rankingBtn.style.left = '50%';
-rankingBtn.style.transform = 'translateX(-50%)';
-rankingBtn.style.right = 'auto';
+rankingBtn.style.right = '12px';
+rankingBtn.style.left = 'auto';
+rankingBtn.style.transform = 'none';
 rankingBtn.style.top = 'auto';
-rankingBtn.style.padding = '0.45em 2em';
-rankingBtn.style.fontSize = '0.95rem';
+rankingBtn.style.padding = '0.4em 1.1em';
+rankingBtn.style.fontSize = '0.82rem';
 rankingBtn.style.backgroundColor = '#1e293b';
 rankingBtn.style.color = 'white';
 rankingBtn.style.border = '1px solid rgba(255,255,255,0.18)';
@@ -695,12 +695,12 @@ if (!tutorialBtn) {
   document.body.appendChild(tutorialBtn);
 }
 tutorialBtn.style.position = 'absolute';
-tutorialBtn.style.left = '50%';
-tutorialBtn.style.transform = 'translateX(-50%)';
-tutorialBtn.style.right = 'auto';
+tutorialBtn.style.right = '12px';
+tutorialBtn.style.left = 'auto';
+tutorialBtn.style.transform = 'none';
 tutorialBtn.style.top = 'auto';
-tutorialBtn.style.padding = '0.45em 2em';
-tutorialBtn.style.fontSize = '0.95rem';
+tutorialBtn.style.padding = '0.4em 1.1em';
+tutorialBtn.style.fontSize = '0.82rem';
 tutorialBtn.style.backgroundColor = '#1e293b';
 tutorialBtn.style.color = 'white';
 tutorialBtn.style.border = '1px solid rgba(255,255,255,0.18)';
@@ -743,8 +743,8 @@ const TUTORIAL_PAGES = [
   {
     title: '🎯 作戦切り替え',
     body: `画面の左右端にある<b>作戦アイコン</b>をタップすると<br>作戦を切り替えられる。<br><br>
-           <b>赤作戦（アタッカー）</b>：スコア重視の特技発動<br>
-           <b>緑作戦（ヒーラー）</b>：スタミナ回復の特技発動<br><br>
+           🔴 <b>赤作戦（アタッカー）</b>：スコア重視の特技発動<br>
+           🟢 <b>緑作戦（ヒーラー）</b>：スタミナ回復の特技発動<br><br>
            スタミナが減ってきたら緑作戦に切り替えよう！<br><br>
            <b>【PC】</b>　<kbd>Shift</kbd>キーで切り替え`
   },
@@ -773,12 +773,14 @@ if (!tutorialModal) {
   tutorialModal.style.left = '50%';
   tutorialModal.style.top = '50%';
   tutorialModal.style.transform = 'translate(-50%, -50%)';
-  tutorialModal.style.width = 'min(460px, 92vw)';
+  tutorialModal.style.width = 'min(420px, 92vw)';
   tutorialModal.style.background = 'rgba(10,14,28,0.97)';
   tutorialModal.style.color = '#fff';
   tutorialModal.style.border = '1px solid rgba(255,255,255,0.22)';
   tutorialModal.style.borderRadius = '14px';
-  tutorialModal.style.padding = '22px 26px 18px';
+  tutorialModal.style.padding = '14px 16px 12px';
+  tutorialModal.style.maxHeight = 'min(88vh, 400px)';
+  tutorialModal.style.flexDirection = 'column';
   tutorialModal.style.zIndex = '9999';
   tutorialModal.style.display = 'none';
   tutorialModal.style.boxShadow = '0 8px 40px rgba(0,0,0,0.75)';
@@ -789,26 +791,27 @@ function renderTutorialPage() {
   const p = TUTORIAL_PAGES[tutorialPage];
   const total = TUTORIAL_PAGES.length;
   tutorialModal.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-      <div style="font-weight:800;font-size:17px;letter-spacing:0.04em;">${p.title}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-shrink:0;">
+      <div style="font-weight:800;font-size:14px;letter-spacing:0.04em;">${p.title}</div>
       <button id="tutorialCloseBtn"
-        style="padding:4px 11px;background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:7px;cursor:pointer;font-size:0.9rem;">
+        style="padding:3px 9px;background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:7px;cursor:pointer;font-size:0.85rem;">
         ✕
       </button>
     </div>
-    <div style="font-size:14.5px;line-height:1.75;min-height:130px;">${p.body}</div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px;">
+    <div style="font-size:12.5px;line-height:1.65;overflow-y:auto;flex:1;min-height:0;max-height:220px;padding-right:2px;">${p.body}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-shrink:0;">
       <button id="tutorialPrevBtn"
-        style="padding:6px 18px;background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:7px;cursor:pointer;font-size:0.9rem;${tutorialPage === 0 ? 'opacity:0.3;pointer-events:none;' : ''}">
+        style="padding:5px 14px;background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:7px;cursor:pointer;font-size:0.82rem;${tutorialPage === 0 ? 'opacity:0.3;pointer-events:none;' : ''}">
         ◀ 前へ
       </button>
-      <span style="font-size:12px;opacity:0.6;">${tutorialPage + 1} / ${total}</span>
+      <span style="font-size:11px;opacity:0.6;">${tutorialPage + 1} / ${total}</span>
       <button id="tutorialNextBtn"
-        style="padding:6px 18px;background:${tutorialPage === total - 1 ? '#6366f1' : '#1e293b'};color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:7px;cursor:pointer;font-size:0.9rem;">
+        style="padding:5px 14px;background:${tutorialPage === total - 1 ? '#6366f1' : '#1e293b'};color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:7px;cursor:pointer;font-size:0.82rem;">
         ${tutorialPage === total - 1 ? 'とじる ▶' : '次へ ▶'}
       </button>
     </div>
   `;
+  tutorialModal.style.display = 'flex';
   tutorialModal.querySelector('#tutorialCloseBtn').onclick = () => {
     tutorialModal.style.display = 'none';
   };
@@ -824,7 +827,6 @@ function renderTutorialPage() {
 tutorialBtn.onclick = () => {
   tutorialPage = 0;
   renderTutorialPage();
-  tutorialModal.style.display = 'block';
 };
 
 rankingBtn.onclick = async () => {
@@ -843,6 +845,84 @@ rankingBtn.onclick = async () => {
   } catch (e) {
     alert('ランキング取得に失敗しました: ' + e.message);
   }
+};
+
+// --- クレジットボタン ---
+let creditsBtn = document.getElementById('creditsBtn');
+if (!creditsBtn) {
+  creditsBtn = document.createElement('button');
+  creditsBtn.id = 'creditsBtn';
+  creditsBtn.textContent = 'クレジット';
+  document.body.appendChild(creditsBtn);
+}
+creditsBtn.style.position = 'absolute';
+creditsBtn.style.right = '12px';
+creditsBtn.style.left = 'auto';
+creditsBtn.style.transform = 'none';
+creditsBtn.style.top = 'auto';
+creditsBtn.style.padding = '0.4em 1.1em';
+creditsBtn.style.fontSize = '0.82rem';
+creditsBtn.style.backgroundColor = '#1e293b';
+creditsBtn.style.color = 'white';
+creditsBtn.style.border = '1px solid rgba(255,255,255,0.18)';
+creditsBtn.style.borderRadius = '8px';
+creditsBtn.style.cursor = 'pointer';
+creditsBtn.style.letterSpacing = '0.04em';
+creditsBtn.style.boxShadow = '0 2px 10px rgba(0,0,0,0.4)';
+creditsBtn.style.zIndex = '100';
+creditsBtn.style.display = 'none';
+
+// --- クレジットモーダル ---
+let creditsModal = document.getElementById('creditsModal');
+if (!creditsModal) {
+  creditsModal = document.createElement('div');
+  creditsModal.id = 'creditsModal';
+  creditsModal.style.position = 'absolute';
+  creditsModal.style.left = '50%';
+  creditsModal.style.top = '50%';
+  creditsModal.style.transform = 'translate(-50%, -50%)';
+  creditsModal.style.width = 'min(380px, 92vw)';
+  creditsModal.style.background = 'rgba(10,14,28,0.97)';
+  creditsModal.style.color = '#fff';
+  creditsModal.style.border = '1px solid rgba(255,255,255,0.22)';
+  creditsModal.style.borderRadius = '14px';
+  creditsModal.style.padding = '16px 18px 14px';
+  creditsModal.style.zIndex = '9999';
+  creditsModal.style.display = 'none';
+  creditsModal.style.boxShadow = '0 8px 40px rgba(0,0,0,0.75)';
+  creditsModal.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="font-weight:800;font-size:14px;letter-spacing:0.04em;">🎵 クレジット</div>
+      <button id="creditsCloseBtn"
+        style="padding:3px 9px;background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:7px;cursor:pointer;font-size:0.85rem;">
+        ✕
+      </button>
+    </div>
+    <div style="font-size:12.5px;line-height:1.8;">
+      <div style="margin-bottom:10px;">
+        <b style="color:#a5b4fc;">タイトル楽曲</b><br>
+        目指せ！KIRAKIRAアイドル！<br>
+        <span style="opacity:0.75;">- DOVA-SYNDROME</span>
+      </div>
+      <div>
+        <b style="color:#a5b4fc;">使用楽曲</b><br>
+        シャイニングスター<br>
+        <span style="opacity:0.75;">- 魔王魂</span><br>
+        ときめき☆ラビリンス<br>
+        <span style="opacity:0.75;">- 魔王魂</span><br>
+        betrayal<br>
+        <span style="opacity:0.75;">- kuku(@1266166susu)</span>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(creditsModal);
+  creditsModal.querySelector('#creditsCloseBtn').onclick = () => {
+    creditsModal.style.display = 'none';
+  };
+}
+
+creditsBtn.onclick = () => {
+  creditsModal.style.display = 'block';
 };
 
 let saveScoreBtn = document.getElementById('saveScoreBtn');
@@ -1052,7 +1132,8 @@ function resizeCanvas(){
     reseedBtn.style.display='none';
     rankingBtn.style.display = 'none';
     tutorialBtn.style.display = 'none';
-  　saveScoreBtn.style.display = 'none';
+    creditsBtn.style.display = 'none';
+    saveScoreBtn.style.display = 'none';
     settingsBtn.style.display = 'none';
     return;
   }
@@ -1061,7 +1142,8 @@ function resizeCanvas(){
   // ランキングボタンはタイトル画面のみ表示（曲選択画面では非表示）
   rankingBtn.style.display = (gameState === "init") ? 'block' : 'none';
   tutorialBtn.style.display = (gameState === "init") ? 'block' : 'none';
-　saveScoreBtn.style.display = (gameState === "result") ? 'block' : 'none';
+  creditsBtn.style.display = (gameState === "init") ? 'block' : 'none';
+  saveScoreBtn.style.display = (gameState === "result") ? 'block' : 'none';
   // 設定ボタンはタイトル画面のみ表示
   settingsBtn.style.display = (gameState === "init") ? 'block' : 'none';
   startBtn.style.display = (gameState === "init" || gameState === "songSelect") ? 'block' : 'none';
@@ -1085,21 +1167,21 @@ function resizeCanvas(){
 
   // --- ボタン位置の動的設定 ---
   if (gameState === "init") {
-    // タイトル画面: S.T.A.R.T!! ボタンを中央より下に、ランキング・チュートリアルをその下に配置
-    // ボタン間隔は画面高さに比例させ、小型スマホでも画面内に収まるよう最小値を設ける
+    // タイトル画面: S.T.A.R.T!! ボタンを中央より下に配置
     const startBtnTop = Math.round(cvs.height * 0.67);
-    const btnGap = Math.max(38, Math.round(cvs.height * 0.10));
     startBtn.style.top = startBtnTop + 'px';
     startBtn.style.left = '50%';
     startBtn.style.transform = 'translateX(-50%)';
-    rankingBtn.style.top = (startBtnTop + btnGap) + 'px';
-    rankingBtn.style.left = '50%';
-    rankingBtn.style.transform = 'translateX(-50%)';
-    rankingBtn.style.right = 'auto';
-    tutorialBtn.style.top = (startBtnTop + btnGap * 2) + 'px';
-    tutorialBtn.style.left = '50%';
-    tutorialBtn.style.transform = 'translateX(-50%)';
-    tutorialBtn.style.right = 'auto';
+    // ランキング・あそびかた・クレジットは右下に縦並び
+    const btnH = 34; // ボタンの高さ概算
+    const btnGapV = 8; // ボタン間の縦間隔
+    const bottomBase = 12;
+    creditsBtn.style.bottom = bottomBase + 'px';
+    creditsBtn.style.top = 'auto';
+    tutorialBtn.style.bottom = (bottomBase + btnH + btnGapV) + 'px';
+    tutorialBtn.style.top = 'auto';
+    rankingBtn.style.bottom = (bottomBase + (btnH + btnGapV) * 2) + 'px';
+    rankingBtn.style.top = 'auto';
   } else if (gameState === "songSelect") {
     // 曲選択画面: PLAYボタンを画面下部に小さく配置
     startBtn.style.top = Math.round(cvs.height * 0.86) + 'px';
