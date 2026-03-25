@@ -1271,8 +1271,8 @@ function playTapSE() {
 // --- AC取得関数 ---
 function getActiveACByTime(nowTime) {
   return currentSong.acList.find(ac =>
-    (ac.state === "active" || (ac.state === "cleared" && nowTime >= ac.startTime + DEFAULT_NOTE_TRAVEL_SEC && nowTime <= ac.endTime + DEFAULT_NOTE_TRAVEL_SEC))
-    && nowTime >= ac.startTime + DEFAULT_NOTE_TRAVEL_SEC && nowTime <= ac.endTime + DEFAULT_NOTE_TRAVEL_SEC
+    (ac.state === "active" || (ac.state === "cleared" && nowTime >= ac.startTime && nowTime <= ac.endTime))
+    && nowTime >= ac.startTime && nowTime <= ac.endTime
   );
 }
 function isACActiveByTime(nowTime) {
@@ -1280,7 +1280,7 @@ function isACActiveByTime(nowTime) {
 }
 function isACClearedNowByTime(nowTime) {
   return !!currentSong.acList.find(ac =>
-    ac.state === "cleared" && nowTime >= ac.startTime + DEFAULT_NOTE_TRAVEL_SEC && nowTime <= ac.endTime + DEFAULT_NOTE_TRAVEL_SEC
+    ac.state === "cleared" && nowTime >= ac.startTime && nowTime <= ac.endTime
   );
 }
   
@@ -1375,7 +1375,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
   noteCounter++;
   currentSong.acList.forEach(ac => {
     
-    if (ac.state === "active" && nowTime >= ac.startTime + DEFAULT_NOTE_TRAVEL_SEC && nowTime <= ac.endTime + DEFAULT_NOTE_TRAVEL_SEC) {
+    if (ac.state === "active" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
       if (ac.type === "score") {
         ac.tapScore += pointsWithCombo;
         ac.progress = ac.tapScore + ac.spScore;
@@ -1398,7 +1398,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
     // --- AC失敗判定と赤フラッシュ演出 ---
     if (
       ac.state === "active" &&
-      nowTime > ac.endTime + DEFAULT_NOTE_TRAVEL_SEC && // AC時間を過ぎた
+      nowTime > ac.endTime && // AC時間を過ぎた
       !ac.cleared             // まだクリアしてない
     ) {
       ac.state = "ended";
@@ -1413,7 +1413,7 @@ function updateACOnTap(pointsWithCombo, nowTime) {
 function updateACOnSPUse(nowTime, spScore) {
   totalSPUsed++;
   currentSong.acList.forEach(ac => {
-    if (ac.state === "active" && nowTime >= ac.startTime + DEFAULT_NOTE_TRAVEL_SEC && nowTime <= ac.endTime + DEFAULT_NOTE_TRAVEL_SEC) {
+    if (ac.state === "active" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
       if (ac.type === "sp") {
         ac.progress += 1;
         if (!ac.cleared && ac.progress >= ac.target) {
@@ -2074,7 +2074,7 @@ function update(){
   }
   if (gameState === "playing" && !bgm.paused) {
     const bgmNowSec = bgm.currentTime;
-    while (chartIndex < currentSong.notesChart.length && bgmNowSec >= currentSong.notesChart[chartIndex].time + DEFAULT_NOTE_TRAVEL_SEC - noteTravelSec + settingsTimingOffset) {
+    while (chartIndex < currentSong.notesChart.length && bgmNowSec >= currentSong.notesChart[chartIndex].time - noteTravelSec + settingsTimingOffset) {
       spawnNote(currentSong.notesChart[chartIndex].side, chartIndex); 
       totalNotesSpawned++;
       chartIndex++;
@@ -2318,7 +2318,7 @@ function drawNotes(){
 function drawACMissionNotice(){
   let nowTime = bgm.currentTime || 0;
   const ac = currentSong.acList.find(ac => (ac.state === "active" || ac.state === "cleared") &&
-    nowTime >= ac.startTime + DEFAULT_NOTE_TRAVEL_SEC && nowTime <= ac.endTime + DEFAULT_NOTE_TRAVEL_SEC);
+    nowTime >= ac.startTime && nowTime <= ac.endTime);
   if(!ac) return;
   // 進捗バーより下で中央より上位置
   const barMarginLeft = 20;
@@ -2385,13 +2385,13 @@ function drawProgressBarWithAC(){
 
   // 2. ピンクAC区間
   let lastNoteTime = currentSong.notesChart[currentSong.notesChart.length-1]?.time || 0;
-  let fallbackSongLen = lastNoteTime + DEFAULT_NOTE_TRAVEL_SEC + 3;
+  let fallbackSongLen = lastNoteTime + 3;
   let songLen = (bgm.duration && !isNaN(bgm.duration) && bgm.duration > 1)
     ? bgm.duration
     : fallbackSongLen;
   for(const ac of currentSong.acList){
-    let startRatio = (ac.startTime + DEFAULT_NOTE_TRAVEL_SEC) / songLen;
-    let endRatio   = (ac.endTime   + DEFAULT_NOTE_TRAVEL_SEC) / songLen;
+    let startRatio = ac.startTime / songLen;
+    let endRatio   = ac.endTime   / songLen;
     let width      = barWidth * (endRatio - startRatio);
     if(isNaN(startRatio) || isNaN(endRatio) || width <= 0) continue;
     ctx.fillStyle = "#ff69b4";
