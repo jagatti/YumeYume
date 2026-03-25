@@ -549,6 +549,21 @@ let strategyBadgeOffsetX = 0; // バッジスライドアニメーション用�
 const DEFAULT_NOTE_TRAVEL_SEC = 55 / 60;
 // 現在のノーツ速度によるビジュアル到達時間（スポーン補正のみに使用）
 let noteTravelSec = noteDuration / 60;
+
+// --- BGM精密タイミング同期（モバイル対応）---
+// bgm.currentTimeはモバイルでは更新頻度が低く誤差が出るため、
+// audioContext.currentTimeをベースに精密な再生位置を計算する
+let bgmSyncPoint = null; // { audioCtxTime, bgmOffset }
+
+function getAccurateBgmTime() {
+  if (bgmSyncPoint && audioContext) {
+    const elapsed = audioContext.currentTime - bgmSyncPoint.audioCtxTime;
+    // outputLatency/baseLatencyで出力遅延を補正（モバイルは大きい）
+    const latency = (audioContext.outputLatency || 0) + (audioContext.baseLatency || 0);
+    return Math.max(0, bgmSyncPoint.bgmOffset + elapsed - latency);
+  }
+  return bgm.currentTime || 0;
+}
   
 // --- 効果音ロード ---
 async function loadTapSE() {
@@ -1424,6 +1439,7 @@ async function startGame(seed) {
   chartIndex = 0;
   totalNotesSpawned = 0;
   notes = [];
+  bgmSyncPoint = null;
   spValue=0; spFullNotified=false;
   score=0; combo=0;
   skillHistory = [];
@@ -1531,8 +1547,16 @@ function update(dt){
           gameState="playing";
           frame = 0;
           bgm.currentTime = 0;
+          bgmSyncPoint = null;
           applyVolume(settingsVolume);
-          bgm.play().catch(()=>{});
+          bgm.play().then(() => {
+            // BGMが実際に再生開始したタイミングをaudioContext.currentTimeで記録
+            // bgmOffsetは0固定（currentTime=0でplay開始するため）
+            // これによりモバイルでもbgm.currentTimeの精度問題を回避できる
+            if (audioContext) {
+              bgmSyncPoint = { audioCtxTime: audioContext.currentTime, bgmOffset: 0 };
+            }
+          }).catch(()=>{});
         },1000);
       }
     }
@@ -1540,7 +1564,7 @@ function update(dt){
     return;
   }
   if (gameState === "playing" && !bgm.paused) {
-    const bgmNowSec = bgm.currentTime;
+    const bgmNowSec = getAccurateBgmTime();
     while (chartIndex < currentSong.notesChart.length && bgmNowSec >= currentSong.notesChart[chartIndex].time - noteTravelSec + settingsTimingOffset) {
       spawnNote(currentSong.notesChart[chartIndex].side, chartIndex); 
       totalNotesSpawned++;
@@ -1890,7 +1914,7 @@ function drawProgressBarWithAC(){
   // 3. 水色進捗
   let progress = 0;
   if (bgm.duration && bgm.duration > 0) {
-    progress = Math.min(1, bgm.currentTime / bgm.duration);
+    progress = Math.min(1, getAccurateBgmTime() / bgm.duration);
   }
   ctx.fillStyle = '#00e5ff';
   ctx.fillRect(x, y, barWidth * progress, barHeight);
