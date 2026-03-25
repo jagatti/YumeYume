@@ -204,6 +204,241 @@ const SONGS = [
   {"time": 77.94, "side": "left"},
   {"time": 78.42, "side": "right"}
     ]
+  },
+  // --- ときめき☆ラビリンス（2曲目） ---
+  {
+    id: "TLaby",
+    title: "ときめき☆ラビリンス",
+    bgmSrc: "tokimeki_labyrinth.mp3",
+    jacketId: "jacketTLaby",
+    acList: [
+    {
+      startTime: 31.58,
+      endTime: 58.20,
+      type: "stamina",
+      target: 80,
+      rewardScore: 500000,
+      rewardSP: 0,
+      state: "waiting",
+      progress: 0,
+      cleared: false,
+      desc: "スタミナを80%以上維持する",
+      tapScore: 0,
+      spScore: 0
+    },
+    {
+      startTime: 70.46,
+      endTime: 76.37,
+      type: "strategy",
+      target: 2,
+      rewardScore: 500000,
+      rewardSP: 0,
+      state: "waiting",
+      progress: 0,
+      cleared: false,
+      desc: "作戦を2回切り替える",
+      tapScore: 0,
+      spScore: 0
+    },
+    {
+      startTime: 83.46,
+      endTime: 99.19,
+      type: "stamina",
+      target: 80,
+      rewardScore: 500000,
+      rewardSP: 0,
+      state: "waiting",
+      progress: 0,
+      cleared: false,
+      desc: "スタミナを80%以上維持する",
+      tapScore: 0,
+      spScore: 0
+    }
+  ],
+    notesChart: [
+  {"time": 18.06, "side": "left"},
+  {"time": 18.91, "side": "right"},
+  {"time": 19.75, "side": "right"},
+  {"time": 20.60, "side": "left"},
+  {"time": 21.44, "side": "right"},
+  {"time": 22.29, "side": "left"},
+  {"time": 23.13, "side": "left"},
+  {"time": 23.56, "side": "left"},
+  {"time": 23.98, "side": "right"},
+  {"time": 23.98, "side": "left"},
+  {"time": 24.82, "side": "right"},
+  {"time": 25.67, "side": "left"},
+  {"time": 26.51, "side": "right"},
+  {"time": 26.94, "side": "right"},
+  {"time": 27.36, "side": "left"},
+  {"time": 28.20, "side": "right"},
+  {"time": 29.05, "side": "left"},
+  {"time": 29.89, "side": "left"},
+  {"time": 30.32, "side": "left"},
+  {"time": 30.74, "side": "right"},
+  {"time": 30.74, "side": "left"},
+  {"time": 31.58, "side": "right"},
+  {"time": 32.43, "side": "right"},
+  {"time": 33.27, "side": "left"},
+  {"time": 34.12, "side": "left"},
+  {"time": 34.96, "side": "right"},
+  {"time": 35.81, "side": "right"},
+  {"time": 36.65, "side": "left"},
+  {"time": 37.08, "side": "right"},
+  {"time": 37.50, "side": "left"},
+  {"time": 37.92, "side": "right"},
+  {"time": 38.34, "side": "left"},
+  {"time": 39.19, "side": "right"},
+  {"time": 40.03, "side": "right"},
+  {"time": 40.88, "side": "left"},
+  {"time": 41.72, "side": "right"},
+  {"time": 42.57, "side": "left"},
+  {"time": 43.42, "side": "right"},
+  {"time": 43.84, "side": "right"},
+  {"time": 44.26, "side": "left"},
+  {"time": 44.68, "side": "right"},
+  {"time": 44.68, "side": "left"},
+  {"time": 45.11, "side": "left"},
+  {"time": 45.95, "side": "right"},
+  {"time": 46.80, "side": "left"},
+  {"time": 47.64, "side": "right"},
+  {"time": 48.49, "side": "left"},
+  {"time": 49.33, "side": "right"},
+  {"time": 50.18, "side": "right"},
+  {"time": 50.60, "side": "right"},
+  {"time": 51.02, "side": "left"},
+  {"time": 51.44, "side": "left"},
+  {"time": 51.87, "side": "right"},
+  {"time": 52.71, "side": "right"},
+  {"time": 53.56, "side": "left"},
+  {"time": 54.40, "side": "right"},
+  {"time": 55.25, "side": "left"},
+  {"time": 56.09, "side": "left"},
+  {"time": 56.94, "side": "right"},
+  {"time": 57.36, "side": "right"},
+  {"time": 57.78, "side": "right"},
+  {"time": 57.78, "side": "left"},
+  {"time": 58.20, "side": "right"},
+  {"time": 59.05, "side": "left"},
+  {"time": 59.47, "side": "left"},
+  {"time": 60.32, "side": "left"},
+  {"time": 60.74, "side": "right"},
+  {"time": 61.16, "side": "right"},
+  {"time": 61.16, "side": "left"},
+  {"time": 61.58, "side": "right"},
+  {"time": 62.43, "side": "left"},
+  {"time": 62.85, "side": "left"},
+  {"time": 63.27, "side": "left"},
+  {"time": 63.70, "side": "right"},
+  {"time": 64.12, "side": "left"},
+  {"time": 64.54, "side": "left"},
+  {"time": 64.96, "side": "right"},
+  {"time": 65.39, "side": "right"},
+  {"time": 65.39, "side": "left"},
+  {"time": 66.23, "side": "right"},
+  {"time": 66.23, "side": "left"},
+  {"time": 67.08, "side": "right"},
+  {"time": 67.92, "side": "right"},
+  {"time": 69.61, "side": "left"},
+  {"time": 70.03, "side": "right"},
+  {"time": 70.46, "side": "right"},
+  {"time": 70.46, "side": "left"},
+  {"time": 70.88, "side": "right"},
+  {"time": 71.30, "side": "right"},
+  {"time": 71.30, "side": "left"},
+  {"time": 71.72, "side": "right"},
+  {"time": 72.15, "side": "right"},
+  {"time": 72.57, "side": "left"},
+  {"time": 72.99, "side": "right"},
+  {"time": 73.84, "side": "right"},
+  {"time": 74.26, "side": "right"},
+  {"time": 74.68, "side": "left"},
+  {"time": 75.11, "side": "left"},
+  {"time": 75.53, "side": "right"},
+  {"time": 75.53, "side": "left"},
+  {"time": 75.95, "side": "left"},
+  {"time": 76.37, "side": "right"},
+  {"time": 76.37, "side": "left"},
+  {"time": 77.22, "side": "right"},
+  {"time": 77.64, "side": "right"},
+  {"time": 78.06, "side": "left"},
+  {"time": 78.49, "side": "right"},
+  {"time": 78.91, "side": "right"},
+  {"time": 78.91, "side": "left"},
+  {"time": 79.33, "side": "right"},
+  {"time": 79.75, "side": "left"},
+  {"time": 80.60, "side": "right"},
+  {"time": 81.02, "side": "right"},
+  {"time": 81.44, "side": "left"},
+  {"time": 81.87, "side": "right"},
+  {"time": 82.29, "side": "right"},
+  {"time": 82.29, "side": "left"},
+  {"time": 82.71, "side": "left"},
+  {"time": 83.13, "side": "right"},
+  {"time": 83.13, "side": "left"},
+  {"time": 83.98, "side": "right"},
+  {"time": 84.40, "side": "right"},
+  {"time": 84.82, "side": "left"},
+  {"time": 85.25, "side": "right"},
+  {"time": 85.67, "side": "left"},
+  {"time": 86.09, "side": "right"},
+  {"time": 86.51, "side": "left"},
+  {"time": 87.36, "side": "right"},
+  {"time": 87.36, "side": "left"},
+  {"time": 87.78, "side": "right"},
+  {"time": 88.20, "side": "left"},
+  {"time": 88.63, "side": "right"},
+  {"time": 89.05, "side": "left"},
+  {"time": 89.47, "side": "left"},
+  {"time": 89.89, "side": "right"},
+  {"time": 89.89, "side": "left"},
+  {"time": 90.74, "side": "right"},
+  {"time": 91.16, "side": "right"},
+  {"time": 91.58, "side": "left"},
+  {"time": 92.01, "side": "right"},
+  {"time": 92.43, "side": "left"},
+  {"time": 92.85, "side": "right"},
+  {"time": 93.27, "side": "right"},
+  {"time": 93.69, "side": "right"},
+  {"time": 94.12, "side": "left"},
+  {"time": 94.54, "side": "right"},
+  {"time": 94.54, "side": "left"},
+  {"time": 94.96, "side": "right"},
+  {"time": 95.39, "side": "right"},
+  {"time": 95.39, "side": "left"},
+  {"time": 95.81, "side": "left"},
+  {"time": 97.50, "side": "left"},
+  {"time": 99.19, "side": "right"},
+  {"time": 99.19, "side": "left"},
+  {"time": 102.57, "side": "right"},
+  {"time": 103.42, "side": "right"},
+  {"time": 104.26, "side": "right"},
+  {"time": 105.11, "side": "right"},
+  {"time": 105.95, "side": "left"},
+  {"time": 106.80, "side": "right"},
+  {"time": 107.64, "side": "left"},
+  {"time": 108.06, "side": "left"},
+  {"time": 108.49, "side": "right"},
+  {"time": 108.49, "side": "left"},
+  {"time": 109.33, "side": "right"},
+  {"time": 110.18, "side": "right"},
+  {"time": 111.02, "side": "left"},
+  {"time": 111.87, "side": "left"},
+  {"time": 112.71, "side": "right"},
+  {"time": 113.56, "side": "left"},
+  {"time": 114.51, "side": "right"},
+  {"time": 115.03, "side": "left"},
+  {"time": 115.56, "side": "left"},
+  {"time": 116.51, "side": "right"},
+  {"time": 117.68, "side": "left"},
+  {"time": 118.94, "side": "left"},
+  {"time": 120.32, "side": "right"},
+  {"time": 121.69, "side": "left"},
+  {"time": 123.17, "side": "left"},
+  {"time": 124.75, "side": "right"},
+  {"time": 125.60, "side": "left"},
+  {"time": 126.44, "side": "right"}
+    ]
   }
   /* [テストプレイ用楽曲一時避難: ユメ語るよりユメ歌おう]
   ,{
@@ -502,6 +737,8 @@ const SONGS = [
   }
   */
 ];
+let selectedSongIdx = 0;
+let songSelectCardBounds = [];
 let currentSong = SONGS[0];
 
 // --- 必須グローバル変数 ---
@@ -1483,8 +1720,58 @@ function updateACOnSPUse(nowTime, spScore) {
     }
   });
 }
-  
-// ユーザー操作時に一度だけ呼ぶ
+
+// --- AC進行チェック：作戦切り替え時 ---
+function updateACOnStrategyChange(nowTime) {
+  currentSong.acList.forEach(ac => {
+    if (ac.state === "active" && nowTime >= ac.startTime && nowTime <= ac.endTime) {
+      if (ac.type === "strategy") {
+        ac.progress += 1;
+        if (!ac.cleared && ac.progress >= ac.target) {
+          ac.cleared = true;
+          ac.state = "cleared";
+          score += ac.rewardScore;
+          spValue = Math.min(SP_MAX, spValue + ac.rewardSP);
+          skillHistory.unshift({text: `ACクリア報酬 ${ac.rewardScore}`, life:180});
+          if(skillHistory.length>5) skillHistory.pop();
+        }
+      }
+    }
+  });
+}
+
+// --- AC進行チェック：時間ベース（スタミナ型はendTime到達時に判定） ---
+function updateACOnTime(nowTime) {
+  currentSong.acList.forEach(ac => {
+    if (ac.state === "active" && nowTime > ac.endTime) {
+      if (ac.type === "stamina") {
+        if (stamina / STAMINA_MAX >= ac.target / 100) {
+          ac.cleared = true;
+          ac.state = "cleared";
+          score += ac.rewardScore;
+          spValue = Math.min(SP_MAX, spValue + ac.rewardSP);
+          skillHistory.unshift({text: `ACクリア報酬 ${ac.rewardScore}`, life:180});
+          if(skillHistory.length>5) skillHistory.pop();
+        } else {
+          ac.state = "ended";
+          applyACFailDamage();
+          acFailFlashTimer = 18;
+          skillHistory.unshift({text: "AC失敗！", life:180});
+          if(skillHistory.length>5) skillHistory.pop();
+        }
+      } else if (ac.type === "strategy") {
+        // 作戦型は途中クリア済みでなければ失敗
+        if (!ac.cleared) {
+          ac.state = "ended";
+          applyACFailDamage();
+          acFailFlashTimer = 18;
+          skillHistory.unshift({text: "AC失敗！", life:180});
+          if(skillHistory.length>5) skillHistory.pop();
+        }
+      }
+    }
+  });
+}
 window.addEventListener('touchstart', () => {
   loadTapSE(); // resumeも含む
   if(gameState === "init" && titleBgm.paused) titleBgm.play().catch(()=>{});
@@ -1771,6 +2058,24 @@ function tryUseSP(mx,my,bypassPos){
 // == タップ時の処理 ==
 // 各タッチを独立して判定（SP・作戦アイコン・ノーツが同時に反応できる）
 function handlePointer(e){
+  if(gameState === "songSelect"){
+    const isTouch = e.type.startsWith('touch');
+    if(isTouch) e.preventDefault();
+    const rect = cvs.getBoundingClientRect();
+    const scaleX = cvs.width / rect.width;
+    const scaleY = cvs.height / rect.height;
+    const pts = isTouch ? e.changedTouches : [e];
+    for (const t of pts) {
+      const tx = (t.clientX - rect.left) * scaleX;
+      const ty = (t.clientY - rect.top) * scaleY;
+      for (const b of songSelectCardBounds) {
+        if (b.active && tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) {
+          selectedSongIdx = b.songIdx;
+        }
+      }
+    }
+    return;
+  }
   if(gameState!=="playing") return;
   const isTouch = e.type.startsWith('touch');
   if(isTouch){
@@ -1807,6 +2112,7 @@ function handlePointer(e){
       const strategyName = currentStrategy === "red" ? "赤作戦（アタッカー）" : "青作戦（ヒーラー）";
       skillHistory.unshift({text: `[${strategyName}に切り替え]`, life: 180});
       if (skillHistory.length > 5) skillHistory.pop();
+      updateACOnStrategyChange(bgm.currentTime || 0);
       continue;
     }
 
@@ -1918,6 +2224,7 @@ window.addEventListener('keydown', e => {
       const strategyName = currentStrategy === 'red' ? '赤作戦（アタッカー）' : '青作戦（ヒーラー）';
       skillHistory.unshift({text: `[${strategyName}に切り替え]`, life: 180});
       if(skillHistory.length > 5) skillHistory.pop();
+      updateACOnStrategyChange(bgm.currentTime || 0);
     }
     return;
   }
@@ -1991,10 +2298,16 @@ window.addEventListener('keydown', e => {
 // ゲームを初期化して開始する共通関数
 async function startGame(seed) {
   await loadTapSE();
+  currentSong = SONGS[selectedSongIdx];
   assignACNoteIndexes();
   
   // タイトルBGM停止・ベストスコア再読み込み
   try { titleBgm.pause(); titleBgm.currentTime = 0; } catch(e) {}
+  // 選曲に合わせてBGMソースを切り替え
+  if (!bgm.src.endsWith('/' + currentSong.bgmSrc)) {
+    bgm.src = currentSong.bgmSrc;
+    bgm.load();
+  }
   bestScore = Number(localStorage.getItem('bestScore_' + currentSong.id)) || 0;
 
   setSeed(seed);
@@ -2122,6 +2435,7 @@ function update(){
       totalNotesSpawned++;
       chartIndex++;
     }
+    updateACOnTime(bgmNowSec);
     if(acFailFlashTimer > 0) acFailFlashTimer--;
   }
   for(const n of notes) n.t++;
@@ -2385,7 +2699,19 @@ function drawACMissionNotice(){
   ctx.stroke();
   ctx.fillStyle = "#fff";
   ctx.globalAlpha = 1;
-  let text = ac.type === "score" ? `AC: ${ac.desc}（${ac.progress|0}/${ac.target}）` : `AC: ${ac.desc}（${ac.progress|0}/${ac.target}）`;
+  let text;
+  if (ac.type === "score") {
+    text = `AC: ${ac.desc}（${(ac.progress|0).toLocaleString('ja-JP')}/${ac.target.toLocaleString('ja-JP')}）`;
+  } else if (ac.type === "sp") {
+    text = `AC: ${ac.desc}（${ac.progress|0}/${ac.target}）`;
+  } else if (ac.type === "stamina") {
+    const pct = Math.floor(stamina / STAMINA_MAX * 100);
+    text = `AC: ${ac.desc}（現在${pct}%）`;
+  } else if (ac.type === "strategy") {
+    text = `AC: ${ac.desc}（${ac.progress|0}/${ac.target}）`;
+  } else {
+    text = `AC: ${ac.desc}（${ac.progress|0}/${ac.target}）`;
+  }
   if(ac.cleared) text = "ACクリア！ " + text;
   ctx.fillText(text, x+w/2, y+h/2+2);
   ctx.restore();
@@ -2986,27 +3312,34 @@ function drawSongSelectScreen() {
   const startX = Math.round((cvs.width - totalW) / 2);
   const cardY = Math.round(cvs.height * 0.08);
 
-  // カードデータ（1曲目は実データ、2・3曲目はプレースホルダー）
+  // カードデータ（1・2曲目は実データ、3曲目はプレースホルダー）
   const cards = [
-    { title: SONGS[0].title, jacketEl: document.getElementById(SONGS[0].jacketId), active: true },
-    { title: '？？？', jacketEl: null, active: false },
-    { title: '？？？', jacketEl: null, active: false },
+    { songIdx: 0, title: SONGS[0].title, jacketEl: document.getElementById(SONGS[0].jacketId), active: true },
+    { songIdx: 1, title: SONGS[1].title, jacketEl: document.getElementById(SONGS[1].jacketId), active: true },
+    { songIdx: -1, title: '？？？', jacketEl: null, active: false },
   ];
+  songSelectCardBounds = [];
 
   for (let i = 0; i < NUM_CARDS; i++) {
     const card = cards[i];
     const cardX = startX + i * (cardW + gap);
     const jacketX = Math.round(cardX + (cardW - jacketSize) / 2);
     const jacketY = cardY + 12;
+    songSelectCardBounds.push({ songIdx: card.songIdx, active: card.active, x: cardX, y: cardY, w: cardW, h: cardH });
 
     // カード背景
     ctx.save();
-    if (card.active) {
+    const isSelected = card.active && card.songIdx === selectedSongIdx;
+    if (isSelected) {
       ctx.shadowColor = "rgba(57,255,20,0.3)";
       ctx.shadowBlur = 20;
       ctx.fillStyle = "rgba(15,23,42,0.92)";
       ctx.strokeStyle = "rgba(57,255,20,0.55)";
       ctx.lineWidth = 2;
+    } else if (card.active) {
+      ctx.fillStyle = "rgba(15,23,42,0.72)";
+      ctx.strokeStyle = "rgba(100,200,139,0.4)";
+      ctx.lineWidth = 1.5;
     } else {
       ctx.fillStyle = "rgba(15,23,42,0.5)";
       ctx.strokeStyle = "rgba(100,116,139,0.35)";
@@ -3050,9 +3383,10 @@ function drawSongSelectScreen() {
     ctx.fillStyle = card.active ? "#ffffff" : "#64748b";
     ctx.fillText(card.title, cx, textBaseY);
 
-    // ベストスコア（1曲目のみ）
-    if (card.active) {
-      const bsLabel = `BEST: ${bestScore > 0 ? bestScore.toLocaleString('ja-JP') : '---'}`;
+    // ベストスコア（選択可能曲のみ）
+    if (card.active && card.songIdx >= 0) {
+      const cardBest = parseInt(localStorage.getItem('bestScore_' + SONGS[card.songIdx].id) || '0', 10);
+      const bsLabel = `BEST: ${cardBest > 0 ? cardBest.toLocaleString('ja-JP') : '---'}`;
       ctx.font = `bold ${scoreFontSize}px system-ui`;
       ctx.lineWidth = 3;
       ctx.strokeStyle = "#000";
