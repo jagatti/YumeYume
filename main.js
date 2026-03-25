@@ -780,7 +780,6 @@ if (!tutorialModal) {
   tutorialModal.style.borderRadius = '14px';
   tutorialModal.style.padding = '14px 16px 12px';
   tutorialModal.style.maxHeight = 'min(88vh, 400px)';
-  tutorialModal.style.display = 'flex';
   tutorialModal.style.flexDirection = 'column';
   tutorialModal.style.zIndex = '9999';
   tutorialModal.style.display = 'none';
@@ -1134,7 +1133,7 @@ function resizeCanvas(){
     rankingBtn.style.display = 'none';
     tutorialBtn.style.display = 'none';
     creditsBtn.style.display = 'none';
-  　saveScoreBtn.style.display = 'none';
+    saveScoreBtn.style.display = 'none';
     settingsBtn.style.display = 'none';
     return;
   }
@@ -1144,7 +1143,7 @@ function resizeCanvas(){
   rankingBtn.style.display = (gameState === "init") ? 'block' : 'none';
   tutorialBtn.style.display = (gameState === "init") ? 'block' : 'none';
   creditsBtn.style.display = (gameState === "init") ? 'block' : 'none';
-　saveScoreBtn.style.display = (gameState === "result") ? 'block' : 'none';
+  saveScoreBtn.style.display = (gameState === "result") ? 'block' : 'none';
   // 設定ボタンはタイトル画面のみ表示
   settingsBtn.style.display = (gameState === "init") ? 'block' : 'none';
   startBtn.style.display = (gameState === "init" || gameState === "songSelect") ? 'block' : 'none';
