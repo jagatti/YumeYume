@@ -1210,16 +1210,38 @@ function jsonp(url, timeoutMs = 8000) {
 
 // --- ランキング取得（※名前は fetchTopScores）---
 async function fetchTopScores(limit) {
-  const url = (typeof limit === 'number')
-    ? `${GAS_ENDPOINT}?action=top&limit=${encodeURIComponent(limit)}`
-    : `${GAS_ENDPOINT}?action=top`;
+  // 全曲のスコアを取得して集計するため、曲フィルターなしで全件取得する
+  const url = `${GAS_ENDPOINT}?action=top`;
   const res = await jsonp(url);
-  // 曲ごとにタグで分離：現在の曲のスコアのみ抽出し、タグを名前から取り除く
   if (res && res.ok && Array.isArray(res.data)) {
-    const tag = ` [${currentSong.id}]`;
-    res.data = res.data
-      .filter(r => String(r.name ?? '').endsWith(tag))
-      .map(r => ({ ...r, name: String(r.name).slice(0, -tag.length) }));
+    const songIds = SONGS.map(s => s.id);
+    // プレイヤーごとに曲別ベストスコアを収集する
+    const playerMap = {};
+    for (const r of res.data) {
+      const nameStr = String(r.name ?? '');
+      const scoreVal = Number(r.score ?? 0);
+      for (const songId of songIds) {
+        const tag = ` [${songId}]`;
+        if (nameStr.endsWith(tag)) {
+          const playerName = nameStr.slice(0, -tag.length);
+          if (!playerMap[playerName]) playerMap[playerName] = {};
+          if (!playerMap[playerName][songId] || scoreVal > playerMap[playerName][songId]) {
+            playerMap[playerName][songId] = scoreVal;
+          }
+          break;
+        }
+      }
+    }
+    // 各プレイヤーの総スコア÷曲数を算出（未プレイ曲はスコア０扱い）
+    const numSongs = SONGS.length;
+    const aggregated = Object.entries(playerMap).map(([name, songScores]) => {
+      const total = songIds.reduce((sum, id) => sum + (songScores[id] || 0), 0);
+      return { name, score: Math.floor(total / numSongs) };
+    });
+    // スコア降順でソートしてlimitを適用
+    aggregated.sort((a, b) => b.score - a.score);
+    const limited = (typeof limit === 'number') ? aggregated.slice(0, limit) : aggregated;
+    res.data = limited.map((r, i) => ({ ...r, rank: i + 1 }));
   }
   return res;
 }
@@ -1470,7 +1492,7 @@ function renderRankingTable(rows) {
   let html = '';
   html += headerCell('順位');
   html += headerCell('名前');
-  html += headerCell('ベストスコア', 'right');
+  html += headerCell('総合スコア', 'right');
 
   for (const r of rows) {
     const rankText = `${r.rank}位`;
