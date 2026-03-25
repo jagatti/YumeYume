@@ -40,13 +40,16 @@ const jacketImg = document.getElementById('jacketImg');
 const titleBgm = document.getElementById('titleBgm');
 // --- ユーザー設定 (localStorage永続化) ---
 let settingsVolume      = parseFloat(localStorage.getItem('settings_volume')        ?? '0.1');
-let settingsNoteSpeed   = parseInt(localStorage.getItem('settings_noteSpeed')       ?? '55', 10);
+let settingsNoteSpeed   = parseInt(localStorage.getItem('settings_noteSpeed')       ?? '5', 10);
 let settingsTimingOffset= parseFloat(localStorage.getItem('settings_timingOffset')  ?? '0');
 let settingsSE          = localStorage.getItem('settings_se') !== 'off';
 // 値域クランプ
 settingsVolume       = Math.max(0, Math.min(1, settingsVolume));
-settingsNoteSpeed    = Math.max(30, Math.min(90, settingsNoteSpeed));
+// settingsNoteSpeed は 1-10 スケール (旧30-90値は5にリセット、1未満も同様)
+settingsNoteSpeed    = (settingsNoteSpeed < 1 || settingsNoteSpeed > 10) ? 5 : settingsNoteSpeed;
 settingsTimingOffset = Math.max(-0.3, Math.min(0.3, settingsTimingOffset));
+// 1-10 スケールからフレーム数(30-90)に変換: 速度1→90フレーム(遅い)、速度10→30フレーム(速い)
+function speedToFrames(speed) { return Math.round(90 - (speed - 1) * (60 / 9)); }
 
 // --- BGM 音量制御（Web Audio API GainNode、iOS Safari 対応） ---
 // GainNode 変数は loadTapSE() 内で接続される
@@ -422,14 +425,19 @@ if (!settingsModal) {
           style="width:100%;">
       </label>
       <label style="display:flex;flex-direction:column;gap:4px;">
-        <span>ノーツ速度: <span id="settingsSpeedVal">${settingsNoteSpeed}</span></span>
-        <input id="settingsSpeedRange" type="range" min="30" max="90" value="${settingsNoteSpeed}"
+        <span>ノーツ速度: <span id="settingsSpeedVal">${settingsNoteSpeed}</span> / 10</span>
+        <input id="settingsSpeedRange" type="range" min="1" max="10" step="1" value="${settingsNoteSpeed}"
           style="width:100%;">
       </label>
       <label style="display:flex;flex-direction:column;gap:4px;">
         <span>タイミング調整: <span id="settingsTimingVal">${settingsTimingOffset.toFixed(2)}</span>秒</span>
         <input id="settingsTimingRange" type="range" min="-30" max="30" value="${Math.round(settingsTimingOffset * 100)}"
           style="width:100%;">
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input id="settingsSECheck" type="checkbox" ${settingsSE ? 'checked' : ''}
+          style="width:16px;height:16px;cursor:pointer;">
+        <span>タップ音 ON/OFF</span>
       </label>
     </div>
   `;
@@ -446,9 +454,10 @@ if (!settingsModal) {
   };
   settingsModal.querySelector('#settingsSpeedRange').oninput = (e) => {
     settingsNoteSpeed = parseInt(e.target.value, 10);
-    settingsNoteSpeed = Math.max(30, Math.min(90, settingsNoteSpeed));
+    settingsNoteSpeed = Math.max(1, Math.min(10, settingsNoteSpeed));
     localStorage.setItem('settings_noteSpeed', settingsNoteSpeed);
-    noteTravelSec = settingsNoteSpeed / 60;
+    noteDuration = speedToFrames(settingsNoteSpeed);
+    noteTravelSec = noteDuration / 60;
     settingsModal.querySelector('#settingsSpeedVal').textContent = settingsNoteSpeed;
   };
   settingsModal.querySelector('#settingsTimingRange').oninput = (e) => {
@@ -456,6 +465,10 @@ if (!settingsModal) {
     settingsTimingOffset = Math.max(-0.3, Math.min(0.3, settingsTimingOffset));
     localStorage.setItem('settings_timingOffset', settingsTimingOffset);
     settingsModal.querySelector('#settingsTimingVal').textContent = settingsTimingOffset.toFixed(2);
+  };
+  settingsModal.querySelector('#settingsSECheck').onchange = (e) => {
+    settingsSE = e.target.checked;
+    localStorage.setItem('settings_se', settingsSE ? 'on' : 'off');
   };
 }
 
@@ -509,7 +522,7 @@ let lastGameSeed = 0; // 直前のゲームのシードを保存
 
 // --- グローバル変数 ---
 let chartIndex = 0, R=30, leftTarget={x:0,y:0,r:0}, rightTarget={x:0,y:0,r:0}, spRadius=80;
-let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=settingsNoteSpeed;
+let SP_MAX=6000, spValue=0, spFullNotified=false, score=0, combo=0, notes=[], frame=0, noteDuration=speedToFrames(settingsNoteSpeed);
 let bestScore = Number(localStorage.getItem('bestScore_' + currentSong.id)) || 0;
 let spFlashTimer=0, spRingTimer=0, spRingSpeed=20, spRingRange=40, spBoostTimer=0, spCountdownTimer=0, spCountdownValue=0;
 let popups=[], hitRings=[], particles=[], lastInputWasTouch=false;
