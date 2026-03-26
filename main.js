@@ -986,7 +986,7 @@ function calcTapScoreAndLabel(dist, baseRaw){
 // --- スコア加算処理 ---
 function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
   playTapSE();
-  let nowTime = bgm.currentTime || 0;
+  let nowTime = getAccurateBgmTime();
 
   // 作戦クールダウンと特技発動率バフのデクリメント
   if (strategyChangeCooldown > 0) strategyChangeCooldown--;
@@ -1005,7 +1005,7 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
         if (spBoostTimer > 0) voltage = Math.floor(voltage * 1.1);
         const comboBonus = getComboBonus(combo + 1);
         voltage = Math.floor(voltage * comboBonus);
-        let nowTime2 = bgm.currentTime || 0;
+        let nowTime2 = getAccurateBgmTime();
         if (isACActiveByTime(nowTime2) || isACClearedNowByTime(nowTime2)) voltage = Math.floor(voltage * 1.1);
         if (spScoreBuffNotes > 0) voltage = Math.floor(voltage * 1.1);
         let permanentBuff = 1 + permanentScoreBuff * 0.05;
@@ -1097,7 +1097,7 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
 }
   
 function applyMiss(label='MISS'){
-  let nowTime = bgm.currentTime || 0;
+  let nowTime = getAccurateBgmTime();
   applyNoteDamage(nowTime);
   if (strategyChangeCooldown > 0) strategyChangeCooldown--;
   if (skillRateBoostNotes > 0) skillRateBoostNotes--;
@@ -1141,7 +1141,7 @@ function judgeNotesGlobal(mx, my){
 function tryUseSP(mx,my,bypassPos){
   if(spValue<SP_MAX) return false;
   if(!bypassPos && !isInSPSemicircle(mx,my)) return false;
-  let nowTime = bgm.currentTime || 0;
+  let nowTime = getAccurateBgmTime();
   spUseCount++;
   let spBase = 180000;
   if (appealBoostNotes > 0) {
@@ -1236,7 +1236,7 @@ function handlePointer(e){
       const strategyName = currentStrategy === "red" ? "赤作戦（アタッカー）" : "青作戦（ヒーラー）";
       skillHistory.unshift({text: `[${strategyName}に切り替え]`, life: 180});
       if (skillHistory.length > 5) skillHistory.pop();
-      updateACOnStrategyChange(bgm.currentTime || 0);
+      updateACOnStrategyChange(getAccurateBgmTime());
       continue;
     }
 
@@ -1348,7 +1348,7 @@ window.addEventListener('keydown', e => {
       const strategyName = currentStrategy === 'red' ? '赤作戦（アタッカー）' : '青作戦（ヒーラー）';
       skillHistory.unshift({text: `[${strategyName}に切り替え]`, life: 180});
       if(skillHistory.length > 5) skillHistory.pop();
-      updateACOnStrategyChange(bgm.currentTime || 0);
+      updateACOnStrategyChange(getAccurateBgmTime());
     }
     return;
   }
@@ -1809,7 +1809,7 @@ function drawNotes(){
   
 // --- AC通知パネル ---
 function drawACMissionNotice(){
-  let nowTime = bgm.currentTime || 0;
+  let nowTime = getAccurateBgmTime();
   const ac = currentSong.acList.find(ac =>
     (ac.state === "active" || ac.state === "cleared") &&
     nowTime >= ac.startTime + settingsTimingOffset &&
@@ -1819,13 +1819,13 @@ function drawACMissionNotice(){
   const barMarginLeft = 20;
   const barMarginRight = 200;
   const barWidth = Math.max(140, cvs.width - barMarginLeft - barMarginRight);
-  const w = Math.max(cvs.width * 0.6, 400);
-  const h = Math.max(30, Math.round(cvs.height*0.035));
+  const w = Math.min(cvs.width - 20, Math.max(cvs.width * 0.75, 480));
+  const h = Math.max(38, Math.round(cvs.height*0.045));
   const x = (cvs.width-w)/2;
   const y = Math.max( barWidth*0.02+50, cvs.height*0.12 );
   ctx.save();
   ctx.textAlign = "center";
-  ctx.font = `bold ${Math.round(h*0.4)}px system-ui`;
+  ctx.font = `bold ${Math.round(h*0.52)}px system-ui`;
   ctx.lineWidth = 3;
   ctx.strokeStyle = ac.cleared ? "#FFD700" : "#ff69b4";
   ctx.fillStyle = ac.cleared ? "#FFD700" : "#ff69b4";
