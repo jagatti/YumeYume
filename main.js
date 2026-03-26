@@ -274,8 +274,25 @@ if (!rankingModal) {
 }
 
 rankingBtn.onclick = async () => {
+  // Loading表示（画面左下）
+  let loadingEl = document.getElementById('rankingLoadingOverlay');
+  if (!loadingEl) {
+    loadingEl = document.createElement('div');
+    loadingEl.id = 'rankingLoadingOverlay';
+    loadingEl.style.cssText = 'position:fixed;left:20px;bottom:24px;z-index:9999;color:#fff;font-size:1.1rem;font-weight:bold;font-family:system-ui,sans-serif;pointer-events:none;text-shadow:0 2px 6px rgba(0,0,0,0.8);';
+    document.body.appendChild(loadingEl);
+  }
+  let dots = 1;
+  loadingEl.textContent = 'Loading.';
+  loadingEl.style.display = 'block';
+  const loadingInterval = setInterval(() => {
+    dots = (dots % 3) + 1;
+    loadingEl.textContent = 'Loading' + '.'.repeat(dots);
+  }, 400);
   try {
     const res = await fetchTopScores();
+    clearInterval(loadingInterval);
+    loadingEl.style.display = 'none';
     if (!res.ok) throw new Error(res.error || 'unknown');
 
     const rows = (res.data && res.data.length) ? res.data : [];
@@ -287,6 +304,8 @@ rankingBtn.onclick = async () => {
     const sc = rankingModal.querySelector('#rankingScroll');
     if (sc) sc.scrollTop = 0;
   } catch (e) {
+    clearInterval(loadingInterval);
+    if (loadingEl) loadingEl.style.display = 'none';
     alert('ランキング取得に失敗しました: ' + e.message);
   }
 };
@@ -1052,9 +1071,9 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
   let permanentBuff = 1 + permanentScoreBuff * 0.05;
   const comboBonus = getComboBonus(combo+1);
   let pointsWithCombo = Math.floor(points * comboBonus * acBuff * spBuff * permanentBuff);
-  if(pointsWithCombo > 50000) pointsWithCombo = 50000;
-  // スタミナスコア倍率適用
+  // スタミナスコア倍率をキャップ前に適用
   pointsWithCombo = Math.floor(pointsWithCombo * getStaminaScoreMult());
+  if(pointsWithCombo > 50000) pointsWithCombo = 50000;
 
   score += pointsWithCombo;
   if(resetCombo){if(spValue<SP_MAX) spValue=Math.max(0, spValue-300);combo=0;}
@@ -1815,43 +1834,62 @@ function drawACMissionNotice(){
     nowTime >= ac.startTime + settingsTimingOffset &&
     (nowTime <= ac.endTime + settingsTimingOffset || (ac.cleared && nowTime <= ac.endTime + settingsTimingOffset + 1.0)));
   if(!ac) return;
-  // 進捗バーより下で中央より上位置
-  const barMarginLeft = 20;
-  const barMarginRight = 200;
-  const barWidth = Math.max(140, cvs.width - barMarginLeft - barMarginRight);
-  const w = Math.min(cvs.width - 20, Math.max(cvs.width * 0.75, 480));
-  const h = Math.max(38, Math.round(cvs.height*0.045));
-  const x = (cvs.width-w)/2;
-  const y = Math.max( barWidth*0.02+50, cvs.height*0.12 );
+
+  const w = Math.min(cvs.width - 20, Math.max(cvs.width * 0.82, 520));
+  const h = Math.max(44, Math.round(cvs.height * 0.055));
+  const x = (cvs.width - w) / 2;
+  const y = Math.max(56, cvs.height * 0.12);
+  const fadeEdge = w * 0.13; // 両端フェード幅
+
   ctx.save();
-  ctx.textAlign = "center";
-  ctx.font = `bold ${Math.round(h*0.52)}px system-ui`;
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = ac.cleared ? "#FFD700" : "#ff69b4";
-  ctx.fillStyle = ac.cleared ? "#FFD700" : "#ff69b4";
-  ctx.globalAlpha = 0.82;
+
+  // 両端フェードアウトのグラデーション背景
+  const baseColor = ac.cleared ? [255, 215, 0] : [255, 105, 180];
+  const [r, g, b] = baseColor;
+  const grad = ctx.createLinearGradient(x, y, x + w, y);
+  grad.addColorStop(0,              `rgba(${r},${g},${b},0)`);
+  grad.addColorStop(fadeEdge / w,   `rgba(${r},${g},${b},0.55)`);
+  grad.addColorStop(1 - fadeEdge / w, `rgba(${r},${g},${b},0.55)`);
+  grad.addColorStop(1,              `rgba(${r},${g},${b},0)`);
+
+  ctx.fillStyle = grad;
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 13);
+  ctx.roundRect(x, y, w, h, h / 2);
   ctx.fill();
-  ctx.globalAlpha = 1;
+
+  // 枠線（両端フェード）
+  const borderGrad = ctx.createLinearGradient(x, y, x + w, y);
+  borderGrad.addColorStop(0,              `rgba(${r},${g},${b},0)`);
+  borderGrad.addColorStop(fadeEdge / w,   `rgba(${r},${g},${b},0.85)`);
+  borderGrad.addColorStop(1 - fadeEdge / w, `rgba(${r},${g},${b},0.85)`);
+  borderGrad.addColorStop(1,              `rgba(${r},${g},${b},0)`);
+  ctx.strokeStyle = borderGrad;
+  ctx.lineWidth = 2;
   ctx.stroke();
+
+  // テキスト
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const fontSize = Math.round(h * 0.58);
+  ctx.font = `bold ${fontSize}px system-ui`;
   ctx.fillStyle = "#fff";
   ctx.globalAlpha = 1;
+
   let text;
-  if (ac.type === "score") {
+  if (ac.cleared) {
+    text = "ミッションクリア！";
+  } else if (ac.type === "score") {
     text = `AC: ${ac.desc}（${(ac.progress|0).toLocaleString('ja-JP')}/${ac.target.toLocaleString('ja-JP')}）`;
-  } else if (ac.type === "sp") {
-    text = `AC: ${ac.desc}（${ac.progress|0}/${ac.target}）`;
   } else if (ac.type === "stamina") {
     const pct = Math.floor(stamina / STAMINA_MAX * 100);
     text = `AC: ${ac.desc}（現在${pct}%）`;
-  } else if (ac.type === "strategy") {
-    text = `AC: ${ac.desc}（${ac.progress|0}/${ac.target}）`;
   } else {
     text = `AC: ${ac.desc}（${ac.progress|0}/${ac.target}）`;
   }
-  if(ac.cleared) text = "ACクリア！ " + text;
-  ctx.fillText(text, x+w/2, y+h/2+2);
+
+  ctx.shadowColor = "rgba(0,0,0,0.7)";
+  ctx.shadowBlur = 4;
+  ctx.fillText(text, x + w / 2, y + h / 2);
   ctx.restore();
 }
 
@@ -2107,67 +2145,124 @@ function drawACFailFlash(){
   const w = cvs.width, h = cvs.height;
   const maxT = 240;
   const fade = Math.max(0, Math.min(1, spBoostTimer / maxT));
-  const noteCount = 16;
+  const t = frame; // use frame for animation
+
   const colors = [
-    "#ff4c4c", "#ffa500", "#ffe93a", "#4cff4c", "#39bfff", "#8b4cff", "#ff6cff",
+    "#ff4c4c", "#ffa500", "#ffe93a", "#4cff4c", "#39bfff", "#8b4cff", "#ff6cff", "#ff69b4", "#ffffff"
   ];
 
-  // グリッド状に音符を配置
-  for (let i = 0; i < noteCount; i++) {
-    // 基本位置
-    const gridX = ((i % 4) + 0.5) / 4 * w;
-    const gridY = ((Math.floor(i / 4) + 0.7) / 4) * h * 0.85 + h * 0.06;
-    const t = spBoostTimer;
+  ctx.save();
 
-    // カクカク（階段状に変化する）動き
-    // ステップ周期
-    const stepPeriod = 28 + (i % 5) * 7;
-    const step = Math.floor((t + i * 13) / stepPeriod) % 4;
-
-    // カクカク位置ずれパターン
-    const stepTable = [
-      {dx: 0, dy: 0, angle: 0},
-      {dx: 5, dy: -4, angle: 0.13},
-      {dx: -4, dy: 5, angle: -0.12},
-      {dx: 3, dy: -2, angle: 0.09}
-    ];
-    const {dx, dy, angle} = stepTable[step];
-
-    const size = 20 + Math.sin(i * 2.3) * 3;
-
+  // --- レーザー光線（画面中央から放射状） ---
+  const cx = w / 2, cy = h / 2;
+  const laserCount = 12;
+  for (let i = 0; i < laserCount; i++) {
+    const baseAngle = (i / laserCount) * Math.PI * 2 + (t * 0.025);
+    const color = colors[i % colors.length];
+    const laserLen = Math.max(w, h) * 0.7;
+    const laserW = 3 + Math.sin(t * 0.1 + i) * 1.5;
+    const alpha = (0.12 + Math.sin(t * 0.07 + i * 1.3) * 0.06) * fade;
     ctx.save();
-    ctx.globalAlpha = 0.19 * fade;
-    ctx.translate(gridX + dx, gridY + dy);
-    ctx.rotate(angle);
-
-    // 音符（8分音符風）
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = laserW;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 18;
     ctx.beginPath();
-    ctx.ellipse(0, 0, size * 0.38, size * 0.26, 0, 0, Math.PI * 2);
-    ctx.fillStyle = colors[i % colors.length];
-    ctx.shadowColor = "#fff";
-    ctx.shadowBlur = 9;
-    ctx.fill();
-
-    // 棒
-    ctx.beginPath();
-    ctx.moveTo(size * 0.13, -size * 0.05);
-    ctx.lineTo(size * 0.13, -size * 0.56);
-    ctx.lineWidth = size * 0.10;
-    ctx.strokeStyle = colors[i % colors.length];
-    ctx.lineCap = "round";
-    ctx.shadowBlur = 0;
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(baseAngle) * laserLen, cy + Math.sin(baseAngle) * laserLen);
     ctx.stroke();
-
-    // 旗
-    ctx.beginPath();
-    ctx.moveTo(size * 0.13, -size * 0.56);
-    ctx.quadraticCurveTo(size * 0.40, -size * 0.63, size * 0.33, -size * 0.28);
-    ctx.lineWidth = size * 0.08;
-    ctx.strokeStyle = colors[i % colors.length];
-    ctx.stroke();
-
     ctx.restore();
   }
+
+  // --- ☆星マーク ---
+  const starCount = 14;
+  for (let i = 0; i < starCount; i++) {
+    const seed1 = i * 137.5;
+    const seed2 = i * 97.3;
+    const px = ((seed1 * 0.618 % 1) * 0.82 + 0.09) * w;
+    const py = ((seed2 * 0.618 % 1) * 0.82 + 0.09) * h;
+    const phase = t * 0.04 + i * 0.8;
+    const size = (14 + Math.sin(phase) * 4) * (0.7 + (i % 3) * 0.3);
+    const angle = t * 0.03 + i * 0.5;
+    const color = colors[i % colors.length];
+    const alpha = (0.30 + Math.sin(phase + 0.5) * 0.15) * fade;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(px, py);
+    ctx.rotate(angle);
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12;
+    // 5-pointed star
+    ctx.beginPath();
+    for (let p = 0; p < 5; p++) {
+      const a = (p * 4 * Math.PI / 5) - Math.PI / 2;
+      const b = (p * 4 * Math.PI / 5 + 2 * Math.PI / 5) - Math.PI / 2;
+      if (p === 0) ctx.moveTo(Math.cos(a) * size, Math.sin(a) * size);
+      else ctx.lineTo(Math.cos(a) * size, Math.sin(a) * size);
+      ctx.lineTo(Math.cos(b) * size * 0.42, Math.sin(b) * size * 0.42);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // --- ◆ダイヤマーク ---
+  const diamondCount = 10;
+  for (let i = 0; i < diamondCount; i++) {
+    const seed1 = i * 223.7 + 55;
+    const seed2 = i * 181.1 + 33;
+    const px = ((seed1 * 0.618 % 1) * 0.78 + 0.11) * w;
+    const py = ((seed2 * 0.618 % 1) * 0.78 + 0.11) * h;
+    const phase = t * 0.05 + i * 1.1;
+    const size = (10 + Math.sin(phase) * 3) * (0.6 + (i % 4) * 0.25);
+    const angle = t * 0.04 + i * 0.7;
+    const color = colors[(i + 3) % colors.length];
+    const alpha = (0.25 + Math.sin(phase + 1.0) * 0.12) * fade;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(px, py);
+    ctx.rotate(angle + Math.PI / 4);
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10;
+    // diamond
+    ctx.beginPath();
+    ctx.moveTo(0, -size);
+    ctx.lineTo(size * 0.6, 0);
+    ctx.lineTo(0, size);
+    ctx.lineTo(-size * 0.6, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // --- 光のフレア（辺縁） ---
+  const flareCount = 8;
+  for (let i = 0; i < flareCount; i++) {
+    const angle = (i / flareCount) * Math.PI * 2 + t * 0.015;
+    const r = Math.min(w, h) * (0.42 + Math.sin(t * 0.06 + i) * 0.04);
+    const fx = cx + Math.cos(angle) * r;
+    const fy = cy + Math.sin(angle) * r;
+    const color = colors[(i + 5) % colors.length];
+    const flareSize = 8 + Math.sin(t * 0.08 + i * 1.7) * 4;
+    const alpha = (0.22 + Math.sin(t * 0.09 + i) * 0.1) * fade;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.arc(fx, fy, flareSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.restore();
 } 
 // 判定回数リザルト左下表示
 function drawJudgeCountsResult() {
