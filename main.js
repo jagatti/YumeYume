@@ -517,7 +517,7 @@ saveScoreBtn.style.cursor = 'pointer';
 saveScoreBtn.style.display = 'none';
 
 saveScoreBtn.onclick = async () => {
-  const name = prompt('名前を入力してください（10文字まで）');
+  const name = prompt('名前を入力してください（10文字まで）\n\n※ ランキングは3曲の平均スコアで集計されます。\n※ 毎回同じ名前で送信してください。\n　 名前が異なるとランキング集計の対象外になります。');
   if (!name) return;
   try {
     const res = await submitScore(name, score, lastGameSeed, currentSong.id);
