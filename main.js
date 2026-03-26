@@ -517,7 +517,7 @@ saveScoreBtn.style.cursor = 'pointer';
 saveScoreBtn.style.display = 'none';
 
 saveScoreBtn.onclick = async () => {
-  const name = prompt('名前を入力してください（10文字まで）');
+  const name = prompt('名前を入力してください（10文字まで）\n\n※ ランキングは3曲の平均スコアで集計されます。\n※ 毎回同じ名前で送信してください。\n　 名前が異なるとランキング集計の対象外になります。');
   if (!name) return;
   try {
     const res = await submitScore(name, score, lastGameSeed, currentSong.id);
@@ -997,7 +997,6 @@ function calcTapScoreAndLabel(dist, baseRaw){
   let points=Math.floor(baseRaw*mult);
   if(seededRandom()<0.3){ points=Math.floor(points*1.5); label='CRITICAL'; }
   if(spBoostTimer>0) points=Math.floor(points*1.1);
-  points=Math.min(50000, points);
   const reset = (label==='NICE' || label==='BAD');
   return {points,label,reset};
 }
@@ -1848,13 +1847,13 @@ function drawACMissionNotice(){
   const [r, g, b] = baseColor;
   const grad = ctx.createLinearGradient(x, y, x + w, y);
   grad.addColorStop(0,              `rgba(${r},${g},${b},0)`);
-  grad.addColorStop(fadeEdge / w,   `rgba(${r},${g},${b},0.55)`);
-  grad.addColorStop(1 - fadeEdge / w, `rgba(${r},${g},${b},0.55)`);
+  grad.addColorStop(fadeEdge / w,   `rgba(${r},${g},${b},0.45)`);
+  grad.addColorStop(1 - fadeEdge / w, `rgba(${r},${g},${b},0.45)`);
   grad.addColorStop(1,              `rgba(${r},${g},${b},0)`);
 
   ctx.fillStyle = grad;
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, h / 2);
+  ctx.roundRect(x, y, w, h, 6);
   ctx.fill();
 
   // 枠線（両端フェード）
