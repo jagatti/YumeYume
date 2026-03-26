@@ -98,7 +98,7 @@ const TUTORIAL_PAGES = [
   {
     title: '🎵 基本ルール',
     body: `画面に流れてくる「ノーツ」を<br>タイミングよくタップして<br>スコアを稼ごう！<br><br>
-           判定は良い順に<br><b>CRITICAL → WONDERFUL → GREAT → NICE → BAD → MISS</b><br><br>
+           スコアは良い順に<br><b>CRITICAL → WONDERFUL → GREAT → NICE → BAD → MISS</b><br><br>
            コンボが続くほど獲得スコアがアップ！`
   },
   {
@@ -142,7 +142,7 @@ const TUTORIAL_PAGES = [
            ② SPゲージが溜まったらすかさず発動！<br>
            ③ スタミナに気をつけて作戦を切り替える<br>
            ④ ACミッションを全クリアしてハイスコアを狙え！<br><br>
-           <b>さあ、フルコンボを目指してみよう！</b>`
+           <b>さあ、ランキング上位を目指してみよう！</b>`
   }
 ];
 let tutorialPage = 0;
@@ -1040,11 +1040,11 @@ function awardHit(target, points, label, resetCombo, baseRaw, chartIdx){
         skillHistory.unshift({text:`[アピール増加 12%]`, life:180});
       }
     } else {
-      // --- 青作戦（ヒーラー）特技 ---
+      // --- 緑作戦（ヒーラー）特技 ---
       if (skillType === 0) {
         if (stamina > 0) {
-          stamina = Math.min(STAMINA_MAX, stamina + 2000);
-          skillHistory.unshift({text: '[スタミナ回復 2000]', life: 180});
+          stamina = Math.min(STAMINA_MAX, stamina + 3000);
+          skillHistory.unshift({text: '[スタミナ回復 3000]', life: 180});
         }
       } else if (skillType === 1) {
         damageReduceNotes += 3;
@@ -1252,7 +1252,7 @@ function handlePointer(e){
       strategyChangeCooldown = STRATEGY_CHANGE_NOTES;
       notesProcessedSinceSwitch = 0;
       strategyBadgeOffsetX = -300; // バッジを左画面外から登場させる
-      const strategyName = currentStrategy === "red" ? "赤作戦（アタッカー）" : "青作戦（ヒーラー）";
+      const strategyName = currentStrategy === "red" ? "赤作戦（アタッカー）" : "緑作戦（ヒーラー）";
       skillHistory.unshift({text: `[${strategyName}に切り替え]`, life: 180});
       if (skillHistory.length > 5) skillHistory.pop();
       updateACOnStrategyChange(getAccurateBgmTime());
@@ -1364,7 +1364,7 @@ window.addEventListener('keydown', e => {
       strategyChangeCooldown = STRATEGY_CHANGE_NOTES;
       notesProcessedSinceSwitch = 0;
       strategyBadgeOffsetX = -300;
-      const strategyName = currentStrategy === 'red' ? '赤作戦（アタッカー）' : '青作戦（ヒーラー）';
+      const strategyName = currentStrategy === 'red' ? '赤作戦（アタッカー）' : '緑作戦（ヒーラー）';
       skillHistory.unshift({text: `[${strategyName}に切り替え]`, life: 180});
       if(skillHistory.length > 5) skillHistory.pop();
       updateACOnStrategyChange(getAccurateBgmTime());
@@ -1879,12 +1879,12 @@ function drawACMissionNotice(){
   if (ac.cleared) {
     text = "ミッションクリア！";
   } else if (ac.type === "score") {
-    text = `AC: ${ac.desc}（${(ac.progress|0).toLocaleString('ja-JP')}/${ac.target.toLocaleString('ja-JP')}）`;
+    text = ` ${ac.desc}（${(ac.progress|0).toLocaleString('ja-JP')}/${ac.target.toLocaleString('ja-JP')}）`;
   } else if (ac.type === "stamina") {
     const pct = Math.floor(stamina / STAMINA_MAX * 100);
-    text = `AC: ${ac.desc}（現在${pct}%）`;
+    text = ` ${ac.desc}（現在${pct}%）`;
   } else {
-    text = `AC: ${ac.desc}（${ac.progress|0}/${ac.target}）`;
+    text = ` ${ac.desc}（${ac.progress|0}/${ac.target}）`;
   }
 
   ctx.shadowColor = "rgba(0,0,0,0.7)";
