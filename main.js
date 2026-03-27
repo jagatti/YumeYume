@@ -516,6 +516,33 @@ saveScoreBtn.style.borderRadius = '6px';
 saveScoreBtn.style.cursor = 'pointer';
 saveScoreBtn.style.display = 'none';
 
+let scoreSubmitNotice = document.getElementById('scoreSubmitNotice');
+if (!scoreSubmitNotice) {
+  scoreSubmitNotice = document.createElement('div');
+  scoreSubmitNotice.id = 'scoreSubmitNotice';
+  document.body.appendChild(scoreSubmitNotice);
+}
+scoreSubmitNotice.append(
+  '⚠ ランキングは3曲の平均スコアで集計されます。',
+  document.createElement('br'),
+  '同じ名前で送信してください。',
+  document.createElement('br'),
+  '名前が異なるとランキング集計の対象外になります。'
+);
+scoreSubmitNotice.style.position = 'absolute';
+scoreSubmitNotice.style.right = '20px';
+scoreSubmitNotice.style.top = 'calc(50% + 30px)';
+scoreSubmitNotice.style.fontSize = '12px';
+scoreSubmitNotice.style.color = '#ffd700';
+scoreSubmitNotice.style.textAlign = 'right';
+scoreSubmitNotice.style.lineHeight = '1.6';
+scoreSubmitNotice.style.backgroundColor = 'rgba(0,0,0,0.6)';
+scoreSubmitNotice.style.padding = '6px 10px';
+scoreSubmitNotice.style.borderRadius = '6px';
+scoreSubmitNotice.style.maxWidth = '220px';
+scoreSubmitNotice.style.pointerEvents = 'none';
+scoreSubmitNotice.style.display = 'none';
+
 saveScoreBtn.onclick = async () => {
   const name = prompt('名前を入力してください（10文字まで）\n\n※ ランキングは3曲の平均スコアで集計されます。\n※ 毎回同じ名前で送信してください。\n　 名前が異なるとランキング集計の対象外になります。');
   if (!name) return;
@@ -721,6 +748,7 @@ function resizeCanvas(){
     creditsBtn.style.display = 'none';
     saveScoreBtn.style.display = 'none';
     settingsBtn.style.display = 'none';
+    scoreSubmitNotice.style.display = 'none';
     return;
   }
   rotateMsg.style.display='none';
@@ -730,6 +758,7 @@ function resizeCanvas(){
   tutorialBtn.style.display = (gameState === "init") ? 'block' : 'none';
   creditsBtn.style.display = (gameState === "init") ? 'block' : 'none';
   saveScoreBtn.style.display = (gameState === "result") ? 'block' : 'none';
+  scoreSubmitNotice.style.display = (gameState === "result") ? 'block' : 'none';
   // 設定ボタンはタイトル画面のみ表示
   settingsBtn.style.display = (gameState === "init") ? 'block' : 'none';
   startBtn.style.display = (gameState === "init" || gameState === "songSelect") ? 'block' : 'none';
